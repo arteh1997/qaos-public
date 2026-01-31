@@ -1,0 +1,659 @@
+<body class="__variable_f367f3 min-h-screen bg-black dark:bg-black [transition:color_0.2s] text-[var(--white)] dark:text-[var(--white)] antialiased entry-content" data-rm-theme="light" style="overflow: hidden;" lang="en"><noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TP5CBR63" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1211999870417222&amp;ev=PageView&amp;noscript=1" alt=""/></noscript><noscript><img height="1" width="1" style="display:none" src="https://analytics.twitter.com/i/adsct?txn_id=REPLACE_WITH_YOUR_PIXEL_ID&amp;p_id=Twitter&amp;tw_sale_amount=0&amp;tw_order_quantity=0" alt=""/></noscript><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Aniqui","alternateName":["Aniq-UI","انيق يو اي","Aniq UI","Aniqui","انيق","aniq"],"url":"https://www.aniq-ui.com","logo":"https://www.aniq-ui.com/logo.png","sameAs":["https://twitter.com/aniq_ui","https://github.com/aniq-ui"],"description":"Premium Next js templates and components for modern web applications by Aniqui (انيق يو اي)","knowsAbout":["Next js","React","tailwindcss templates","Web Development","Aniqui templates","Aniqui","aniq","انيق","انيق يو اي"]}</script><style>
+:root {
+  --bprogress-color: var(--progress-bar-color);
+  --bprogress-height: var(--progress-bar-height);
+  --bprogress-spinner-size: 18px;
+  --bprogress-spinner-animation-duration: 400ms;
+  --bprogress-spinner-border-size: 2px;
+  --bprogress-box-shadow: 0 0 10px var(--progress-bar-color), 0 0 5px var(--progress-bar-color);
+  --bprogress-z-index: 99999;
+  --bprogress-spinner-top: 15px;
+  --bprogress-spinner-bottom: auto;
+  --bprogress-spinner-right: 15px;
+  --bprogress-spinner-left: auto;
+}
+
+.bprogress {
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: var(--bprogress-z-index);
+}
+
+.bprogress .bar {
+  background: var(--bprogress-color);
+  position: fixed;
+  z-index: var(--bprogress-z-index);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--bprogress-height);
+}
+
+/* Fancy blur effect */
+.bprogress .peg {
+  display: block;
+  position: absolute;
+  right: 0;
+  width: 100px;
+  height: 100%;
+  box-shadow: var(--bprogress-box-shadow);
+  opacity: 1.0;
+  transform: rotate(3deg) translate(0px, -4px);
+}
+
+/* Remove these to get rid of the spinner */
+.bprogress .spinner {
+  display: block;
+  position: fixed;
+  z-index: var(--bprogress-z-index);
+  top: var(--bprogress-spinner-top);
+  bottom: var(--bprogress-spinner-bottom);
+  right: var(--bprogress-spinner-right);
+  left: var(--bprogress-spinner-left);
+}
+
+.bprogress .spinner-icon {
+  width: var(--bprogress-spinner-size);
+  height: var(--bprogress-spinner-size);
+  box-sizing: border-box;
+  border: solid var(--bprogress-spinner-border-size) transparent;
+  border-top-color: var(--bprogress-color);
+  border-left-color: var(--bprogress-color);
+  border-radius: 50%;
+  -webkit-animation: bprogress-spinner var(--bprogress-spinner-animation-duration) linear infinite;
+  animation: bprogress-spinner var(--bprogress-spinner-animation-duration) linear infinite;
+}
+
+.bprogress-custom-parent {
+  overflow: hidden;
+  position: relative;
+}
+
+.bprogress-custom-parent .bprogress .spinner,
+.bprogress-custom-parent .bprogress .bar {
+  position: absolute;
+}
+
+.bprogress .indeterminate {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--bprogress-height);
+  overflow: hidden;
+}
+
+.bprogress .indeterminate .inc,
+.bprogress .indeterminate .dec {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: var(--bprogress-color);
+}
+
+.bprogress .indeterminate .inc {
+  animation: bprogress-indeterminate-increase 2s infinite;
+}
+
+.bprogress .indeterminate .dec {
+  animation: bprogress-indeterminate-decrease 2s 0.5s infinite;
+}
+
+@-webkit-keyframes bprogress-spinner {
+  0%   { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
+
+@keyframes bprogress-spinner {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes bprogress-indeterminate-increase {
+  from { left: -5%; width: 5%; }
+  to { left: 130%; width: 100%; }
+}
+
+@keyframes bprogress-indeterminate-decrease {
+  from { left: -80%; width: 80%; }
+  to { left: 110%; width: 10%; }
+}
+</style><div class="flex w-full min-h-screen flex-col overflow-hidden"><header class="fixed start-0 z-[9999998] flex justify-center w-full border-b-[1px] border-b-[rgba(255,255,255,0.15)]"><div class="max-w-[1360px] w-full max-w-[1360px]"><nav style="box-shadow:0 1px 3px rgb(0 0 0 / 0.15), 0 0px 0px 1px rgb(255 255 255 / 0.05)" class="w-full z-50 dark:bg-[rgb(0,0,0)]"><div class="flex items-center justify-between mx-auto max-w-[1300px] px-3 md:px-4 lg:px-6 py-2.5"><div class="flex items-center min-[1100px]:min-w-[306px]" style="gap:0.5rem"><a class="block" tabindex="-1" aria-label="Go to home" href="/"><div class="relative"><img alt="Logo" width="100" height="37" decoding="async" data-nimg="1" class="w-[89px] h-auto" style="color:transparent" srcset="/_next/image?url=%2Faniq-ui.webp&amp;w=128&amp;q=75 1x, /_next/image?url=%2Faniq-ui.webp&amp;w=256&amp;q=75 2x" src="/_next/image?url=%2Faniq-ui.webp&amp;w=256&amp;q=75"></div></a></div><div class="hidden md:flex md:flex-1 md:justify-center"><div class="relative inline-flex"><div class="flex text-sm font-medium relative z-10 items-center justify-center" style="gap:0.25rem"><a class="relative px-2 md:px-2.5 lg:px-3 min-w-[70px] py-1.5 rounded-full cursor-pointer z-10 whitespace-nowrap text-sm text-center text-neutral-600 dark:text-neutral-300" href="/en"><span class="relative z-20">Home</span></a><a class="relative px-2 md:px-2.5 lg:px-3 min-w-[70px] py-1.5 rounded-full cursor-pointer z-10 whitespace-nowrap text-sm text-center text-neutral-600 dark:text-neutral-300" href="/en/templates"><span class="relative z-20">Templates</span></a><a class="relative px-2 md:px-2.5 lg:px-3 min-w-[70px] py-1.5 rounded-full cursor-pointer z-10 whitespace-nowrap text-sm text-center text-neutral-600 dark:text-neutral-300" href="/en/blog"><span class="relative z-20">Blog</span></a><a class="relative px-2 md:px-2.5 lg:px-3 min-w-[70px] py-1.5 rounded-full cursor-pointer z-10 whitespace-nowrap text-sm text-center text-neutral-600 dark:text-neutral-300" href="/en/about"><span class="relative z-20">About</span></a></div></div></div><div class="flex items-center justify-end min-[1100px]:min-w-[306px]" style="gap:0.75rem"><div class="hidden md:flex items-center" style="gap:0.5rem"><div class="flex items-center gap-1 me-4"><a href="https://x.com/mohamed_djoudir" target="_blank" rel="noopener noreferrer" class="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors" aria-label="Follow on X (Twitter)"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-brand-x w-4 h-4 text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white"><path d="M4 4l11.733 16h4.267l-11.733 -16l-4.267 0"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg></a><a href="https://github.com/MohamedDjoudir" target="_blank" rel="noopener noreferrer" class="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors hidden min-[940px]:block" aria-label="Follow on GitHub"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-brand-github w-4 h-4 text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"></path></svg></a><a href="https://www.linkedin.com/in/mohamed-djoudir/" target="_blank" rel="noopener noreferrer" class="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors hidden min-[940px]:block" aria-label="Follow on LinkedIn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-brand-linkedin w-4 h-4 text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white"><path d="M8 11v5"></path><path d="M8 8v.01"></path><path d="M12 16v-5"></path><path d="M16 16v-3a2 2 0 1 0 -4 0"></path><path d="M3 7a4 4 0 0 1 4 -4h10a4 4 0 0 1 4 4v10a4 4 0 0 1 -4 4h-10a4 4 0 0 1 -4 -4l0 -10"></path></svg></a></div><div class="relative"><button class="flex items-center  cursor-pointer px-2 py-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-sm" aria-expanded="false" aria-haspopup="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 513 342" class="w-5 h-4 me-1.5 rounded-sm"><path fill="#FFF" d="M0 0h513v342H0z"></path><path d="M0 0h513v26.3H0zm0 52.6h513v26.3H0zm0 52.6h513v26.3H0zm0 52.6h513v26.3H0zm0 52.7h513v26.3H0zm0 52.6h513v26.3H0zm0 52.6h513V342H0z" fill="#D80027"></path><path fill="#2E52B2" d="M0 0h256.5v184.1H0z"></path><path d="m47.8 138.9-4-12.8-4.4 12.8H26.2l10.7 7.7-4 12.8 10.9-7.9 10.6 7.9-4.1-12.8 10.9-7.7zm56.3 0-4.1-12.8-4.2 12.8H82.6l10.7 7.7-4 12.8 10.7-7.9 10.8 7.9-4-12.8 10.7-7.7zm56.5 0-4.3-12.8-4 12.8h-13.5l11 7.7-4.2 12.8 10.7-7.9 11 7.9-4.2-12.8 10.7-7.7zm56.2 0-4-12.8-4.2 12.8h-13.3l10.8 7.7-4 12.8 10.7-7.9 10.8 7.9-4.3-12.8 11-7.7zM100 75.3l-4.2 12.8H82.6L93.3 96l-4 12.6 10.7-7.8 10.8 7.8-4-12.6 10.7-7.9h-13.4zm-56.2 0-4.4 12.8H26.2L36.9 96l-4 12.6 10.9-7.8 10.6 7.8L50.3 96l10.9-7.9H47.8zm112.5 0-4 12.8h-13.5l11 7.9-4.2 12.6 10.7-7.8 11 7.8-4.2-12.6 10.7-7.9h-13.2zm56.5 0-4.2 12.8h-13.3l10.8 7.9-4 12.6 10.7-7.8 10.8 7.8-4.3-12.6 11-7.9h-13.5zm-169-50.6-4.4 12.6H26.2l10.7 7.9-4 12.7L43.8 50l10.6 7.9-4.1-12.7 10.9-7.9H47.8zm56.2 0-4.2 12.6H82.6l10.7 7.9-4 12.7L100 50l10.8 7.9-4-12.7 10.7-7.9h-13.4zm56.3 0-4 12.6h-13.5l11 7.9-4.2 12.7 10.7-7.9 11 7.9-4.2-12.7 10.7-7.9h-13.2zm56.5 0-4.2 12.6h-13.3l10.8 7.9-4 12.7 10.7-7.9 10.8 7.9-4.3-12.7 11-7.9h-13.5z" fill="#FFF"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-chevron-down w-3 h-3 transition-transform"><path d="M6 9l6 6l6 -6"></path></svg></button></div><div class="relative me-3"><button class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all overflow-hidden rounded-full disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer bg-transparent hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-neutral-800/50 dark:hover:text-gray-50 relative p-0 h-8 w-8" aria-label="Open cart"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-shopping-cart "><path d="M4 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M15 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M17 17h-11v-14h-2"></path><path d="M6 5l14 1l-1 7h-13"></path></svg></button></div><a href="https://my.aniq-ui.com" target="_blank" rel="noopener noreferrer" class="bg-black min-w-24 text-center whitespace-nowrap dark:bg-[var(--white)] hover:opacity-90 text-[var(--white)] dark:text-black text-sm font-medium py-2 rounded-full transition-opacity cursor-pointer" style="padding-inline-start:0.75rem;padding-inline-end:1rem"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-login w-4 h-4 me-1 inline-block rotate-180 rtl:rotate-0"><path d="M15 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"></path><path d="M21 12h-13l3 -3"></path><path d="M11 15l-3 -3"></path></svg>Login</a></div><div class="md:hidden"><div class="relative"><button class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all overflow-hidden rounded-full disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer bg-transparent hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-neutral-800/50 dark:hover:text-gray-50 relative p-0 h-8 w-8" aria-label="Open cart"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-shopping-cart "><path d="M4 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M15 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M17 17h-11v-14h-2"></path><path d="M6 5l14 1l-1 7h-13"></path></svg></button></div></div><button class="md:hidden p-2 hover:opacity-70 transition-opacity" aria-label="Open menu"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button></div></div></nav></div></header><div class="fixed right-4 bottom-4 z-50 max-w-[calc(100vw-2rem)] sm:max-w-none max-h-[calc(100vh-5rem)] transition-all duration-300 ease-out opacity-100 translate-y-0" dir="ltr"><button class="group relative bg-white/95 dark:bg-neutral-800/95 backdrop-blur-lg border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white px-2 sm:px-2 py-2 sm:py-1 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"><div class="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden border border-neutral-300 dark:border-neutral-600"><img alt="Mohamed Djoudir" loading="lazy" decoding="async" data-nimg="fill" class="object-cover" style="position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent" sizes="100vw" srcset="/_next/image?url=%2Fimages%2Favatar%2F1.jpg&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fimages%2Favatar%2F1.jpg&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fimages%2Favatar%2F1.jpg&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fimages%2Favatar%2F1.jpg&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fimages%2Favatar%2F1.jpg&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fimages%2Favatar%2F1.jpg&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fimages%2Favatar%2F1.jpg&amp;w=2048&amp;q=75 2048w" src="/_next/image?url=%2Fimages%2Favatar%2F1.jpg&amp;w=2048&amp;q=75"></div><span class="font-medium text-xs sm:text-sm">Need Help?</span><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-headset text-neutral-600 dark:text-neutral-400"><path d="M4 14v-3a8 8 0 1 1 16 0v3"></path><path d="M18 19c0 1.657 -2.686 3 -6 3"></path><path d="M4 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3"></path><path d="M15 14a2 2 0 0 1 2 -2h1a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h-1a2 2 0 0 1 -2 -2v-3"></path></svg></button></div><main class="relative flex-1 py-8 mx-auto max-w-[1360px] w-full "><div class="pointer-events-none " style="position:absolute;top:0;bottom:0;left:0;border-color:var(--pattern-fg, rgba(255, 255, 255, 0.1));background-image:repeating-linear-gradient(315deg, var(--pattern-fg, rgba(255, 255, 255, 0.1)) 0, var(--pattern-fg, rgba(255, 255, 255, 0.1)) 1px, transparent 0, transparent 50%);background-size:10px 10px;width:56px;height:100%;z-index:-1;transform:translateX(-56px);border-right:1px solid var(--pattern-fg, rgba(255, 255, 255, 0.1))"></div><div class="pointer-events-none " style="position:absolute;top:0;bottom:0;right:0;border-color:var(--pattern-fg, rgba(255, 255, 255, 0.1));background-image:repeating-linear-gradient(315deg, var(--pattern-fg, rgba(255, 255, 255, 0.1)) 0, var(--pattern-fg, rgba(255, 255, 255, 0.1)) 1px, transparent 0, transparent 50%);background-size:10px 10px;width:56px;height:100%;z-index:-1;transform:translateX(56px);border-left:1px solid  var(--pattern-fg, rgba(255, 255, 255, 0.1))"></div><section id="contact" class="py-12 sm:py-16 md:py-24 relative w-full px-4 sm:px-6"><div class="absolute inset-0 z-0 md:hidden"><div class="absolute inset-0 bg-black rounded-lg rounded-none"><img src="/images/world-map.svg" class="object-cover h-full w-full scale-125 opacity-40 pointer-events-none select-none" alt="world map" height="495" width="1056" draggable="false"><svg viewBox="0 0 800 400" class="w-full h-full absolute inset-0 pointer-events-none select-none" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="point-gradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3b82f6" stop-opacity="1"></stop><stop offset="100%" stop-color="#3b82f6" stop-opacity="0.5"></stop></linearGradient></defs><g><circle cx="72.23622222222225" cy="30.66488888888889" r="2" fill="#3b82f6"></circle><circle cx="72.23622222222225" cy="30.66488888888889" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="141.68066666666667" cy="130.99511111111113" r="2" fill="#3b82f6"></circle><circle cx="141.68066666666667" cy="130.99511111111113" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="298.01800000000003" cy="252.88333333333335" r="2" fill="#3b82f6"></circle><circle cx="298.01800000000003" cy="252.88333333333335" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="576.02" cy="154.19133333333335" r="2" fill="#3b82f6"></circle><circle cx="576.02" cy="154.19133333333335" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="697.5806666666666" cy="121.92622222222222" r="2" fill="#3b82f6"></circle><circle cx="697.5806666666666" cy="121.92622222222222" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="486.2708888888889" cy="220.6491111111113" r="2" fill="#3b82f6"></circle><circle cx="486.2708888888889" cy="220.6491111111113" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="408.6406666666667" cy="114.21466666666667" r="2" fill="#3b82f6"></circle><circle cx="408.6406666666667" cy="114.21466666666667" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="408.132444444445" cy="155.4802222222222" r="2" fill="#3b82f6"></circle><circle cx="408.132444444445" cy="155.4802222222222" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g></svg></div></div><div class="relative z-10"><div class="text-center mb-8 sm:mb-12"><h2 class="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 text-[var(--white)]">Global User Community</h2><p class="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto">Join thousands of developers worldwide who trust Aniq-UI for their projects. Our templates are being used across the globe to create stunning web experiences.</p></div><div class="flex flex-wrap justify-center gap-4 mb-8"><a class="text-sm md:text-base font-medium text-blue-400 hover:text-blue-300 transition-colors px-3 py-2 rounded-md hover:underline flex items-center" href="/en"><svg class="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>Home</a><a class="text-sm md:text-base font-medium text-blue-400 hover:text-blue-300 transition-colors px-3 py-2 rounded-md hover:underline flex items-center" href="/en/templates"><svg class="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>Templates</a><a class="text-sm md:text-base font-medium text-blue-400 hover:text-blue-300 transition-colors px-3 py-2 rounded-md hover:underline flex items-center" href="/en/blog"><svg class="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>Blog</a></div><div class="relative mx-auto max-w-7xl z-20 w-full"><div class="flex justify-center mb-8 md:mb-0  md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:z-20"><div class="bg-black/2 backdrop-blur-xs shadow-xl rounded-[16px] border border-zinc-600 p-3 sm:p-4 md:p-6 w-full max-w-md mx-auto md:mx-0 relative overflow-hidden"><div class="mb-3 sm:mb-4 select-none"><h3 class="text-lg sm:text-xl font-light tracking-wide text-[var(--white)] uppercase"><span class="font-bold">Contact Us</span></h3><p class="text-sm text-zinc-200 mt-1">Need custom work or reskin? Get in touch with us</p></div><form class="flex flex-col gap-3 pt-4"><div><label for="name" class="block text-xs uppercase tracking-wider text-zinc-200 mb-1 font-medium select-none">Full Name</label><div class="relative"><input id="name" type="text" class="w-full px-3 py-2 text-sm border rounded-md bg-zinc-900 text-[var(--white)] placeholder:text-zinc-600 focus:outline-hidden focus:ring-1 focus:ring-[var(--white)] transition-all duration-200 border-zinc-800" placeholder="John Doe" name="name"></div></div><div><label for="email" class="block text-xs uppercase tracking-wider text-zinc-200 mb-1 font-medium select-none">Email Address</label><div class="relative"><input id="email" type="email" class="w-full px-3 py-2 text-sm border rounded-md bg-zinc-900 text-[var(--white)] placeholder:text-zinc-600 focus:outline-hidden focus:ring-1 focus:ring-[var(--white)] transition-all duration-200 border-zinc-800" placeholder="your@email.com" name="email"></div></div><div><label for="message" class="block text-xs uppercase tracking-wider text-zinc-200 mb-1 font-medium select-none">Message</label><div class="relative"><textarea id="message" rows="4" name="message" class="w-full px-3 py-2 text-sm border rounded-md bg-zinc-900 text-[var(--white)] placeholder:text-zinc-600 focus:outline-hidden focus:ring-1 focus:ring-[var(--white)] transition-all duration-200 resize-y min-h-[100px] max-h-[300px] border-zinc-800" placeholder="Tell us about your project requirements, custom work needs, or reskin requests..."></textarea></div></div><div class="pt-3"><button class="inline-flex items-center justify-center whitespace-nowrap transition-all overflow-hidden rounded-full disabled:pointer-events-none disabled:opacity-50 relative select-none cursor-pointer bg-black text-[var(--white)] hover:bg-gray-900 dark:bg-[var(--white)] dark:text-black dark:hover:bg-gray-200 h-10 px-4 py-2 w-full text-sm font-medium tracking-wide" type="submit">SEND MESSAGE</button></div></form></div></div><div class="relative h-[50px] md:h-[700px]"><div class="hidden md:block"><div class="w-full aspect-2/1 bg-black rounded-lg "><img src="/images/world-map.svg" class="h-full w-full pointer-events-none select-none" alt="world map" height="495" width="1056" draggable="false"><svg viewBox="0 0 800 400" class="w-full h-full absolute inset-0 pointer-events-none select-none" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="point-gradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3b82f6" stop-opacity="1"></stop><stop offset="100%" stop-color="#3b82f6" stop-opacity="0.5"></stop></linearGradient></defs><g><circle cx="72.23622222222225" cy="30.66488888888889" r="2" fill="#3b82f6"></circle><circle cx="72.23622222222225" cy="30.66488888888889" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="141.68066666666667" cy="130.99511111111113" r="2" fill="#3b82f6"></circle><circle cx="141.68066666666667" cy="130.99511111111113" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="298.01800000000003" cy="252.88333333333335" r="2" fill="#3b82f6"></circle><circle cx="298.01800000000003" cy="252.88333333333335" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="576.02" cy="154.19133333333335" r="2" fill="#3b82f6"></circle><circle cx="576.02" cy="154.19133333333335" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="697.5806666666666" cy="121.92622222222222" r="2" fill="#3b82f6"></circle><circle cx="697.5806666666666" cy="121.92622222222222" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="486.2708888888889" cy="220.6491111111113" r="2" fill="#3b82f6"></circle><circle cx="486.2708888888889" cy="220.6491111111113" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="408.6406666666667" cy="114.21466666666667" r="2" fill="#3b82f6"></circle><circle cx="408.6406666666667" cy="114.21466666666667" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g><g><circle cx="408.132444444445" cy="155.4802222222222" r="2" fill="#3b82f6"></circle><circle cx="408.132444444445" cy="155.4802222222222" r="8" fill="#3b82f6" opacity="0.2"><animate attributeName="r" from="2" to="8" dur="1.5s" begin="0s" repeatCount="indefinite"></animate><animate attributeName="opacity" from="0.5" to="0" dur="1.5s" begin="0s" repeatCount="indefinite"></animate></circle></g></svg></div></div><div class="absolute w-full h-[150px] md:h-[250px] translate-y-[55%] bottom-0"><svg width="100%" height="100%" viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg" class="select-none"><defs><linearGradient id="textGradient" gradientUnits="userSpaceOnUse" cx="50%" cy="50%" r="25%"></linearGradient><radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="20%" cx="50%" cy="50%"><stop offset="0%" stop-color="white"></stop><stop offset="100%" stop-color="black"></stop></radialGradient><mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)"></rect></mask></defs><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" stroke-width="0.3" class="fill-transparent font-[helvetica] text-7xl font-bold" style="opacity:0;stroke:#6b7280">Aniq-ui</text><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" stroke-width="0.3" class="fill-transparent font-[helvetica] text-7xl font-bold" style="stroke:#6b7280" stroke-dashoffset="0" stroke-dasharray="1500">Aniq-ui</text><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" stroke="url(#textGradient)" stroke-width="0.3" mask="url(#textMask)" class="fill-transparent font-[helvetica] text-7xl font-bold">Aniq-ui</text></svg></div></div></div></div></section><div class="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-700 shadow-lg max-h-[80vh] overflow-y-auto" dir="ltr"><div class="max-w-6xl mx-auto p-3 sm:p-4"><div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 sm:gap-4"><div class="flex-1"><h3 class="text-base sm:text-lg font-medium text-white mb-1 sm:mb-2">Cookie Preferences</h3><p class="text-xs sm:text-sm text-gray-300">We use cookies to enhance your browsing experience, analyze site traffic, and personalize content. By clicking "Accept All", you consent to our use of cookies for analytics and personalized advertising.</p></div><div class="flex flex-row gap-2 justify-center sm:gap-3 w-full md:w-auto"><button class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-transparent hover:bg-gray-700 rounded flex-1 min-w-[100px] max-w-[max-content] whitespace-nowrap">Customize</button><button class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-gray-700 hover:bg-gray-600 rounded flex-1 min-w-[100px] max-w-[max-content] whitespace-nowrap">Reject</button><button class="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded flex-1 min-w-[100px] max-w-[max-content] whitespace-nowrap">Accept All</button></div></div></div></div></main><footer class="py-6 text-center z-[200] px-4"><div class="mb-3 text-sm text-gray-500">© <!-- -->2026<!-- --> Aniq-ui - Next.js UI Templates</div><div class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs sm:text-sm text-gray-400"><a class="hover:text-gray-300 transition-colors whitespace-nowrap" href="/privacy-policy">Privacy Policy</a><a class="hover:text-gray-300 transition-colors whitespace-nowrap" href="/cookie-policy">Cookie Policy</a><a class="hover:text-gray-300 transition-colors whitespace-nowrap" href="/terms-and-conditions">Terms &amp; Conditions</a><a class="hover:text-gray-300 transition-colors whitespace-nowrap" href="/return-policy">Return Policy</a></div></footer></div><script src="/_next/static/chunks/webpack-6da5759c6e78b96e.js" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0])</script><script>self.__next_f.push([1,"1:\"$Sreact.fragment\"\n2:I[87555,[],\"\"]\n3:I[31295,[],\"\"]\n4:I[6874,[\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"4345\",\"static/chunks/app/not-found-6b69d88680fca9c4.js\"],\"\"]\n6:I[90894,[],\"ClientPageRoot\"]\n7:I[56050,[\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd741231.js\",\"5993\",\"static/chunks/app/%5Blocale%5D/demo/page-9aef0eade79c6d2f.js\"],\"default\"]\na:I[59665,[],\"OutletBoundary\"]\nd:I[59665,[],\"ViewportBoundary\"]\nf:I[59665,[],\"MetadataBoundary\"]\n11:I[26614,[],\"\"]\n:HL[\"/_next/static/media/b261c59b2d76913d-s.p.woff2\",\"font\",{\"crossOrigin\":\"\",\"type\":\"font/woff2\"}]\n:HL[\"/_next/static/media/e4af272ccee01ff0-s.p.woff2\",\"font\",{\"crossOrigin\":\"\",\"type\":\"font/woff2\"}]\n:HL[\"/_next/static/css/f6992d4ce2c4ec86.css\",\"style\"]\n:HL[\"/_next/static/css/377bf15d323babd6.css\",\"style\"]\n"])</script><script>self.__next_f.push([1,"0:{\"P\":null,\"b\":\"f4WcypM7IV0dTcpoXkiG6\",\"p\":\"\",\"c\":[\"\",\"en\",\"demo\"],\"i\":false,\"f\":[[[\"\",{\"children\":[[\"locale\",\"en\",\"d\"],{\"children\":[\"demo\",{\"children\":[\"__PAGE__\",{}]}]}]},\"$undefined\",\"$undefined\",true],[\"\",[\"$\",\"$1\",\"c\",{\"children\":[null,[\"$\",\"$L2\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L3\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[\"$\",\"div\",null,{\"className\":\"min-h-screen bg-gradient-to-br from-neutral-900 to-black flex items-center justify-center px-4\",\"children\":[\"$\",\"div\",null,{\"className\":\"max-w-2xl mx-auto text-center\",\"children\":[[\"$\",\"div\",null,{\"className\":\"mb-8\",\"children\":[\"$\",\"h1\",null,{\"className\":\"text-8xl md:text-9xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent leading-none\",\"children\":\"404\"}]}],[\"$\",\"h2\",null,{\"className\":\"text-3xl md:text-4xl font-bold text-white mb-4\",\"children\":\"Oops! Page not found\"}],[\"$\",\"p\",null,{\"className\":\"text-lg text-neutral-300 mb-8 max-w-md mx-auto\",\"children\":\"The page you're looking for doesn't exist. But don't worry – we have something better for you!\"}],[\"$\",\"div\",null,{\"className\":\"flex flex-col sm:flex-row gap-3 justify-center mb-8\",\"children\":[[\"$\",\"$L4\",null,{\"href\":\"/en/templates\",\"className\":\"inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 h-11 px-8\",\"children\":\"Browse Templates\"}],[\"$\",\"$L4\",null,{\"href\":\"/en\",\"className\":\"inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-neutral-600 bg-neutral-800 hover:bg-neutral-700 text-white h-11 px-8\",\"children\":\"Go Home\"}]]}],[\"$\",\"div\",null,{\"className\":\"border-t border-neutral-700 pt-6\",\"children\":[[\"$\",\"p\",null,{\"className\":\"text-sm text-neutral-400 mb-3\",\"children\":\"Popular categories:\"}],[\"$\",\"div\",null,{\"className\":\"flex flex-wrap justify-center gap-2\",\"children\":[[\"$\",\"$L4\",\"Dashboard\",{\"href\":\"/en/templates/category/dashboard-nextjs-admin-panel-templates\",\"className\":\"px-3 py-1 text-xs font-medium bg-neutral-800 hover:bg-blue-800 text-neutral-200 rounded-full transition-colors\",\"children\":\"Dashboard\"}],[\"$\",\"$L4\",\"Business\",{\"href\":\"/en/templates/category/business-nextjs-corporate-website-templates\",\"className\":\"px-3 py-1 text-xs font-medium bg-neutral-800 hover:bg-blue-800 text-neutral-200 rounded-full transition-colors\",\"children\":\"Business\"}],[\"$\",\"$L4\",\"Portfolio\",{\"href\":\"/en/templates/category/portfolio-nextjs-creative-showcase-templates\",\"className\":\"px-3 py-1 text-xs font-medium bg-neutral-800 hover:bg-blue-800 text-neutral-200 rounded-full transition-colors\",\"children\":\"Portfolio\"}],[\"$\",\"$L4\",\"Landing Page\",{\"href\":\"/en/templates/category/landing-page-nextjs-website-templates\",\"className\":\"px-3 py-1 text-xs font-medium bg-neutral-800 hover:bg-blue-800 text-neutral-200 rounded-full transition-colors\",\"children\":\"Landing Page\"}]]}]]}]]}]}],[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/f6992d4ce2c4ec86.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}]]],\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}]]}],{\"children\":[[\"locale\",\"en\",\"d\"],[\"$\",\"$1\",\"c\",{\"children\":[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/f6992d4ce2c4ec86.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}],[\"$\",\"link\",\"1\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/377bf15d323babd6.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}]],\"$L5\"]}],{\"children\":[\"demo\",[\"$\",\"$1\",\"c\",{\"children\":[null,[\"$\",\"$L2\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L3\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":\"$undefined\",\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}]]}],{\"children\":[\"__PAGE__\",[\"$\",\"$1\",\"c\",{\"children\":[[\"$\",\"$L6\",null,{\"Component\":\"$7\",\"searchParams\":{},\"params\":{\"locale\":\"en\"},\"promises\":[\"$@8\",\"$@9\"]}],\"$undefined\",null,[\"$\",\"$La\",null,{\"children\":[\"$Lb\",\"$Lc\",null]}]]}],{},null,false]},null,false]},null,false]},null,false],[\"$\",\"$1\",\"h\",{\"children\":[null,[\"$\",\"$1\",\"p44XLY7pGKh0IiPZw3kic\",{\"children\":[[\"$\",\"$Ld\",null,{\"children\":\"$Le\"}],[\"$\",\"meta\",null,{\"name\":\"next-size-adjust\",\"content\":\"\"}]]}],[\"$\",\"$Lf\",null,{\"children\":\"$L10\"}]]}],false]],\"m\":\"$undefined\",\"G\":[\"$11\",\"$undefined\"],\"s\":false,\"S\":true}\n"])</script><script>self.__next_f.push([1,"8:{}\n9:{\"locale\":\"en\"}\n"])</script><script>self.__next_f.push([1,"12:I[69243,[\"8465\",\"static/chunks/f4898fe8-9537da5966c2c49b.js\",\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd741231.js\",\"6766\",\"static/chunks/6766-f187e150cde51ebd.js\",\"5453\",\"static/chunks/5453-6f24eb0e16a2b48a.js\",\"4062\",\"static/chunks/4062-37045b6992ddba85.js\",\"2311\",\"static/chunks/2311-a97a87a7e12776c0.js\",\"6918\",\"static/chunks/6918-1c9ed8ff19181e19.js\",\"5658\",\"static/chunks/5658-fc56b8ccb1b60903.js\",\"99\",\"static/chunks/99-bedd73e1164e96f1.js\",\"152\",\"static/chunks/152-f4bfd87cc1b5c5b6.js\",\"8450\",\"static/chunks/app/%5Blocale%5D/layout-2c3fa84b983b9b6f.js\"],\"\"]\n13:T789,\n              // Initialize dataLayer\n              window.dataLayer = window.dataLayer || [];\n              \n              // Initialize consent mode with standard options\n              dataLayer.push(['consent', 'default', {\n                'analytics_storage': 'denied',\n                'ad_storage': 'denied',\n                'ad_user_data': 'denied',\n                'ad_personalization': 'denied',\n                'functionality_storage': 'granted',\n                'security_storage': 'granted', \n                'wait_for_update': 500\n              }]);\n              \n              // Simple function to update consent for all platforms\n              window.updateConsentState = function(preferences) {\n                dataLayer.push(['consent', 'update', {\n                  'analytics_storage': preferences.analytics ? 'granted' : 'denied',\n                  'ad_storage': preferences.advertising ? 'granted' : 'denied',\n                  'ad_user_data': preferences.advertising ? 'granted' : 'denied',\n                  'ad_personalization': preferences.advertising ? 'granted' : 'denied'\n                }]);\n\n                // Also push event for custom triggers\n                dataLayer.push({\n                  'event': 'update_consent',\n                  'consent_analytics': preferences.analytics ? 'granted' : 'denied',\n                  'consent_advertising':"])</script><script>self.__next_f.push([1," preferences.advertising ? 'granted' : 'denied'\n                });\n              };\n\n              // GTM container code\n              (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':\n              new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],\n              j=d.createElement(s),dl=l!='dataLayer'?'\u0026l='+l:'';j.async=true;j.src=\n              'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);\n              })(window,document,'script','dataLayer','GTM-TP5CBR63');\n            "])</script><script>self.__next_f.push([1,"5:[\"$\",\"html\",null,{\"lang\":\"en\",\"dir\":\"ltr\",\"suppressHydrationWarning\":true,\"className\":\"dark\",\"data-theme\":\"dark\",\"children\":[[\"$\",\"head\",null,{\"children\":[[\"$\",\"$L12\",null,{\"id\":\"gtm-script\",\"strategy\":\"beforeInteractive\",\"dangerouslySetInnerHTML\":{\"__html\":\"$13\"}}],[\"$\",\"$L12\",null,{\"id\":\"fb-pixel\",\"strategy\":\"afterInteractive\",\"dangerouslySetInnerHTML\":{\"__html\":\"\\n              !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?\\n              n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;\\n              n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;\\n              t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script',\\n              'https://connect.facebook.net/en_US/fbevents.js');\\n              fbq('init', '1211999870417222');\\n              fbq('track', 'PageView');\\n            \"}}],[\"$\",\"$L12\",null,{\"id\":\"x-pixel\",\"strategy\":\"afterInteractive\",\"dangerouslySetInnerHTML\":{\"__html\":\"\\n              !function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);\\n              },s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='https://static.ads-twitter.com/uwt.js',\\n              a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');\\n              twq('config','REPLACE_WITH_YOUR_PIXEL_ID');\\n            \"}}],[\"$\",\"link\",null,{\"rel\":\"icon\",\"href\":\"/favicon.svg\",\"type\":\"image/svg+xml\"}],[\"$\",\"link\",null,{\"rel\":\"apple-touch-icon\",\"href\":\"/apple-touch-icon.png\"}],[\"$\",\"link\",null,{\"rel\":\"manifest\",\"href\":\"/site.webmanifest\"}],[\"$\",\"meta\",null,{\"name\":\"framework\",\"content\":\"next.js\"}],[\"$\",\"meta\",null,{\"name\":\"technology\",\"content\":\"next.js, react, typescript, tailwind\"}],[\"$\",\"meta\",null,{\"name\":\"next-js-version\",\"content\":\"15\"}]]}],[\"$\",\"body\",null,{\"className\":\"__variable_f367f3 min-h-screen bg-black dark:bg-black [transition:color_0.2s] text-[var(--white)] dark:text-[var(--white)] antialiased\",\"children\":[[\"$\",\"noscript\",null,{\"children\":[\"$\",\"iframe\",null,{\"src\":\"https://www.googletagmanager.com/ns.html?id=GTM-TP5CBR63\",\"height\":\"0\",\"width\":\"0\",\"style\":{\"display\":\"none\",\"visibility\":\"hidden\"}}]}],[\"$\",\"noscript\",null,{\"children\":[\"$\",\"img\",null,{\"height\":\"1\",\"width\":\"1\",\"style\":{\"display\":\"none\"},\"src\":\"https://www.facebook.com/tr?id=1211999870417222\u0026ev=PageView\u0026noscript=1\",\"alt\":\"\"}]}],[\"$\",\"noscript\",null,{\"children\":[\"$\",\"img\",null,{\"height\":\"1\",\"width\":\"1\",\"style\":{\"display\":\"none\"},\"src\":\"https://analytics.twitter.com/i/adsct?txn_id=REPLACE_WITH_YOUR_PIXEL_ID\u0026p_id=Twitter\u0026tw_sale_amount=0\u0026tw_order_quantity=0\",\"alt\":\"\"}]}],[\"$\",\"script\",null,{\"type\":\"application/ld+json\",\"dangerouslySetInnerHTML\":{\"__html\":\"{\\\"@context\\\":\\\"https://schema.org\\\",\\\"@type\\\":\\\"Organization\\\",\\\"name\\\":\\\"Aniqui\\\",\\\"alternateName\\\":[\\\"Aniq-UI\\\",\\\"انيق يو اي\\\",\\\"Aniq UI\\\",\\\"Aniqui\\\",\\\"انيق\\\",\\\"aniq\\\"],\\\"url\\\":\\\"https://www.aniq-ui.com\\\",\\\"logo\\\":\\\"https://www.aniq-ui.com/logo.png\\\",\\\"sameAs\\\":[\\\"https://twitter.com/aniq_ui\\\",\\\"https://github.com/aniq-ui\\\"],\\\"description\\\":\\\"Premium Next js templates and components for modern web applications by Aniqui (انيق يو اي)\\\",\\\"knowsAbout\\\":[\\\"Next js\\\",\\\"React\\\",\\\"tailwindcss templates\\\",\\\"Web Development\\\",\\\"Aniqui templates\\\",\\\"Aniqui\\\",\\\"aniq\\\",\\\"انيق\\\",\\\"انيق يو اي\\\"]}\"}}],\"$L14\"]}]]}]\n"])</script><script>self.__next_f.push([1,"15:I[70790,[\"5592\",\"static/chunks/c15bf2b0-17cd5f0f35cda2bb.js\",\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd741231.js\",\"6766\",\"static/chunks/6766-f187e150cde51ebd.js\",\"5453\",\"static/chunks/5453-6f24eb0e16a2b48a.js\",\"4062\",\"static/chunks/4062-37045b6992ddba85.js\",\"9854\",\"static/chunks/9854-a5e6d641f42e21a7.js\",\"152\",\"static/chunks/152-f4bfd87cc1b5c5b6.js\",\"9136\",\"static/chunks/9136-1208af4bae053de1.js\",\"465\",\"static/chunks/app/%5Blocale%5D/page-50228d3003e7c023.js\"],\"default\"]\n16:I[20459,[\"8465\",\"static/chunks/f4898fe8-9537da5966c2c49b.js\",\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd741231.js\",\"6766\",\"static/chunks/6766-f187e150cde51ebd.js\",\"5453\",\"static/chunks/5453-6f24eb0e16a2b48a.js\",\"4062\",\"static/chunks/4062-37045b6992ddba85.js\",\"2311\",\"static/chunks/2311-a97a87a7e12776c0.js\",\"6918\",\"static/chunks/6918-1c9ed8ff19181e19.js\",\"5658\",\"static/chunks/5658-fc56b8ccb1b60903.js\",\"99\",\"static/chunks/99-bedd73e1164e96f1.js\",\"152\",\"static/chunks/152-f4bfd87cc1b5c5b6.js\",\"8450\",\"static/chunks/app/%5Blocale%5D/layout-2c3fa84b983b9b6f.js\"],\"default\"]\n17:I[84931,[\"8465\",\"static/chunks/f4898fe8-9537da5966c2c49b.js\",\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd741231.js\",\"6766\",\"static/chunks/6766-f187e150cde51ebd.js\",\"5453\",\"static/chunks/5453-6f24eb0e16a2b48a.js\",\"4062\",\"static/chunks/4062-37045b6992ddba85.js\",\"2311\",\"static/chunks/2311-a97a87a7e12776c0.js\",\"6918\",\"static/chunks/6918-1c9ed8ff19181e19.js\",\"5658\",\"static/chunks/5658-fc56b8ccb1b60903.js\",\"99\",\"static/chunks/99-bedd73e1164e96f1.js\",\"152\",\"static/chunks/152-f4bfd87cc1b5c5b6.js\",\"8450\",\"static/chunks/app/%5Blocale%5D/layout-2c3fa84b983b9b6f.js\"],\"default\"]\n18:I[30674,[\"8465\",\"static/chunks/f4898fe8-9537da5966c2c49b.js\",\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466"])</script><script>self.__next_f.push([1,"099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd741231.js\",\"6766\",\"static/chunks/6766-f187e150cde51ebd.js\",\"5453\",\"static/chunks/5453-6f24eb0e16a2b48a.js\",\"4062\",\"static/chunks/4062-37045b6992ddba85.js\",\"2311\",\"static/chunks/2311-a97a87a7e12776c0.js\",\"6918\",\"static/chunks/6918-1c9ed8ff19181e19.js\",\"5658\",\"static/chunks/5658-fc56b8ccb1b60903.js\",\"99\",\"static/chunks/99-bedd73e1164e96f1.js\",\"152\",\"static/chunks/152-f4bfd87cc1b5c5b6.js\",\"8450\",\"static/chunks/app/%5Blocale%5D/layout-2c3fa84b983b9b6f.js\"],\"default\"]\n19:I[16311,[\"8465\",\"static/chunks/f4898fe8-9537da5966c2c49b.js\",\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd741231.js\",\"6766\",\"static/chunks/6766-f187e150cde51ebd.js\",\"5453\",\"static/chunks/5453-6f24eb0e16a2b48a.js\",\"4062\",\"static/chunks/4062-37045b6992ddba85.js\",\"2311\",\"static/chunks/2311-a97a87a7e12776c0.js\",\"6918\",\"static/chunks/6918-1c9ed8ff19181e19.js\",\"5658\",\"static/chunks/5658-fc56b8ccb1b60903.js\",\"99\",\"static/chunks/99-bedd73e1164e96f1.js\",\"152\",\"static/chunks/152-f4bfd87cc1b5c5b6.js\",\"8450\",\"static/chunks/app/%5Blocale%5D/layout-2c3fa84b983b9b6f.js\"],\"default\"]\n1a:I[21399,[\"8465\",\"static/chunks/f4898fe8-9537da5966c2c49b.js\",\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd741231.js\",\"6766\",\"static/chunks/6766-f187e150cde51ebd.js\",\"5453\",\"static/chunks/5453-6f24eb0e16a2b48a.js\",\"4062\",\"static/chunks/4062-37045b6992ddba85.js\",\"2311\",\"static/chunks/2311-a97a87a7e12776c0.js\",\"6918\",\"static/chunks/6918-1c9ed8ff19181e19.js\",\"5658\",\"static/chunks/5658-fc56b8ccb1b60903.js\",\"99\",\"static/chunks/99-bedd73e1164e96f1.js\",\"152\",\"static/chunks/152-f4bfd87cc1b5c5b6.js\",\"8450\",\"static/chunks/app/%5Blocale%5D/layout-2c3fa84b983b9b6f.js\"],\"default\"]\n1b:I[53813,[\"8465\",\"static/chunks/f4898fe8-9537da5966c2c49b.js\",\"6210\",\"static/chunks/6210-76ed26dd6c5edf08.js\",\"6874\",\"static/chunks/6874-6f743e466099ec89.js\",\"9425\",\"static/chunks/9425-2bbd73c7fd7412"])</script><script>self.__next_f.push([1,"31.js\",\"6766\",\"static/chunks/6766-f187e150cde51ebd.js\",\"5453\",\"static/chunks/5453-6f24eb0e16a2b48a.js\",\"4062\",\"static/chunks/4062-37045b6992ddba85.js\",\"2311\",\"static/chunks/2311-a97a87a7e12776c0.js\",\"6918\",\"static/chunks/6918-1c9ed8ff19181e19.js\",\"5658\",\"static/chunks/5658-fc56b8ccb1b60903.js\",\"99\",\"static/chunks/99-bedd73e1164e96f1.js\",\"152\",\"static/chunks/152-f4bfd87cc1b5c5b6.js\",\"8450\",\"static/chunks/app/%5Blocale%5D/layout-2c3fa84b983b9b6f.js\"],\"default\"]\n"])</script><script>self.__next_f.push([1,"14:[\"$\",\"$L15\",null,{\"formats\":\"$undefined\",\"locale\":\"en\",\"messages\":{\"layouts\":{\"appLayout\":{\"navigation\":{\"home\":\"Home\",\"templates\":\"Templates\",\"blog\":\"Blog\",\"about\":\"About\",\"prices\":\"Prices\",\"contact\":\"Contact\",\"myTemplates\":\"Login\"},\"footer\":{\"contact\":{\"title\":\"Global User Community\",\"description\":\"Join thousands of developers worldwide who trust Aniq-UI for their projects. Our templates are being used across the globe to create stunning web experiences.\",\"brandName\":\"Aniq-ui\"}},\"contactForm\":{\"contactUs\":\"Contact Us\",\"getInTouch\":\"Get in Touch\",\"getUpdates\":\"Get Updates\",\"justSubscribe\":\"Just subscribe\",\"fullName\":\"Full Name\",\"emailAddress\":\"Email Address\",\"message\":\"Message\",\"yourMessage\":\"Your Message\",\"namePlaceholder\":\"John Doe\",\"emailPlaceholder\":\"your@email.com\",\"messagePlaceholder\":\"Tell us about your project requirements, custom work needs, or reskin requests...\",\"answerPlaceholder\":\"Your answer\",\"subscribeNewsletter\":\"subscribe to our newsletter for updates.\",\"processing\":\"PROCESSING\",\"sending\":\"SENDING\",\"subscribe\":\"SUBSCRIBE\",\"sendMessage\":\"SEND MESSAGE\",\"subscriptionConfirmed\":\"Subscription Confirmed\",\"messageSent\":\"Message Sent\",\"subscriptionThankYou\":\"Thank you for subscribing! You'll receive updates about new templates and components.\",\"messageThankYou\":\"Thank you for reaching out. We'll get back to you soon.\",\"subscribeAnother\":\"Subscribe Another Email\",\"sendAnother\":\"Send Another Message\",\"validation\":{\"nameMinLength\":\"Name must be at least 2 characters\",\"nameMaxLength\":\"Name must be less than 50 characters\",\"emailInvalid\":\"Please enter a valid email address\",\"messageMinLength\":\"Message must be at least 10 characters\",\"messageMaxLength\":\"Message must be less than 2000 characters\"},\"humanCheck\":{\"questions\":{\"reactSecondLetter\":\"Type the second letter of the word 'react'.\",\"skyColor\":\"What color is the sky on a clear day? (lowercase)\",\"componentLastLetter\":\"What is the last letter of the word 'component'?\",\"humanBackwards\":\"Type the word 'human' backwards.\",\"emailFirstLetter\":\"What is the first letter of your email address?\"},\"answers\":{\"reactSecondLetter\":\"e\",\"skyColor\":\"blue\",\"componentLastLetter\":\"t\",\"humanBackwards\":\"namuh\",\"emailFirstLetter\":\"\"},\"error\":\"Please answer the human check question correctly.\"}},\"fixedCTA\":{\"needHelp\":\"Need Help?\",\"founderName\":\"Mohamed Djoudir\",\"founderRole\":\"Founder • Online\",\"greeting\":\"👋 Hey there! I'm Mohamed, the founder of Aniq-UI.\",\"helpMessage\":\"Need help with Next.js templates? Whether it's customization, deployment, or something completely custom - I'm here to help! What can I do for you?\",\"reskinTemplate\":\"Reskin a Template\",\"reskinDescription\":\"Customize existing template design\",\"deployTemplate\":\"Deploy a Template\",\"deployDescription\":\"Help with template deployment\",\"customTemplate\":\"Custom Template\",\"customDescription\":\"Need a completely new template\",\"templateSupport\":\"Template Support\",\"supportDescription\":\"Get help with existing templates\",\"generalInquiry\":\"General Inquiry\",\"directMessage\":\"Or just send me a message directly\",\"projectMessage\":\"Perfect! Tell me more about what you need help with and I'll get back to you with guidance.\",\"yourEmail\":\"Your Email\",\"aboutProject\":\"What do you need help with?\",\"projectPlaceholder\":\"Describe what you need help with - installation issues, customization questions, deployment problems, or any other template-related questions...\",\"sendingToMohamed\":\"Sending to Mohamed...\",\"sendMessage\":\"Send Message\",\"messageSent\":\"Thanks! Message received 📨\",\"responseTime\":\"I'll personally get back to you within 24 hours. Looking forward to helping you out!\",\"close\":\"Close\",\"selectTemplate\":\"Select Template (Optional)\",\"searchTemplates\":\"Search templates...\",\"noTemplateSelected\":\"No template selected\",\"typicallyRespondsInHours\":\"Typically responds in hours\"},\"cookieConsent\":{\"title\":\"Cookie Preferences\",\"description\":\"We use cookies to enhance your browsing experience, analyze site traffic, and personalize content. By clicking \\\"Accept All\\\", you consent to our use of cookies for analytics and personalized advertising.\",\"acceptAll\":\"Accept All\",\"reject\":\"Reject\",\"customize\":\"Customize\",\"hide\":\"Hide\",\"customizeTitle\":\"Customize Cookie Preferences\",\"savePreferences\":\"Save Preferences\",\"requiredCookies\":\"Required Cookies\",\"requiredDescription\":\"Essential for website functionality\",\"analyticsCookies\":\"Analytics Cookies\",\"analyticsDescription\":\"Track visitor statistics and site usage\",\"marketingCookies\":\"Marketing Cookies\",\"marketingDescription\":\"Enable personalized advertising and audience targeting\",\"cookiePolicyText\":\"For more information, please visit our\",\"cookiePolicyLink\":\"Cookie Policy\"}}},\"common\":{\"appTitle\":\"Aniq-UI App\",\"submitButton\":\"Submit\",\"share\":\"Share:\",\"navigation\":{\"home\":\"Home\",\"templates\":\"Templates\",\"components\":\"Components\",\"prices\":\"Prices\",\"about\":\"About\",\"contact\":\"Contact\"},\"templateCard\":{\"free\":\"Free\",\"liveDemo\":\"Live Demo\",\"viewTemplate\":\"View Template\"},\"imageViewer\":{\"closeTooltip\":\"Press ESC to close\",\"navigationTooltip\":\"Use arrow keys or click arrows to navigate\",\"zoomTooltip\":\"Scroll to zoom, drag to pan when zoomed\",\"mobileZoomTooltip\":\"Pinch to zoom, drag to pan when zoomed\",\"zoomIn\":\"Zoom In\",\"zoomOut\":\"Zoom Out\",\"close\":\"Close\",\"imageCountLabel\":\"{current} of {total}\",\"thumbnailAlt\":\"Thumbnail {index}\"},\"time\":{\"justNow\":\"Just now\",\"minutesAgo\":\"{count, plural, =1 {1 minute ago} other {# minutes ago}}\",\"hoursAgo\":\"{count, plural, =1 {1 hour ago} other {# hours ago}}\",\"yesterday\":\"Yesterday\",\"daysAgo\":\"{count, plural, =1 {1 day ago} other {# days ago}}\",\"weeksAgo\":\"{count, plural, =1 {1 week ago} other {# weeks ago}}\",\"monthsAgo\":\"{count, plural, =1 {1 month ago} other {# months ago}}\",\"yearsAgo\":\"{count, plural, =1 {1 year ago} other {# years ago}}\"},\"cart\":{\"title\":\"Shopping Cart\",\"emptyCart\":\"Your cart is empty\",\"clearCart\":\"Clear cart\",\"total\":\"Total\",\"checkout\":\"Checkout\",\"loading\":\"Loading...\",\"continueShopping\":\"Continue Shopping\",\"removeItem\":\"Remove item\",\"close\":\"Close cart\",\"openCart\":\"Open cart\",\"externalItemsNote\":\"Some items can only be purchased from external providers\",\"alreadyPurchased\":\"Already Purchased\",\"alreadyPurchasedDesc\":\"This email has already purchased the following items:\",\"goToDashboardDesc\":\"You can access your purchased templates in the dashboard.\",\"goToDashboard\":\"Go to Dashboard\",\"redirecting\":\"Redirecting...\"},\"template\":{\"externalLink\":{\"title\":\"External Purchase\",\"description\":\"This template is available for purchase from an external provider.\",\"descriptionWithName\":\"{name} is available for purchase from an external provider.\",\"buyOn\":\"Buy on {hostname}\",\"cancel\":\"Cancel\"}},\"checkout\":{\"success\":{\"title\":\"Thank You!\",\"description\":\"Your purchase was successful. You will receive an email confirmation shortly.\",\"orderDetails\":\"Order Details\",\"product\":\"Product\",\"total\":\"Total\",\"email\":\"Email\",\"transactionId\":\"Transaction ID\",\"dashboardInfo\":\"Access your purchased templates, download files, and manage your account in the dashboard.\",\"goToDashboard\":\"Go to Dashboard\",\"redirecting\":\"Redirecting...\",\"browseMore\":\"Browse More Templates\",\"supportNote\":\"Need help? Contact us at support@aniq-ui.com\"}}},\"templates\":{\"meta\":{\"title\":\"Next.js Templates | Free \u0026 Premium React UI Templates Collection\",\"description\":\"Download free \u0026 premium Next.js templates with TypeScript \u0026 Tailwind CSS. Professional, responsive templates for landing pages, dashboards, and modern web designs with ready-to-use components.\",\"keywords\":\"next.js templates, react templates, ui components, web design, dashboard templates, landing page templates, nextjs ui, typescript templates, tailwind css templates\"},\"home\":\"Home\",\"templates\":\"Templates\",\"liveDemo\":\"Try Live Demo\",\"viewTemplate\":\"View Template\",\"purchase\":\"Purchase\",\"free\":\"Free\",\"freeTemplate\":\"Free Template\",\"freeDescription\":\"Open source, free to use for personal and commercial projects\",\"premium\":\"Premium\",\"premiumTemplate\":\"Premium Template\",\"search\":\"Search templates...\",\"searchButton\":\"Search\",\"sourceCode\":\"Source Code\",\"conversionHeadlinePaid\":\"Professional {name} - Production Ready\",\"conversionHeadlineFree\":\"Get {name} - Free \u0026 Open Source\",\"valuePropositionPaid\":\"Save weeks of development time with our premium, production-ready template\",\"valuePropositionFree\":\"Start building immediately with our free, professionally designed template\",\"oneTime\":\"one-time\",\"includesSupport\":\"Includes [Life time] of updates \u0026 support\",\"saveTime\":\"Save 40+ hours\",\"worthValue\":\"Worth $2000+\",\"purchaseNow\":\"Add to Cart - ${price}\",\"downloadFree\":\"Download Free\",\"taxNote\":\"Prices include applicable taxes\",\"claimFree\":{\"button\":\"Get Free\",\"title\":\"Claim Free Template\",\"description\":\"Enter your email to claim \\\"{name}\\\" for free. You'll get access to download it in your dashboard.\",\"emailLabel\":\"Email Address\",\"emailPlaceholder\":\"you@example.com\",\"nameLabel\":\"Your Name\",\"namePlaceholder\":\"John Doe\",\"submit\":\"Claim\",\"cancel\":\"Cancel\",\"processing\":\"Processing...\",\"error\":\"Something went wrong. Please try again.\",\"requiredFields\":\"Please fill in all fields\",\"invalidEmail\":\"Please enter a valid email address\",\"privacyNote\":\"Your email will be used to create your account and send you access instructions.\"},\"comingSoon\":\"Coming Soon\",\"inDevelopment\":\"In Development\",\"underUpdate\":\"Under Update\",\"usersCount\":\"{count}+ buyers\",\"earlyAdopter\":\"Be an early adopter\",\"productionReady\":\"Production Ready\",\"seoOptimized\":\"SEO Optimized\",\"fiveStarQuality\":\"5-Star Quality\",\"codeQualityScore\":\"Code Quality Score\",\"overallCodeQuality\":\"Overall Code Quality\",\"defaultDescription\":\"A modern template with responsive design and optimized performance.\",\"buyNow\":\"Buy Now\",\"buyOn\":\"Buy on {hostname}\",\"addToCart\":\"Add to Cart\",\"inCart\":\"In Cart\",\"availableOn\":\"Available on {hostname}\",\"filter\":{\"title\":\"Filter Templates\",\"all\":\"All\",\"business\":\"Business\",\"portfolio\":\"Portfolio\",\"ecommerce\":\"E-commerce\",\"blog\":\"Blog\",\"landing\":\"Landing Page\",\"dashboard\":\"Dashboard\"},\"sort\":{\"title\":\"Sort by\",\"newest\":\"Newest\",\"popular\":\"Most Popular\",\"priceAsc\":\"Price: Low to High\",\"priceDesc\":\"Price: High to Low\",\"nameAsc\":\"Name: A to Z\",\"nameDesc\":\"Name: Z to A\"},\"features\":{\"title\":\"Template Features\",\"responsive\":\"Responsive Design\",\"seo\":\"SEO Optimized\",\"performance\":\"High Performance\",\"accessibility\":\"Accessibility\",\"typescript\":\"TypeScript Support\",\"darkMode\":\"Dark Mode\",\"responsiveDesc\":\"Fully adaptive Next.js Templates with responsive breakpoints for mobile, tablet, and desktop viewport optimization.\",\"accessibilityDesc\":\"AA-compliant accessibility features with semantic HTML5, ARIA attributes, and keyboard navigation for inclusive user experience.\",\"performanceDesc\":\"Lighthouse-tested performance with 90+ scores on LCP, FID, and CLS metrics for superior SEO ranking and user engagement.\",\"typescriptDesc\":\"Next.js App Router architecture with server components for reduced client-side JavaScript and faster time-to-interactive metrics.\",\"seooptimized\":\"SEO Optimized\",\"seooptimizedDesc\":\"Complete search engine optimization with structured metadata and semantic tags to improve your site's visibility in search results.\",\"blogready\":\"Blog Ready\",\"blogreadyDesc\":\"Integrated blog system with support for articles, comments, categories, and social media content sharing.\",\"productgallery\":\"Product Gallery\",\"productgalleryDesc\":\"Display products attractively with support for high-quality images, quick view, and zoom functionality.\",\"checkoutsystem\":\"Checkout System\",\"checkoutsystemDesc\":\"Secure and easy-to-use payment system with support for multiple payment methods and order processing.\",\"inventorymanagement\":\"Inventory Management\",\"inventorymanagementDesc\":\"Integrated inventory management system with quantity tracking and low stock alerts.\",\"casestudies\":\"Case Studies\",\"casestudiesDesc\":\"Present case studies professionally to highlight your successes and capabilities.\",\"teamprofiles\":\"Team Profiles\",\"teamprofilesDesc\":\"Showcase your team members professionally with biographies and social media links.\",\"contactforms\":\"Contact Forms\",\"contactformsDesc\":\"Multiple contact forms with validation, spam protection, and email notifications.\",\"newsletter\":\"Newsletter\",\"newsletterDesc\":\"Newsletter subscription system with subscriber management and information message sending.\",\"commentsystem\":\"Comment System\",\"commentsystemDesc\":\"Integrated comment system with the ability to reply, like, and report inappropriate content.\",\"socialsharing\":\"Social Sharing\",\"socialsharingDesc\":\"Easy-to-use share buttons to distribute content across various social media platforms.\",\"maintenance\":\"Maintenance \u0026 Support\",\"maintenanceDesc\":\"Long-term project sustainability with regular updates and professional support.\"},\"benefits\":{\"devExperience\":\"Developer Experience\",\"devExperienceDesc\":\"Enterprise-grade development toolkit\",\"typescript\":\"TypeScript 5.0+ with strict type checking\",\"serverComponents\":\"Server \u0026 Client Components architecture\",\"documentation\":\"Comprehensive JSDoc documentation\",\"uxPerformance\":\"UX \u0026 Performance\",\"uxPerformanceDesc\":\"Optimized user experience metrics\",\"mobileFirst\":\"Mobile-first responsive design system\",\"wcag\":\"WCAG 2.1 AA accessibility compliance\",\"pageLoad\":\"Sub-second page load times\",\"maintenance\":\"Maintenance \u0026 Support\",\"maintenanceDesc\":\"Long-term project sustainability\",\"support\":\"6+ months of technical support access\",\"updates\":\"Regular security \u0026 framework updates\",\"seo\":\"SEO-optimized semantic structure\"},\"technical\":{\"title\":\"Technical Specifications\",\"framework\":\"Framework\",\"frameworkVersion\":\"Framework Version\",\"reactVersion\":\"React Version\",\"styling\":\"Styling\",\"typescript\":\"TypeScript\",\"responsive\":\"Responsive\",\"support\":\"Support Period\",\"license\":\"License\",\"yes\":\"Yes\",\"no\":\"No\",\"mobileTabletDesktop\":\"Mobile, Tablet, Desktop\",\"included\":\"Included\",\"proTip\":\"Pro Tip:\",\"documentation\":\"All templates include comprehensive documentation to get you started quickly.\"},\"cta\":{\"title\":\"Need a Custom Solution?\",\"description\":\"Our team can build a tailored template for your specific business needs.\",\"button\":\"Contact Us\",\"detailTitle\":\"Need customization for this template?\",\"detailDescription\":\"Our team can help adapt this template to perfectly match your brand identity and specific requirements.\",\"detailButton\":\"Request Customization\",\"supportButton\":\"Contact Support\"},\"related\":\"Related Templates\",\"premiumTemplates\":\"Premium Templates\",\"templatesDescription\":\"Next.js templates for modern web applications. Save time and ship faster with our professionally designed UI components and website templates.\",\"categoryDescriptions\":{\"dashboard\":\"Professional Next.js dashboard templates for data visualization, admin panels, and analytics interfaces. Build responsive admin UIs and dashboards with our ready-to-use web design components.\",\"landing\":\"High-converting Next.js landing page templates designed to showcase your products and services. Responsive layouts with optimized forms and UI components for maximum conversion rates.\",\"business\":\"Complete Next.js business website templates for companies, agencies, and professional services. Modern web designs with all the components you need to establish your online presence.\",\"portfolio\":\"Creative Next.js portfolio templates to showcase your work and professional achievements. Stunning designs with responsive layouts perfect for designers, developers and creative professionals.\",\"ecommerce\":\"Next.js e-commerce templates with product galleries, shopping carts, and checkout systems. Build your online store with our ready-to-use UI components and responsive designs.\",\"blog\":\"Next.js blog templates optimized for content publishing, reader engagement, and SEO. Modern designs with responsive layouts and built-in components for publishing platforms.\"},\"searchPlaceholder\":\"Search templates...\",\"noResultsTitle\":\"No templates found matching your criteria\",\"noResultsDescription\":\"Try adjusting your search or filter settings\",\"suggestedCategories\":\"Explore popular categories\",\"suggestedTemplates\":\"You might be interested in\",\"searchTips\":\"Search Tips\",\"searchTip1\":\"Try using more general keywords\",\"searchTip2\":\"Check for spelling errors\",\"searchTip3\":\"Explore different categories from the menu above\",\"searchTip4\":\"Try searching by features like 'responsive' or 'dark mode'\",\"technicalAdvantagesTitle\":\"Professional Next.js Templates\",\"technicalAdvantagesHighlight\":\"Technical Advantages\",\"technicalAdvantagesDesc\":\"Our Next.js templates are engineered with performance optimization, TypeScript integration, and developer-friendly architecture to accelerate your web application development. Ready-to-use UI components save hours of design and coding time.\",\"enterpriseFeaturesTitle\":\"Enterprise-Grade Features Included:\",\"templatesSummary\":\"All Next.js Templates implement modern React 19 patterns, App Router architecture, and Web Vitals optimization for SEO-friendly performance.\",\"featuredTemplate\":\"Featured Template\",\"featuredTemplateDefaultDesc\":\"A professional Next.js landing page template with modern design, optimal performance, and responsive layouts for creating high-converting websites.\",\"devResources\":{\"title\":\"Developer Resources Included\",\"subtitle\":\"Each template comes with developer tools and resources to help you customize and extend functionality.\",\"typescriptTitle\":\"TypeScript Types \u0026 Interfaces\",\"typescriptDesc\":\"All templates include predefined TypeScript types and interfaces for components and data structures.\",\"snippetsTitle\":\"Code Snippets Library\",\"snippetsDesc\":\"Reusable code blocks and patterns to accelerate your development process.\",\"architectureTitle\":\"Component Architecture\",\"architectureDesc\":\"Well-structured component hierarchy following best practices for maintainability.\",\"githubTitle\":\"GitHub Integration\",\"githubDesc\":\"Free templates come with GitHub repositories and CI/CD workflows ready to fork.\",\"documentation\":\"All templates include comprehensive documentation and setup guides\",\"tags\":{\"typescript\":\"TypeScript\",\"types\":\"Types\",\"development\":\"Development\",\"snippets\":\"Snippets\",\"utility\":\"Utility\",\"reusable\":\"Reusable\",\"architecture\":\"Architecture\",\"components\":\"Components\",\"structure\":\"Structure\",\"github\":\"GitHub\",\"cicd\":\"CI/CD\",\"collaboration\":\"Collaboration\"}},\"relatedTemplate\":{\"previewAlt\":\"{name} template preview\"},\"aboutThisTemplate\":\"About This Template\",\"codePreview\":\"Code Preview\",\"lifetimeAccess\":{\"title\":\"Lifetime Access\",\"forEarlyAdopters\":\"Lifetime offer for first adopters only!\",\"moreTemplatesComing\":\"more templates are coming - lifetime offer for first adopters only!\",\"subtitle\":\"Unlock all current \u0026 upcoming premium templates, landing pages, portfolios, and dashboards - designed for Next.js developers.\",\"price\":\"$$399\",\"oneTime\":\"One-time\",\"joinButton\":\"Get Lifetime Access\",\"payOnceUseForever\":\"Pay once, use forever, perfect for developers and startups who want quality without recurring costs.\",\"features\":[\"All existing premium templates\",\"Free access to future templates\",\"Lifetime updates\",\"Commercial use license\"],\"limitedTime\":\"Limited Time\",\"earlyBird\":\"Promotion\",\"seoDescription\":\"Build stunning NextJS landing pages, professional NextJS portfolio sites, and powerful NextJS dashboard applications\"},\"designProgress\":{\"title\":\"Design Progress\",\"description\":\"Only 1% of 30+ planned Figma designs completed\",\"complete\":\"Complete\"},\"emailMagnet\":{\"title\":\"Get Notified About New Premium Templates\",\"subtitle\":\"Be the first to know when we release new premium templates.\",\"description\":\"Subscribe to get notified when we release new premium templates.\",\"placeholder\":\"Enter your email address\",\"buttonText\":\"Get Notified\",\"buttonLoading\":\"Subscribing...\",\"successTitle\":\"Successfully subscribed!\",\"successMessage\":\"You'll be the first to know about new premium template releases.\",\"subscribeAnother\":\"Subscribe another email\",\"benefits\":{\"0\":\"Notifications for new templates\",\"1\":\"New releases announcements\",\"2\":\"Template updates information\",\"3\":\"No spam, unsubscribe anytime\"}},\"buyers\":{\"recentBuyers\":\"Recent Buyers\",\"updatesRealtime\":\"Updates in real-time\",\"verifiedPurchase\":\"Verified purchase\",\"topCountries\":\"Top Countries\",\"basedOnPurchases\":\"Based on purchase locations\",\"seeMore\":\"See more\",\"allBuyers\":\"All Buyers\",\"allCountries\":\"All Countries\",\"moreBuyers\":\"+{count} more buyers\",\"buyer\":\"buyer\",\"buyers\":\"buyers\",\"purchases\":\"Purchases\",\"country\":\"country\",\"countries\":\"countries\",\"purchaseTooltip\":\"Template purchased from {country}\"},\"demoPreview\":{\"title\":\"Demo Preview - {templateName}\",\"livePreview\":\"Live Preview\",\"desktop\":\"Desktop\",\"tablet\":\"Tablet\",\"mobile\":\"Mobile\",\"refresh\":\"Refresh\",\"openNewTab\":\"Open in new tab\",\"close\":\"Close Demo\",\"buyTemplate\":\"Buy Template\",\"loading\":\"Loading preview...\",\"hint\":\"Press ESC or click × to close • Interact with the demo above\",\"blocked\":{\"title\":\"Preview unavailable in embedded mode\",\"description\":\"This demo doesn't allow embedded previews. Click below to view it in a new tab.\"},\"crashedTitle\":\"Preview stopped unexpectedly\",\"crashedDescription\":\"The preview may have been interrupted. Try refreshing or view it in a new tab.\"}}},\"now\":\"$undefined\",\"timeZone\":\"UTC\",\"children\":[\"$\",\"$L16\",null,{\"children\":[[\"$\",\"$L17\",null,{}],[\"$\",\"$L18\",null,{}],[\"$\",\"$L19\",null,{\"children\":[\"$\",\"$L2\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L3\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":\"$undefined\",\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}]}],[\"$\",\"$L1a\",null,{}],[\"$\",\"$L1b\",null,{}]]}]}]\n"])</script><script>self.__next_f.push([1,"e:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"}],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}],[\"$\",\"meta\",\"2\",{\"name\":\"theme-color\",\"media\":\"(prefers-color-scheme: dark)\",\"content\":\"#000000\"}]]\nb:null\n"])</script><script>self.__next_f.push([1,"c:null\n"])</script><script>self.__next_f.push([1,"10:[[\"$\",\"title\",\"0\",{\"children\":\"Next.js Landing Page Templates – Modern, Responsive \u0026 SEO-Optimized | Aniqui\"}],[\"$\",\"meta\",\"1\",{\"name\":\"description\",\"content\":\"Free \u0026 Premium NextJS landing page templates for modern web development. Download responsive Next.js templates with TypeScript and Tailwind CSS from Aniqui (انيق يو اي).\"}],[\"$\",\"meta\",\"2\",{\"name\":\"application-name\",\"content\":\"Aniqui NextJS Templates\"}],[\"$\",\"meta\",\"3\",{\"name\":\"author\",\"content\":\"Mohammed Djoudir\"}],[\"$\",\"link\",\"4\",{\"rel\":\"manifest\",\"href\":\"/manifest.json\",\"crossOrigin\":\"$undefined\"}],[\"$\",\"meta\",\"5\",{\"name\":\"generator\",\"content\":\"Next.js\"}],[\"$\",\"meta\",\"6\",{\"name\":\"referrer\",\"content\":\"origin-when-cross-origin\"}],[\"$\",\"meta\",\"7\",{\"name\":\"creator\",\"content\":\"Aniqui Team (انيق يو اي)\"}],[\"$\",\"meta\",\"8\",{\"name\":\"publisher\",\"content\":\"Aniqui\"}],[\"$\",\"meta\",\"9\",{\"name\":\"robots\",\"content\":\"index, follow\"}],[\"$\",\"meta\",\"10\",{\"name\":\"googlebot\",\"content\":\"index, follow, max-video-preview:-1, max-image-preview:large, max-snippet:-1\"}],[\"$\",\"link\",\"11\",{\"rel\":\"canonical\",\"href\":\"https://www.aniq-ui.com/en\"}],[\"$\",\"link\",\"12\",{\"rel\":\"alternate\",\"hrefLang\":\"en\",\"href\":\"https://www.aniq-ui.com/en\"}],[\"$\",\"link\",\"13\",{\"rel\":\"alternate\",\"hrefLang\":\"fr\",\"href\":\"https://www.aniq-ui.com/fr\"}],[\"$\",\"link\",\"14\",{\"rel\":\"alternate\",\"hrefLang\":\"ar\",\"href\":\"https://www.aniq-ui.com/ar\"}],[\"$\",\"link\",\"15\",{\"rel\":\"alternate\",\"hrefLang\":\"es\",\"href\":\"https://www.aniq-ui.com/es\"}],[\"$\",\"meta\",\"16\",{\"property\":\"og:title\",\"content\":\"NextJS Landing Page Templates | Free \u0026 Premium | Aniqui\"}],[\"$\",\"meta\",\"17\",{\"property\":\"og:description\",\"content\":\"Download free NextJS landing page templates and UI components for modern web development from Aniqui (انيق يو اي). Ready-to-use Next.js templates for business websites.\"}],[\"$\",\"meta\",\"18\",{\"property\":\"og:url\",\"content\":\"https://www.aniq-ui.com/en\"}],[\"$\",\"meta\",\"19\",{\"property\":\"og:site_name\",\"content\":\"Aniqui - NextJS Templates (انيق يو اي)\"}],[\"$\",\"meta\",\"20\",{\"property\":\"og:locale\",\"content\":\"en_US\"}],[\"$\",\"meta\",\"21\",{\"property\":\"og:image\",\"content\":\"https://www.aniq-ui.com/images/image.png\"}],[\"$\",\"meta\",\"22\",{\"property\":\"og:image:width\",\"content\":\"1200\"}],[\"$\",\"meta\",\"23\",{\"property\":\"og:image:height\",\"content\":\"630\"}],[\"$\",\"meta\",\"24\",{\"property\":\"og:image:alt\",\"content\":\"Aniqui NextJS Landing Page Templates Preview\"}],[\"$\",\"meta\",\"25\",{\"property\":\"og:type\",\"content\":\"website\"}],[\"$\",\"meta\",\"26\",{\"name\":\"twitter:card\",\"content\":\"summary_large_image\"}],[\"$\",\"meta\",\"27\",{\"name\":\"twitter:creator\",\"content\":\"@aniq_ui\"}],[\"$\",\"meta\",\"28\",{\"name\":\"twitter:title\",\"content\":\"NextJS Landing Page Templates | Free \u0026 Premium | Aniqui\"}],[\"$\",\"meta\",\"29\",{\"name\":\"twitter:description\",\"content\":\"Download free NextJS templates for landing pages and business websites from Aniqui (انيق يو اي)\"}],[\"$\",\"meta\",\"30\",{\"name\":\"twitter:image\",\"content\":\"https://www.aniq-ui.com/images/image.png\"}],[\"$\",\"link\",\"31\",{\"rel\":\"icon\",\"href\":\"/icon0.svg?6acb5a9e761f8df5\",\"type\":\"image/svg+xml\",\"sizes\":\"any\"}],[\"$\",\"link\",\"32\",{\"rel\":\"apple-touch-icon\",\"href\":\"/apple-icon.png?9cda598311a287cc\",\"type\":\"image/png\",\"sizes\":\"180x180\"}]]\n"])</script><div id="phedra-x-shadow-host" style="position: fixed; top: 0px; left: 0px; width: 0px; height: 0px; pointer-events: none; z-index: 2147483647;"></div><div id="rm-highlighter-container" class="rm-reset-flex no-print">
+	<div id="rm-highlighter-menu">
+		<!--
+			<div data-rm-action="clear-all" style="display:">Clear all</div>
+		-->
+	</div>
+	<div id="rm-highlighter-menu-update">
+	</div>
+
+	<div id="rm-highlighter-menu-list" style="display:none;">
+		<div class="rm-highlighter-menu-li rm-m-t-1" data-menu="highlight" data-menu-details="#rm-highlight-form">
+			<div id="rm-highlight-color-selected" class="rm-highlight-color" data-highlight-color="red" data-rm-action="select-color"></div>
+		</div>
+		<div class="rm-highlighter-menu-li" data-rm-action="view-selection" data-menu="view-selection">		
+			<div data-rm-img="view-selection" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/view-selection.svg"></div> 
+		</div>
+		<div class="rm-highlighter-menu-li" data-rm-action="tts-toggle-start-hm" data-menu="tts">
+			<div data-rm-img="play-round" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/play-round.svg"></div> 
+		</div>
+		<div class="rm-highlighter-menu-li" data-rm-action="google-translate" data-menu="google-translate">		
+			<div data-rm-img="google-translate" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/google-translate.svg"></div> 
+		</div>
+		<div class="rm-highlighter-menu-li" data-rm-action="tweet" data-menu="tweet">
+			<div data-rm-img="twitter" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/twitter.svg"></div> 
+		</div>	
+		<div class="rm-highlighter-menu-li" data-rm-action="open-page" data-page-name="options" data-menu="settings">
+			<div data-rm-img="settings" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/settings.svg"></div> 
+		</div>	
+	</div>
+
+	<div id="rm-highlighter-menu-details" style="display:none">
+		<div id="rm-highlight-form" class="rm-highlighter-menu-details" data-position-bottom="-200px" style="display:none">
+			<div class="rm-p-7 rm-p-b-1i">
+				<textarea id="rm-highlight-note" placeholder="Take a note..." autocomplete="off" spellcheck="false"></textarea>
+
+				<div id="rm-highlighter-colors" class="rm-m-t-4 rm-m-l-0">
+					<div class="rm-highlight-color rm-m-l-3i" data-rm-img="pencil" data-rm-img-ext="svg" data-rm-action="toggle-highlight-settings-iframe"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/pencil.svg"></div>
+				</div>
+			</div>
+
+			<div id="rm-highlight-form-footer" class="p-7">
+				<div id="rm-highlight-folder" data-rm-action="toggle-bookmark-iframe">
+					<div class="rm-display-inline-block" data-rm-img="folder" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/folder.svg"></div> 
+					<div class="rm-highlight-folder-name">Everything</div>
+				</div> 
+				<div class="btn-update btn-xs rm-btn rm-btn-light" data-rm-action="update" style="display:none">Update</div>
+			</div>	
+		</div>		
+	</div>	
+</div><script id="fb-pixel" data-nscript="afterInteractive">
+              !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+              n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+              n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+              t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script',
+              'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '1211999870417222');
+              fbq('track', 'PageView');
+            </script><script id="x-pixel" data-nscript="afterInteractive">
+              !function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);
+              },s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='https://static.ads-twitter.com/uwt.js',
+              a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');
+              twq('config','REPLACE_WITH_YOUR_PIXEL_ID');
+            </script><next-route-announcer style="position: absolute;"></next-route-announcer><div class="fixed inset-0 z-[99999999] flex flex-col bg-neutral-950" role="dialog" aria-modal="true" aria-label="Demo Preview - Next.js Dashboard Template 2026: Financial &amp; Banking Edition"><header class="flex items-center justify-between px-3 py-2 bg-black border-b border-neutral-800"><div class="flex items-center gap-2"><h2 class="text-white font-medium text-xs md:text-sm truncate max-w-[180px] md:max-w-none">Next.js Dashboard Template 2026: Financial &amp; Banking Edition</h2></div><div class="flex items-center gap-3"><div class="hidden sm:flex items-center gap-0.5 bg-neutral-800 rounded-md p-0.5"><div class="relative w-full"><button class="p-1.5 rounded transition-all bg-neutral-700 text-white" aria-label="Desktop" aria-pressed="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-device-desktop "><path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10"></path><path d="M7 20h10"></path><path d="M9 16v4"></path><path d="M15 16v4"></path></svg></button></div><div class="relative w-full"><button class="p-1.5 rounded transition-all text-neutral-400 hover:text-white hover:bg-neutral-700/50" aria-label="Tablet" aria-pressed="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-device-tablet "><path d="M5 4a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v16a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16"></path><path d="M11 17a1 1 0 1 0 2 0a1 1 0 0 0 -2 0"></path></svg></button></div><div class="relative w-full"><button class="p-1.5 rounded transition-all text-neutral-400 hover:text-white hover:bg-neutral-700/50" aria-label="Mobile" aria-pressed="false"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-device-mobile "><path d="M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14"></path><path d="M11 4h2"></path><path d="M12 17v.01"></path></svg></button></div></div><div class="hidden sm:block w-px h-5 bg-neutral-700"></div><div class="flex items-center gap-2"><div class="relative w-full"><button class="justify-center overflow-hidden rounded-full disabled:pointer-events-none disabled:opacity-50 relative select-none cursor-pointer bg-transparent hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-neutral-800/50 dark:hover:text-gray-50 h-8 px-3 text-xs flex items-center gap-1 bg-neutral-800! transition-colors font-medium whitespace-nowrap" aria-label="Refresh"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-refresh "><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg></button></div><div class="relative w-full"><button class="justify-center overflow-hidden rounded-full disabled:pointer-events-none disabled:opacity-50 relative select-none cursor-pointer bg-transparent hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-neutral-800/50 dark:hover:text-gray-50 h-8 px-3 text-xs flex items-center gap-1 bg-neutral-800! transition-colors font-medium whitespace-nowrap" aria-label="Open in new tab"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-external-link "><path d="M12 6h-6a2 2 0 0 0 -2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-6"></path><path d="M11 13l9 -9"></path><path d="M15 4h5v5"></path></svg></button></div><div class="relative w-full"><button class="justify-center overflow-hidden rounded-full disabled:pointer-events-none disabled:opacity-50 relative select-none cursor-pointer bg-transparent hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-neutral-800/50 dark:hover:text-gray-50 h-8 px-3 text-xs flex items-center gap-1 bg-emerald-500/20! hover:bg-emerald-500/30! transition-colors font-medium whitespace-nowrap" aria-label="Buy Template"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-shopping-cart text-emerald-400!"><path d="M4 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M15 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M17 17h-11v-14h-2"></path><path d="M6 5l14 1l-1 7h-13"></path></svg><span class="hidden sm:inline whitespace-nowrap text-emerald-400">Buy Template</span></button></div><div class="relative w-full"><button class="justify-center overflow-hidden rounded-full disabled:pointer-events-none disabled:opacity-50 relative select-none cursor-pointer bg-transparent hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-neutral-800/50 dark:hover:text-gray-50 h-8 px-3 text-xs flex items-center gap-1 bg-red-300/20! transition-colors font-medium whitespace-nowrap" aria-label="Close Demo"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-x text-red-400!"><path d="M18 6l-12 12"></path><path d="M6 6l12 12"></path></svg><span class="hidden sm:inline whitespace-nowrap">Close Demo</span></button></div></div></div></header><div class="sm:hidden flex items-center justify-center gap-1 bg-neutral-900 py-1.5 border-b border-neutral-800"><button class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all bg-neutral-700 text-white"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-device-desktop "><path d="M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10"></path><path d="M7 20h10"></path><path d="M9 16v4"></path><path d="M15 16v4"></path></svg>Desktop</button><button class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all text-neutral-400 hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-device-tablet "><path d="M5 4a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v16a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16"></path><path d="M11 17a1 1 0 1 0 2 0a1 1 0 0 0 -2 0"></path></svg>Tablet</button><button class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all text-neutral-400 hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-device-mobile "><path d="M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14"></path><path d="M11 4h2"></path><path d="M12 17v.01"></path></svg>Mobile</button></div><div class="flex-1 flex items-center justify-center bg-neutral-950 overflow-hidden"><div class="w-full h-full overflow-hidden flex items-start justify-center !items-stretch"><div class="origin-top transition-transform duration-300 w-full h-full" style="transform: none;"><div class="relative overflow-hidden bg-neutral-900 w-full h-full"><iframe src="https://dashboard-1.aniq-ui.com/en/dashboard" title="Next.js Dashboard Template 2026: Financial &amp; Banking Edition demo preview" class="h-full border-0" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals" loading="lazy" style="width: 100%;"></iframe></div></div></div></div></div><img src="https://t.co/1/i/adsct?bci=4&amp;dv=Europe%2FLondon%26en-US%2Cen%26Google%20Inc.%26MacIntel%26255%261920%261080%264%2624%261920%261055%260%26na&amp;eci=3&amp;event=%7B%7D&amp;event_id=6a2e7103-cedd-462c-9760-08ea79332142&amp;integration=advertiser&amp;p_id=Twitter&amp;p_user_id=0&amp;pl_id=b9bf466a-0165-40f8-a028-d9ee7ab4bcd4&amp;pt=Next.js%20Landing%20Page%20Templates%20%E2%80%93%20Modern%2C%20Responsive%20%26%20SEO-Optimized%20%7C%20Aniqui&amp;tw_document_href=https%3A%2F%2Fwww.aniq-ui.com%2Fen%2Fdemo%3Furl%3Dhttps%253A%252F%252Fdashboard-1.aniq-ui.com%252Fen%252Fdashboard%26name%3DNext.js%2BDashboard%2BTemplate%2B2026%253A%2BFinancial%2B%2526%2BBanking%2BEdition%26slug%3Dnext-js-dashboard-template&amp;tw_iframe_status=0&amp;txn_id=REPLACE_WITH_YOUR_PIXEL_ID&amp;type=javascript&amp;version=2.3.35" height="1" width="1" style="display: none;"><img src="https://analytics.twitter.com/1/i/adsct?bci=4&amp;dv=Europe%2FLondon%26en-US%2Cen%26Google%20Inc.%26MacIntel%26255%261920%261080%264%2624%261920%261055%260%26na&amp;eci=3&amp;event=%7B%7D&amp;event_id=6a2e7103-cedd-462c-9760-08ea79332142&amp;integration=advertiser&amp;p_id=Twitter&amp;p_user_id=0&amp;pl_id=b9bf466a-0165-40f8-a028-d9ee7ab4bcd4&amp;pt=Next.js%20Landing%20Page%20Templates%20%E2%80%93%20Modern%2C%20Responsive%20%26%20SEO-Optimized%20%7C%20Aniqui&amp;tw_document_href=https%3A%2F%2Fwww.aniq-ui.com%2Fen%2Fdemo%3Furl%3Dhttps%253A%252F%252Fdashboard-1.aniq-ui.com%252Fen%252Fdashboard%26name%3DNext.js%2BDashboard%2BTemplate%2B2026%253A%2BFinancial%2B%2526%2BBanking%2BEdition%26slug%3Dnext-js-dashboard-template&amp;tw_iframe_status=0&amp;txn_id=REPLACE_WITH_YOUR_PIXEL_ID&amp;type=javascript&amp;version=2.3.35" height="1" width="1" style="display: none;"><div id="rm-toolbar" class="rm-toolbar rm-toolbar-dark rm-toolbar-expand rm-fixed-top no-print" style="display: none;">
+	<div class="rm-toolbar-nav rm-mr-auto no-print">
+		<div class="rm-toolbar-nav-logo rm-cursor-pointer" data-rm-img="icon" data-rm-img-ext="png" data-rm-action="redirect-to-home"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/png/icon.png"></div>
+
+      	<div class="rm-btn-group" role="group" style="display:none">
+			<div class="rm-btn rm-btn-sm btn-secondary" data-rm-action="tts-start">
+				<i class="fas fa-play"></i>
+			</div>
+			<div class="rm-btn rm-btn-sm btn-secondary" data-rm-action="tts-stop">
+				<i class="fas fa-stop"></i>
+			</div>
+		</div>
+    </div>
+
+	<div class="rm-ul rm-toolbar-nav rm-ml-auto">
+		<div class="rm-li tlite-tooltip" title="Listen">
+			<button type="button" class="rm-btn-nav rm-img-22 rm-m-t--1i" data-rm-img="headphones" data-rm-img-ext="svg" data-rm-action="tts-toggle-start"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/headphones.svg"></button>		
+		</div>		
+		<div class="rm-li tlite-tooltip" title="Edit">
+		  <button type="button" class="rm-btn-nav rm-img-20" data-rm-img="edit-text-file-2" data-rm-img-ext="svg" data-rm-action="editing-mode-start"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/edit-text-file-2.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Delete items">
+		  <button type="button" class="rm-btn-nav rm-img-21" data-rm-img="erase" data-rm-img-ext="svg" data-rm-action="deletion-mode-start"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/erase.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Translate" id="rm-translate-toggle" data-toggle="true" data-target="#rm-translate">
+		  <button type="button" class="rm-btn-nav" data-rm-img="translation" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/translation.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Print">
+		  <button type="button" class="rm-btn-nav" data-rm-img="print" data-rm-img-ext="svg" data-rm-action="print"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/print.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Scroll">
+		  <button type="button" class="rm-btn-nav rm-img" data-rm-img="scroll-down" data-rm-img-ext="svg" data-rm-action="autoscroll"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/scroll-down.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Settings" id="rm-main-settings-toggle" data-toggle="true" data-target="#rm-main-settings">
+		    <button type="button" class="rm-btn-nav" data-rm-img="tune" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/tune.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Save Bookmark">
+		  <button type="button" class="rm-btn-nav" data-rm-img="bookmark-2" data-rm-img-ext="svg" data-rm-job="toggle-iframe" data-rm-params="{&quot;iframe_name&quot;:&quot;bookmark&quot;}"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/bookmark-2.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Fullscreen">
+		  <button type="button" class="rm-btn-nav" data-rm-action="fullscreen-toggle" data-rm-img="expand" data-rm-img-ext="svg"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/expand.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Close [ESC]">
+		  <button type="button" class="rm-btn-nav" data-rm-img="close" data-rm-img-ext="svg" data-rm-job="hide-iframe" data-rm-params="{&quot;iframe_name&quot;:&quot;reader&quot;}"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/close.svg"></button>
+		</div>
+	</div>
+
+	<div id="rm-toolbar-toggle" class="rm-cursor-pointer">
+		<i class="fas fa-chevron-up"></i>
+	</div>	
+</div>
+
+<div id="rm-toolbar-tts" class="rm-toolbar rm-toolbar-dark rm-toolbar-expand rm-fixed-top no-print" style="display:none">
+	<div class="rm-toolbar-nav rm-mr-auto no-print">
+		<div class="rm-tts-wave" style="display:">
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		</div>
+
+		<div class="rm-tts-wave-active" style="display:none">
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		    <span class="rm-tts-wave-stroke"></span>
+		</div>
+	</div>
+		
+	<div class="rm-ul rm-toolbar-nav rm-toolbar-nav-center rm-ml-auto">
+		<div class="rm-li tlite-tooltip" title="Previous">
+			<button type="button" class="rm-btn-nav rm-img-20" data-rm-img="skip-to-start" data-rm-img-ext="svg" data-rm-action="tts-previous"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/skip-to-start.svg"></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Play/Pause">
+			<button type="button" class="rm-btn-nav rm-img-20" data-rm-img="play" data-rm-img-ext="svg" data-rm-action="tts-start"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/play.svg"></button>
+			<button type="button" class="rm-btn-nav rm-img-20" data-rm-img="pause" data-rm-img-ext="svg" data-rm-action="tts-stop" style="display:none"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/pause.svg"></button>
+		</div>	
+		<div class="rm-li tlite-tooltip" title="Forward">
+			<button type="button" class="rm-btn-nav rm-img-20" data-rm-img="end" data-rm-img-ext="svg" data-rm-action="tts-forward"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/end.svg"></button>
+		</div>	
+	</div>	
+
+	<div class="rm-ul rm-toolbar-nav rm-ml-auto">
+		<div class="rm-li">
+			<button type="button" class="rm-btn-nav rm-img-20" data-rm-img="audio" data-rm-img-ext="svg" data-rm-img-classes="rm-float-left rm-m-t-2 rm-m-r-2" data-rm-action="tts-settings"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/audio.svg" class="rm-float-left rm-m-t-2 rm-m-r-2"><span class="rm-m-l-5 rm-btn-nav-text rm-display-inline-block rm-float-left">Voice options</span></button>
+		</div>
+		<div class="rm-li tlite-tooltip" title="Close TTS">
+		  <button type="button" class="rm-btn-nav" data-rm-img="close" data-rm-img-ext="svg" data-rm-action="tts-toggle-stop"><img src="chrome-extension://llimhhconnjiflfimocjggfjdlmlhblm/img/svg/close.svg"></button>
+		</div>
+	</div>	
+</div>	
+
+<div id="rm-main-settings" class="rm-toolbar-aside" data-toggle-target="true" data-parent="#rm-main-settings-toggle" style="display:none">
+	<div class="rm-accordion">
+	  	<div class="rm-card">
+		    <div class="rm-card-header rm-hover-brightness" data-target="#rm-text-settings">
+		    	<span class="rm-m-l--3 rm-m-r-3"><b>Aa</b></span> TYPOGRAPHY
+		    </div>
+		    <div id="rm-text-settings" class="rm-card-body show" data-parent="#rm-main-settings">
+				<label class="rm-label">Font</label>
+				<select class="custom-select rm-custom-select rm-border-0i" name="font_family" data-css="true" data-css-elem="*">
+					<option value="arial">Arial</option>
+					<option value="arial black">Arial Black</option>
+					<option value="athelas">Athelas</option>
+					<option value="comic sans ms">Comic Sans MS</option>
+					<option value="courier new">Courier New</option>
+					<option value="courier">Courier</option>
+					<option value="didot">Didot</option>
+					<option value="georgia">Georgia</option>
+					<option value="gill sans">Gill Sans</option>
+					<option value="helvetica" selected="">Helvetica</option>
+					<option value="impact">Impact</option>
+					<option value="iowan old style">Iowan Old Style</option>
+					<option value="palatino">Palatino</option>
+					<option value="optima">Optima</option>
+					<option value="sans-serif">Sans-serif</option>
+					<option value="sassoon-primary">Sassoon Primary</option>
+					<option value="seravek">Seravek</option>
+					<option value="serif">Serif</option>
+					<option value="times new roman">Times New Roman</option>
+					<option value="trebuchet ms">Trebuchet MS</option>
+					<option value="opendyslexic">OpenDyslexic</option>
+					<option value="opendyslexic-mono">OpenDyslexic Mono</option>
+					<option value="opendyslexic-bold">OpenDyslexic Bold</option>
+					<option value="opendyslexic-italic">OpenDyslexic Italic</option>
+					<option value="opendyslexic-bold-italic">OpenDyslexic BoldItalic</option>
+					<option value="lexend-deca">LexendDeca</option>
+					<option value="lexend-exa">Lexend Exa</option>
+					<option value="lexend-giga">Lexend Giga</option>
+					<option value="lexend-mega">Lexend Mega</option>
+					<option value="lexend-peta">Lexend Peta</option>
+					<option value="lexend-tera">Lexend Tera</option>
+					<option value="lexend-zetta">Lexend Zetta</option>
+					<option value="lexie-readable">LexieReadable</option>
+					<option value="lexie-readable-bold">LexieReadable Bold</option>
+					<option value="lora">Lora</option>
+					<option value="lora-bold">Lora Bold</option>
+					<option value="lora-italic">Lora Italic</option>
+					<option value="lora-bold-italic">Lora BoldItalic</option>
+					<option value="verdana">Verdana</option>
+				</select>
+
+				<label class="rm-label rm-m-t-22 rm-m-b-12">Text Align</label>
+				<table id="rm-text-align" class="rm-full-width">
+					<tbody><tr>
+						<td class="rm-width-15 active">
+							<i class="fas fa-align-left"></i> <br>
+							<input type="radio" name="text_align" data-css="true" data-css-elem="*" value="left" checked="checked" style="display:none">
+						</td>
+						<td class="rm-width-15">
+							<i class="fas fa-align-center"></i> <br>
+							<input type="radio" name="text_align" data-css="true" data-css-elem="*" value="center" style="display:none">
+						</td>	
+						<td class="rm-width-15">
+							<i class="fas fa-align-right"></i> <br>
+							<input type="radio" name="text_align" data-css="true" data-css-elem="*" value="right" style="display:none">
+						</td>	
+						<td>
+							<i class="fas fa-align-justify"></i> <br>
+							<input type="radio" name="text_align" data-css="true" data-css-elem="*" value="justify" style="display:none">
+						</td>	
+					</tr>		
+				</tbody></table>	
+
+				<label class="rm-label rm-m-t-22 rm-m-b-12">Text Size</label>
+				<div class="rm-range-control">
+				    <input type="range" name="font_size" data-css="true" data-css-elem="*" data-css-postfix="px" min="12" max="100" step="1" value="19" data-thumbwidth="19">
+				    <output name="rangeVal">19</output>
+			  	</div>
+
+			  	<label class="rm-label rm-m-t-22 rm-m-b-12">Line Height</label>
+				<div class="rm-range-control">
+				    <input type="range" name="line_height" data-css="true" data-css-elem="*" data-css-postfix="px" min="10" max="100" step="1" value="30" data-thumbwidth="30">
+				    <output name="rangeVal">30</output>
+			  	</div>
+
+			  	<label class="rm-label rm-m-t-25 rm-m-b-12">Letter Spacing</label>
+				<div class="rm-range-control">
+				    <input type="range" name="letter_spacing" data-css="true" data-css-elem="*" data-css-postfix="px" min="0" max="10" step="0.1" value="0.2" data-thumbwidth="0.2">
+				    <output name="rangeVal">0.2</output>
+			  	</div>
+
+			  	<label class="rm-label rm-m-t-25 rm-m-b-12">Width</label>
+				<div class="rm-range-control">
+				    <input type="range" name="width" data-elem="#rm-article" data-css="true" data-css-postfix="px" min="100" max="1280" step="10" value="680" data-thumbwidth="100">
+			  	</div>	
+
+			  	<div class="rm-m-t-25 rm-m-b-10">
+		        	<button class="rm-btn rm-btn-primary rm-btn-save rm-btn-xs" data-rm-action="save" data-rm-loading="Saving" data-rm-alert="Saved!">Save</button>
+		    	</div>
+		    </div>
+	  	</div>
+	  	<div class="rm-card">
+		    <div class="rm-card-header rm-hover-brightness" data-target="#rm-themes-settings">
+		        <i class="fas fa-swatchbook rm-m-r-5"></i> THEMES
+		    </div>
+			<div id="rm-themes-settings" class="rm-card-body rm-p-b-7i" data-parent="#rm-main-settings">
+			  	<label class="rm-label rm-m-t-10">Current Theme <button class="rm-btn rm-btn-light btn-delete rm-btn-xxs rm-m-t--1 rm-m-l-3" style="display:none;">Delete</button></label>
+			  	<!--<input type="text" name="themes" class="form-control"/>-->
+			  	<div class="rm-ul rm-list-unstyled rm-list-inline rm-m-b-15">
+			  		<div name="theme" data-value="custom" class="rm-li rm-list-inline-item tooltip-s" title="Add custom theme" data-toggle="true" data-target="#rm-new-theme"></div>
+			  	</div>
+
+			  	<div id="test">
+			  	</div>	
+
+			  	
+
+			  	<p>
+		        	<small>
+		        		To change the extension and app theme, go to the
+		        		<a href="#/" data-rm-action="open-page" data-page-name="options" class="rm-color-primary-i">
+		        			<b>Settings page <i class="fas fa-external-link-square-alt"></i></b>
+		        		</a> 
+		        	</small>
+		        </p> 						
+			</div>
+	  	</div>
+	 	<div class="rm-card">
+		    <div class="rm-card-header rm-hover-brightness" data-target="#rm-display-settings">
+		        <i class="fas fa-toggle-on rm-m-r-5"></i> DISPLAY
+		    </div>
+			<div id="rm-display-settings" class="rm-card-body" data-parent="#rm-main-settings">
+				<label class="rm-label rm-label-isolate">
+					<input type="checkbox" class="rm-m-r-3" name="rm_article_outline" data-toggle="true" data-elem-prefix="#"> 
+					<span>Outline</span>
+				</label>
+				<label class="rm-label rm-label-isolate">
+					<input type="checkbox" class="rm-m-r-3" name="img" data-toggle="true" checked=""> 
+					<span>Images</span>
+				</label>
+				<label class="rm-label rm-label-isolate">
+					<input type="checkbox" class="rm-m-r-3" name="rm_article_meta" data-toggle="true" data-elem-prefix="#" checked=""> 
+					<span>Meta</span> 
+				</label>
+				<label class="rm-label rm-label-isolate">
+					<input type="checkbox" class="rm-m-r-3" name="rm_article_author" data-toggle="true" data-elem-prefix="#" checked=""> 
+					<span>Author</span> 
+				</label>
+				<label class="rm-label rm-label-isolate">
+					<input type="checkbox" class="rm-m-r-3" name="rm_article_reading_time" data-toggle="true" data-elem-prefix="#" checked=""> 
+					<span>Reading Time</span> 
+				</label>
+				<label class="rm-label rm-label-isolate">
+					<input type="checkbox" class="rm-m-r-3" name="rm_article_source" data-toggle="true" data-elem-prefix="#" checked=""> 
+					<span>Source URL</span> 
+				</label>
+
+				<div class="rm-m-t-10 rm-m-b-10 rm-m-l-6">
+		        	<div class="rm-btn rm-btn-primary rm-btn-save rm-btn-xs" data-rm-action="save" data-rm-loading="Saving" data-rm-alert="Saved!">Save</div>
+		    	</div>
+			</div>
+	  	</div>
+		<div class="rm-card">
+		    <div class="rm-card-header rm-hover-brightness" data-target="#rm-dyslexia-ruler-settings">
+		    	<i class="fas fa-ruler-horizontal rm-m-r-5"></i> READING RULER
+		    </div>
+		    <div id="rm-dyslexia-ruler-settings" class="rm-card-body" data-parent="#rm-main-settings">
+		        <label class="rm-label rm-label-isolate">
+	      			<input type="checkbox" class="rm-m-r-3" name="rm_reading_ruler" data-toggle="true" data-elem-prefix="#"> 
+	      			<span>Display Ruler</span>
+	      		</label>
+
+	      		<table class="rm-m-t-10">
+			  		<tbody><tr>
+			  			<td class="rm-p-r-10">Color</td>
+			  			<td>
+			  				<input type="color" name="reading_ruler_bg_color" data-css="true" data-css-attr="background-color" data-elem="#rm-reading-ruler" value="#ADADAD">
+			  			</td>
+			  		</tr>	
+			  	</tbody></table>
+
+			  	<label class="rm-label rm-m-t-20">Opacity</label>
+				<div class="rm-range-control rm-m-b-10">
+				    <input type="range" name="reading_ruler_opacity" data-elem="#rm-reading-ruler" data-css="true" data-css-attr="opacity" min="0.1" max="1" step="0.1" value="0.5" data-thumbwidth="0.5">
+				    <output name="rangeVal">0.5</output>
+			  	</div>
+
+				<label class="rm-label rm-m-t-15">Height</label>
+				<div class="rm-range-control">
+				    <input type="range" name="reading_ruler_height" data-elem="#rm-reading-ruler" data-css="true" data-css-attr="height" data-css-postfix="px" min="10" max="250" step="2" value="40" data-thumbwidth="40">
+				    <output name="rangeVal">40</output>
+			  	</div>
+
+			  	<label class="rm-label rm-m-t-20">Position</label>
+				<div class="rm-range-control rm-m-b-10">
+				    <input type="range" name="reading_ruler_top" data-elem="#rm-reading-ruler" data-css="true" data-css-attr="top" data-css-postfix="%" min="10" max="90" step="5" value="45" data-thumbwidth="45">
+				    <output name="rangeVal">45</output>
+			  	</div>
+
+			  	<div class="rm-m-t-25 rm-m-b-10">
+		        	<div class="rm-btn rm-btn-primary rm-btn-save rm-btn-xs" data-rm-action="save" data-rm-loading="Saving" data-rm-alert="Saved!">Save</div>
+		    	</div>
+		    </div>
+		</div>
+	  	<div class="rm-card">
+		    <div class="rm-card-header rm-hover-brightness" data-target="#rm-auto-run-rules">
+		    	<span class="rm-m-r-5"><i class="fas fa-globe rm-m-r-1"></i></span> AUTO-RUN RULES 
+		    	<span class="rm-pill rm-pill-premium rm-m-l-5" data-rm-action="upgrade"><small>PREMIUM</small></span>
+		    </div>
+		    <div id="rm-auto-run-rules" class="rm-card-body" data-parent="#rm-main-settings">
+		        <textarea name="auto_run_rules" class="rm-form-control rm-textarea rm-m-b-10i" rows="5" spellcheck="false" placeholder="Add regex expressions here (seperated by commas)" readonly=""></textarea>
+
+		        <p>
+		        	<small>
+		        		Automatically activate Reader Mode on specific websites by using regex. 
+		        		<a href="https://readermode.io/features/auto-run" target="_blank" class="rm-color-primary-i">
+		        			<b>Learn more <i class="fas fa-external-link-square-alt"></i></b>
+		        		</a> 
+		        	</small>
+		        </p> 
+
+		        <div class="rm-m-t-10 rm-m-b-10">
+		        	<div class="rm-btn rm-btn-primary rm-btn-save rm-btn-xs" data-rm-action="save" data-rm-loading="Saving">Save</div>
+		    	</div>
+		    </div>
+	  	</div>		
+	  	<div class="rm-card">
+		    <div class="rm-card-header rm-hover-brightness" data-target="#rm-custom-css-settings">
+		    	<span class="rm-m-r-5">{ }</span> CUSTOM CSS 
+		    	<span class="rm-pill rm-pill-premium rm-m-l-5" data-rm-action="upgrade"><small>PREMIUM</small></span>
+		    </div>
+		    <div id="rm-custom-css-settings" class="rm-card-body" data-parent="#rm-main-settings">
+		        <textarea name="custom_css" class="rm-form-control rm-textarea rm-m-b-10i" rows="5" spellcheck="false" placeholder="Add your custom css..." readonly=""></textarea>
+		        <div>
+		        	<input type="checkbox" class="rm-m-r-3" name="use_custom_css" checked="" disabled=""> Use custom css
+		    	</div>
+
+		        <p>
+		        	<small>
+		        		Add your own CSS to customize the article's layout or design
+		        		<a href="https://help.readermode.io/using-reader-mode/custom-css" target="_blank" class="rm-color-primary-i">
+		        			<b>Learn more <i class="fas fa-external-link-square-alt"></i></b>
+		        		</a> 
+		        	</small>
+		        </p> 
+
+		        <div class="rm-m-t-10 rm-m-b-10">
+		        	<div class="rm-btn rm-btn-primary rm-btn-save rm-btn-xs" data-rm-action="save" data-rm-loading="Saving">Save</div>
+		    	</div>
+		    </div>
+	  	</div>
+	</div>
+</div>
+
+<div id="rm-translate" class="rm-toolbar-aside" data-toggle-target="true" data-parent="#rm-translate-toggle" style="display:none">
+	<div class="rm-card">
+	    <div class="rm-card-header">
+	    	<i class="fas fa-language rm-m-r-5"></i> TRANSLATE
+	    </div>
+	    <div class="rm-card-body">
+			<label class="rm-label rm-display-block rm-m-b-10">Default translation language:</label>
+			<select class="custom-select rm-custom-select rm-border-0i" name="default_translation_language">
+				<option value="af">🇿🇦 Afrikaans</option>
+				<option value="sq">🇦🇱 Albanian</option>
+				<option value="ar">🇸🇦 Arabic</option>
+				<option value="az">🇦🇿 Azerbaijani</option>
+				<option value="eu">🏴󠁥󠁳󠁰󠁶󠁿 Basque</option>
+				<option value="bn">🇧🇩 Bengali</option>
+				<option value="be">🇧🇾 Belarusian</option>
+				<option value="bg">🇧🇬 Bulgarian</option>
+				<option value="ca">🏴󠁥󠁳󠁰󠁶󠁿 Catalan</option>
+				<option value="zh-CN">🇨🇳 Chinese Simplified</option>
+				<option value="zh-TW">🇨🇳 Chinese Traditional</option>
+				<option value="hr">🇭🇷 Croatian</option>
+				<option value="cs">🇨🇿 Czech</option>
+				<option value="da">🇩🇰 Danish</option>
+				<option value="nl">🇳🇱 Dutch</option>
+				<option value="en" selected="">🇬🇧 English</option>
+				<option value="eo">🏴󠁥󠁳󠁰󠁶󠁿 Esperanto</option>
+				<option value="et">🇪🇪 Estonian</option>
+				<option value="tl">🇵🇭 Filipino</option>
+				<option value="fi">🇫🇮 Finnish</option>
+				<option value="fr">🇫🇷 French</option>
+				<option value="gl">🇪🇸 Galician</option>
+				<option value="ka">🇬🇪 Georgian</option>
+				<option value="de">🇩🇪 German</option>
+				<option value="el">🇬🇷 Greek</option>
+				<option value="gu">🇮🇳 Gujarati</option>
+				<option value="ht">🇭🇹 Haitian Creole</option>
+				<option value="iw">🇮🇱 Hebrew</option>
+				<option value="hi">🇮🇳 Hindi</option>
+				<option value="hu">🇭🇺 Hungarian</option>
+				<option value="is">🇮🇸 Icelandic</option>
+				<option value="id">🇮🇩 Indonesian</option>
+				<option value="ga">🇮🇪 Irish</option>
+				<option value="it">🇮🇹 Italian</option>
+				<option value="ja">🇯🇵 Japanese</option>
+				<option value="kn">🇮🇳 Kannada</option>
+				<option value="ko">🇰🇷 Korean</option>
+				<option value="la">🏴󠁥󠁳󠁰󠁶󠁿 Latin</option>
+				<option value="lv">🇱🇻 Latvian</option>
+				<option value="lt">🇱🇹 Lithuanian</option>
+				<option value="mk">🇲🇰 Macedonian</option>
+				<option value="ms">🇲🇾 Malay</option>
+				<option value="mt">🇲🇹 Maltese</option>
+				<option value="no">🇳🇴 Norwegian</option>
+				<option value="fa">🇮🇷 Persian</option>
+				<option value="pl">🇵🇱 Polish</option>
+				<option value="pt">🇵🇹 Portuguese</option>
+				<option value="ro">🇷🇴 Romanian</option>
+				<option value="ru">🇷🇺 Russian</option>
+				<option value="sr">🇷🇸 Serbian</option>
+				<option value="sk">🇸🇰 Slovak</option>
+				<option value="sl">🇸🇮 Slovenian</option>
+				<option value="es">🇪🇸 Spanish</option>
+				<option value="sw">🏴󠁥󠁳󠁰󠁶󠁿 Swahili</option>
+				<option value="sv">🇸🇪 Swedish</option>
+				<option value="ta">🇮🇳 Tamil</option>
+				<option value="te">🇮🇳 Telugu</option>
+				<option value="th">🇹🇭 Thai</option>
+				<option value="tr">🇹🇷 Turkish</option>
+				<option value="uk">🇺🇦 Ukrainian</option>
+				<option value="ur">🇵🇰 Urdu</option>
+				<option value="vi">🇻🇳 Vietnamese</option>
+				<option value="cy">🇬🇧 Welsh</option>
+				<option value="yi">🇮🇱 Yiddish</option>
+			</select>	
+
+			<div class="rm-m-t-10 rm-m-b-10">
+				<div class="rm-btn rm-btn-light rm-btn-save rm-btn-xs rm-m-r-5 rm-p-l-10i rm-p-r-10i" data-rm-loading="Setting" data-rm-alert="Set!">Set</div>
+				<div class="rm-btn rm-btn-primary rm-btn-save rm-btn-xs" data-rm-action="translate">Translate</div>
+			</div>
+	    </div>
+	</div>	
+</div>
+
+<div id="rm-deletion-mode" class="rm-toolbar-aside" style="display:none">
+	<div class="rm-card">
+	    <div class="rm-card-body text-center rm-p-0i rm-p-t-5i rm-p-b-5i">
+	   		<center>
+	   			<a href="#/" class="rm-deletion-mode-undo rm-m-r-10" title="Undo" style="display:none">
+	        		<i class="fas fa-undo"></i> 
+	        	</a>
+
+		        <div class="rm-btn rm-btn-xs rm-btn-light rm-p-l-25i rm-p-r-25i rm-m-r-3">Cancel</div>
+		        <div class="rm-btn rm-btn-xs rm-btn-primary rm-p-l-30i rm-p-r-30i">Save</div>
+	    	</center>
+	    </div>
+	</div>	
+</div>
+
+<div id="rm-editing-mode" class="rm-toolbar-aside" style="display:none">
+	<div class="rm-card">
+	    <div class="rm-card-body text-center rm-p-0i rm-p-t-5i rm-p-b-5i">
+	    	<center>
+		        <div class="rm-btn rm-btn-xs rm-btn-light rm-p-l-25i rm-p-r-25i rm-m-r-3">Cancel</div>
+		        <div class="rm-btn rm-btn-xs rm-btn-primary rm-p-l-30i rm-p-r-30i">Save</div>
+	    	</center>
+	    </div>
+	</div>	
+</div>
+
+<div id="rm-reading-ruler" class="no-print" style="display:none">
+</div>
+
+<div id="rm-article-outline" class="rm-toolbar-aside" style="display:none">
+	<div class="rm-card">
+	    <div class="rm-card-header">
+	    	<i class="fas fa-list-ul rm-m-r-5"></i> OUTLINE
+	    	<i class="fas fa-chevron-up rm-card-body-toggle rm-float-right rm-m-t-1"></i>
+	    </div>
+	    <div class="rm-card-body">
+	        <div class="rm-ul rm-list-unstyled rm-m-b-5">
+	        </div>	
+	    </div>
+	</div>	
+</div>
+
+</body>

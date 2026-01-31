@@ -1,0 +1,25 @@
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Limit to 5 PRs per week to avoid overwhelming
+    open-pull-requests-limit: 5
+    # Group minor and patch updates together
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore major version updates for stability (review manually)
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

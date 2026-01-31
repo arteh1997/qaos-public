@@ -1,0 +1,305 @@
+'use client'
+
+import { Suspense, useState, useEffect } from 'react'
+import { useUsers, UsersFilters } from '@/hooks/useUsers'
+import { useStores } from '@/hooks/useStores'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
+import { UsersTable } from '@/components/tables/UsersTable'
+import { InviteUserForm } from '@/components/forms/InviteUserForm'
+import { UserForm } from '@/components/forms/UserForm'
+import { TempPasswordDialog } from '@/components/dialogs/TempPasswordDialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { PageHeaderSkeleton, UsersTableSkeleton } from '@/components/ui/skeletons'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Profile, AppRole, UserStatus } from '@/types'
+import { InviteUserFormData, UpdateUserFormData } from '@/lib/validations/user'
+import { ROLES } from '@/lib/constants'
+import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { toast } from 'sonner'
+
+const FILTER_DEFAULTS = {
+  search: '',
+  role: 'all',
+  status: 'all',
+  page: 1,
+}
+
+function UsersPageContent() {
+  const { stores, isLoading: storesLoading } = useStores()
+
+  // URL-based filter state
+  const { filters, setFilter } = useUrlFilters({ defaults: FILTER_DEFAULTS })
+
+  // Local search input for immediate feedback
+  const [searchInput, setSearchInput] = useState(filters.search)
+
+  // Sync search input when URL changes
+  useEffect(() => {
+    setSearchInput(filters.search)
+  }, [filters.search])
+
+  // Debounce search updates to URL
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== filters.search) {
+        setFilter('search', searchInput)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput, filters.search, setFilter])
+
+  // Build filters for the hook
+  const usersFilters: UsersFilters = {
+    search: filters.search,
+    role: filters.role as AppRole | 'all',
+    status: filters.status as UserStatus | 'all',
+    page: filters.page,
+  }
+
+  const {
+    users,
+    totalCount,
+    totalPages,
+    isLoading,
+    updateUser,
+    deactivateUser,
+    activateUser,
+    refetch
+  } = useUsers(usersFilters)
+
+  // Form state
+  const [inviteFormOpen, setInviteFormOpen] = useState(false)
+  const [editFormOpen, setEditFormOpen] = useState(false)
+  const [editUser, setEditUser] = useState<Profile | null>(null)
+  const [isInviting, setIsInviting] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [tempPasswordDialogOpen, setTempPasswordDialogOpen] = useState(false)
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserTempPassword, setNewUserTempPassword] = useState('')
+
+  const handleInvite = async (data: InviteUserFormData) => {
+    setIsInviting(true)
+    try {
+      const response = await fetch('/api/users/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to create user')
+      }
+
+      toast.success('User invited successfully')
+      setNewUserEmail(data.email)
+      setNewUserTempPassword(result.tempPassword)
+      setInviteFormOpen(false)
+      setTempPasswordDialogOpen(true)
+      refetch()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create user')
+    } finally {
+      setIsInviting(false)
+    }
+  }
+
+  const handleEdit = (user: Profile) => {
+    setEditUser(user)
+    setEditFormOpen(true)
+  }
+
+  const handleUpdate = async (data: UpdateUserFormData) => {
+    if (!editUser) return
+
+    setIsUpdating(true)
+    try {
+      await updateUser({
+        id: editUser.id,
+        data: {
+          full_name: data.fullName,
+          role: data.role,
+          store_id: data.storeId,
+          status: data.status,
+        },
+      })
+
+      setEditFormOpen(false)
+      setEditUser(null)
+    } catch {
+      // Error handled by hook
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleDeactivate = (user: Profile) => {
+    deactivateUser(user.id)
+  }
+
+  const handleActivate = (user: Profile) => {
+    activateUser(user.id)
+  }
+
+  if (isLoading || storesLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <UsersTableSkeleton rows={8} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+          <p className="text-muted-foreground">
+            Manage user accounts and permissions
+          </p>
+        </div>
+        <Button onClick={() => setInviteFormOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Invite User
+        </Button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search users..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select
+          value={filters.role}
+          onValueChange={(value) => setFilter('role', value)}
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="All Roles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            {ROLES.map((role) => (
+              <SelectItem key={role} value={role}>
+                {role}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.status}
+          onValueChange={(value) => setFilter('status', value)}
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="All Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Invited">Invited</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <UsersTable
+        users={users}
+        onInvite={() => setInviteFormOpen(true)}
+        onEdit={handleEdit}
+        onDeactivate={handleDeactivate}
+        onActivate={handleActivate}
+      />
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {users.length} of {totalCount} users
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFilter('page', Math.max(1, filters.page - 1))}
+              disabled={filters.page === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {filters.page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFilter('page', Math.min(totalPages, filters.page + 1))}
+              disabled={filters.page === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <InviteUserForm
+        open={inviteFormOpen}
+        onOpenChange={setInviteFormOpen}
+        stores={stores}
+        onSubmit={handleInvite}
+        isLoading={isInviting}
+      />
+
+      <UserForm
+        open={editFormOpen}
+        onOpenChange={(open) => {
+          setEditFormOpen(open)
+          if (!open) setEditUser(null)
+        }}
+        user={editUser}
+        stores={stores}
+        onSubmit={handleUpdate}
+        isLoading={isUpdating}
+      />
+
+      <TempPasswordDialog
+        open={tempPasswordDialogOpen}
+        onOpenChange={(open) => {
+          setTempPasswordDialogOpen(open)
+          if (!open) {
+            setNewUserEmail('')
+            setNewUserTempPassword('')
+          }
+        }}
+        email={newUserEmail}
+        tempPassword={newUserTempPassword}
+      />
+    </div>
+  )
+}
+
+export default function UsersPage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <UsersTableSkeleton rows={8} />
+      </div>
+    }>
+      <UsersPageContent />
+    </Suspense>
+  )
+}

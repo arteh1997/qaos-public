@@ -1,0 +1,37 @@
+{
+  "name": "Restaurant Inventory Management",
+  "short_name": "Inventory",
+  "description": "Multi-location restaurant inventory management system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/",
+      "description": "View dashboard overview"
+    },
+    {
+      "name": "Stores",
+      "url": "/stores",
+      "description": "Manage store locations"
+    },
+    {
+      "name": "Inventory",
+      "url": "/inventory",
+      "description": "Manage inventory items"
+    }
+  ]
+}

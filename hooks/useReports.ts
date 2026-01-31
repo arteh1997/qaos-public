@@ -1,0 +1,230 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { supabaseFetch } from '@/lib/supabase/client'
+import { StockHistory, LowStockItem, DailyCount } from '@/types'
+
+export function useStockHistory(storeId?: string | null, date?: string) {
+  const [data, setData] = useState<StockHistory[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const fetchStockHistory = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const filter: Record<string, string> = {}
+
+      if (storeId) {
+        filter['store_id'] = `eq.${storeId}`
+      }
+
+      if (date) {
+        const startOfDay = `${date}T00:00:00.000Z`
+        const endOfDay = `${date}T23:59:59.999Z`
+        filter['created_at'] = `gte.${startOfDay}`
+        filter['and'] = `(created_at.lte.${endOfDay})`
+      }
+
+      const { data: historyData, error: fetchError } = await supabaseFetch<StockHistory>('stock_history', {
+        select: '*,inventory_item:inventory_items!stock_history_inventory_item_id_fkey(*),store:stores!stock_history_store_id_fkey(*),performer:profiles!stock_history_performed_by_fkey(*)',
+        order: 'created_at.desc',
+        filter,
+      })
+
+      if (fetchError) {
+        // Table might not exist yet
+        if (fetchError.message?.includes('does not exist')) {
+          setData([])
+          return
+        }
+        throw fetchError
+      }
+
+      setData(historyData || [])
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch stock history'))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [storeId, date])
+
+  useEffect(() => {
+    fetchStockHistory()
+  }, [fetchStockHistory])
+
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: fetchStockHistory,
+  }
+}
+
+export function useLowStockReport() {
+  const [data, setData] = useState<LowStockItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const fetchLowStock = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { data: inventoryData, error: fetchError } = await supabaseFetch<{
+        store_id: string
+        inventory_item_id: string
+        quantity: number
+        par_level: number | null
+        store: { id: string; name: string } | null
+        inventory_item: { id: string; name: string; unit_of_measure: string } | null
+      }>('store_inventory', {
+        select: '*,store:stores(id,name),inventory_item:inventory_items(id,name,unit_of_measure)',
+        filter: { 'par_level': 'not.is.null' },
+      })
+
+      if (fetchError) throw fetchError
+
+      // Filter items below PAR level and format
+      const lowStockItems: LowStockItem[] = (inventoryData ?? [])
+        .filter(item => item.par_level && item.quantity < item.par_level)
+        .map(item => ({
+          store_id: item.store_id,
+          store_name: item.store?.name ?? 'Unknown',
+          inventory_item_id: item.inventory_item_id,
+          item_name: item.inventory_item?.name ?? 'Unknown',
+          current_quantity: item.quantity,
+          par_level: item.par_level!,
+          shortage: item.par_level! - item.quantity,
+        }))
+        .sort((a, b) => b.shortage - a.shortage)
+
+      setData(lowStockItems)
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch low stock report'))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchLowStock()
+  }, [fetchLowStock])
+
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: fetchLowStock,
+  }
+}
+
+export function useDailyCounts(date?: string) {
+  const [data, setData] = useState<DailyCount[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const fetchDailyCounts = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const targetDate = date ?? new Date().toISOString().split('T')[0]
+
+      const { data: countsData, error: fetchError } = await supabaseFetch<DailyCount>('daily_counts', {
+        select: '*,store:stores!daily_counts_store_id_fkey(*),submitter:profiles!daily_counts_submitted_by_fkey(*)',
+        filter: { count_date: `eq.${targetDate}` },
+      })
+
+      if (fetchError) {
+        // Table might not exist yet
+        if (fetchError.message?.includes('does not exist')) {
+          setData([])
+          return
+        }
+        throw fetchError
+      }
+
+      setData(countsData || [])
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch daily counts'))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [date])
+
+  useEffect(() => {
+    fetchDailyCounts()
+  }, [fetchDailyCounts])
+
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: fetchDailyCounts,
+  }
+}
+
+type MissingStore = { id: string; name: string }
+
+export function useMissingCounts(date?: string) {
+  const [data, setData] = useState<MissingStore[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const fetchMissingCounts = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const targetDate = date ?? new Date().toISOString().split('T')[0]
+
+      // Get all active stores
+      const { data: storesData, error: storesError } = await supabaseFetch<MissingStore>('stores', {
+        select: 'id,name',
+        filter: { is_active: 'eq.true' },
+      })
+
+      if (storesError) throw storesError
+
+      const stores = storesData ?? []
+
+      // Get stores that submitted counts
+      const { data: countsData, error: countsError } = await supabaseFetch<{ store_id: string }>('daily_counts', {
+        select: 'store_id',
+        filter: { count_date: `eq.${targetDate}` },
+      })
+
+      // If daily_counts table doesn't exist, return all stores as missing
+      if (countsError) {
+        if (countsError.message?.includes('does not exist')) {
+          setData(stores)
+          return
+        }
+        throw countsError
+      }
+
+      const counts = countsData ?? []
+      const countedStoreIds = new Set(counts.map(c => c.store_id))
+
+      // Filter stores that haven't submitted
+      setData(stores.filter(store => !countedStoreIds.has(store.id)))
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch missing counts'))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [date])
+
+  useEffect(() => {
+    fetchMissingCounts()
+  }, [fetchMissingCounts])
+
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: fetchMissingCounts,
+  }
+}

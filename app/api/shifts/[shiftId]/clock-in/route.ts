@@ -1,0 +1,91 @@
+import { NextRequest } from 'next/server'
+import { withApiAuth } from '@/lib/api/middleware'
+import {
+  apiSuccess,
+  apiError,
+  apiBadRequest,
+  apiNotFound,
+  apiForbidden,
+} from '@/lib/api/response'
+import { RATE_LIMITS } from '@/lib/rate-limit'
+import { Shift } from '@/types'
+
+interface RouteParams {
+  params: Promise<{ shiftId: string }>
+}
+
+/**
+ * POST /api/shifts/:shiftId/clock-in - Clock in to a shift
+ */
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { shiftId } = await params
+
+    const auth = await withApiAuth(request, {
+      rateLimit: { key: 'api', config: RATE_LIMITS.api },
+    })
+
+    if (!auth.success) return auth.response
+
+    const { context } = auth
+
+    // Get the shift
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: shift, error: fetchError } = await (context.supabase as any)
+      .from('shifts')
+      .select('*')
+      .eq('id', shiftId)
+      .single()
+
+    if (fetchError || !shift) {
+      return apiNotFound('Shift', context.requestId)
+    }
+
+    // Verify user owns this shift (unless Admin)
+    if (context.profile.role !== 'Admin' && shift.user_id !== context.user.id) {
+      return apiForbidden('You can only clock in to your own shifts', context.requestId)
+    }
+
+    // Check if already clocked in
+    if (shift.clock_in_time) {
+      return apiBadRequest('Already clocked in to this shift', context.requestId)
+    }
+
+    // Verify timing - allow clock in within 15 minutes before or after shift start
+    const now = new Date()
+    const shiftStart = new Date(shift.start_time)
+    const diffMinutes = (now.getTime() - shiftStart.getTime()) / (1000 * 60)
+
+    if (diffMinutes < -15) {
+      return apiBadRequest(
+        'Too early to clock in. You can clock in up to 15 minutes before your shift.',
+        context.requestId
+      )
+    }
+
+    // Update shift with clock in time
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: updatedShift, error: updateError } = await (context.supabase as any)
+      .from('shifts')
+      .update({
+        clock_in_time: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq('id', shiftId)
+      .select(`
+        *,
+        store:stores(*),
+        user:profiles(id, full_name, email)
+      `)
+      .single()
+
+    if (updateError) throw updateError
+
+    return apiSuccess(updatedShift as Shift, {
+      requestId: context.requestId,
+    })
+  } catch (error) {
+    console.error('Error clocking in:', error)
+    return apiError(error instanceof Error ? error.message : 'Failed to clock in')
+  }
+}
