@@ -332,33 +332,151 @@ export function TimelineView({
       </CardHeader>
 
       <CardContent className="p-0">
-        {/* Scrollable timeline container */}
-        <div className="overflow-x-auto">
+        {/* Mobile List View */}
+        <div className="sm:hidden border-t">
+          {Object.entries(groupedShifts).length === 0 ? (
+            <div className={`p-6 text-center ${viewStyles.labelBg}`}>
+              <div className={`inline-flex items-center justify-center h-10 w-10 rounded-full mb-3 ${viewMode === 'store' ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-teal-100 dark:bg-teal-900/50'}`}>
+                {viewMode === 'store' ? (
+                  <Building2 className={`h-5 w-5 ${viewStyles.iconColor}`} />
+                ) : (
+                  <Users className={`h-5 w-5 ${viewStyles.iconColor}`} />
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                No {viewMode === 'store' ? 'stores' : 'staff members'} to display
+              </p>
+            </div>
+          ) : (
+            Object.entries(groupedShifts).map(([id, { entity, shifts: entityShifts }]) => {
+              const isStore = viewMode === 'store'
+              const name = isStore ? (entity as Store).name : (entity as Profile).full_name || (entity as Profile).email
+              const store = isStore ? (entity as Store) : null
+              const person = !isStore ? (entity as Profile) : null
+
+              return (
+                <div key={id} className="border-b last:border-b-0">
+                  {/* Entity header */}
+                  <div className={`px-3 py-2 flex items-center gap-2 ${viewStyles.labelBg} ${viewStyles.rowAccent}`}>
+                    {isStore ? (
+                      <>
+                        <div className="h-6 w-6 rounded-md bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <span className="text-sm font-medium">{name}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Avatar className="h-6 w-6 flex-shrink-0">
+                          <AvatarFallback className="text-[10px] bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">
+                            {getInitials(person?.full_name || null)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">{name}</span>
+                      </>
+                    )}
+                    {entityShifts.length > 0 && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {entityShifts.length} shift{entityShifts.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Shifts list */}
+                  <div className="px-3 py-2 space-y-2">
+                    {entityShifts.length === 0 ? (
+                      <div className="text-xs text-muted-foreground text-center py-2">
+                        No shifts scheduled
+                      </div>
+                    ) : (
+                      entityShifts.map(shift => {
+                        const shiftStore = stores.find(s => s.id === shift.store_id)
+                        const shiftUser = staff.find(s => s.id === shift.user_id)
+                        const startTime = new Date(shift.start_time)
+                        const endTime = new Date(shift.end_time)
+                        const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+                        const isOvernightShift = !isSameDay(startTime, endTime)
+
+                        return (
+                          <div
+                            key={shift.id}
+                            className={`rounded-md border p-2.5 ${getShiftColor(shift).replace('hover:bg-', 'border-').replace('-600', '-300')} bg-opacity-10`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-1.5">
+                                {isStore ? (
+                                  <>
+                                    <User className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-sm font-medium">
+                                      {shiftUser?.full_name || shiftUser?.email || 'Staff'}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <MapPin className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-sm font-medium">
+                                      {shiftStore?.name || 'Store'}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {Math.round(duration)}h
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              <span>
+                                {formatShiftTime(startTime)} - {formatShiftTime(endTime)}
+                                {isOvernightShift && <span className="text-purple-500 ml-1">(+1 day)</span>}
+                              </span>
+                            </div>
+                            {(shift.clock_in_time || shift.clock_out_time) && (
+                              <div className="flex gap-2 mt-1 text-xs">
+                                {shift.clock_in_time && (
+                                  <span className="text-green-600">In: {format(new Date(shift.clock_in_time), 'h:mm a')}</span>
+                                )}
+                                {shift.clock_out_time && (
+                                  <span className="text-muted-foreground">Out: {format(new Date(shift.clock_out_time), 'h:mm a')}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Desktop Timeline View */}
+        <div className="hidden sm:block overflow-x-auto">
           <div className="min-w-[600px]">
             {/* Timeline header with hours */}
             <div className={`flex border-b ${viewStyles.labelBg}`}>
-              <div className={`w-24 sm:w-36 flex-shrink-0 px-2 sm:px-3 py-2 border-r text-xs font-medium ${viewStyles.headerText} flex items-center gap-1.5`}>
+              <div className={`w-36 flex-shrink-0 px-3 py-2 border-r text-xs font-medium ${viewStyles.headerText} flex items-center gap-1.5`}>
                 {viewMode === 'store' ? (
                   <>
                     <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="hidden sm:inline">Store</span>
+                    <span>Store</span>
                   </>
                 ) : (
                   <>
                     <Users className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="hidden sm:inline">Staff</span>
+                    <span>Staff</span>
                   </>
                 )}
               </div>
               <div className="flex-1 flex">
-                {hours.map((hour, idx) => (
+                {hours.map((hour) => (
                   <div
                     key={hour}
-                    className="flex-1 text-center text-[9px] sm:text-[10px] text-muted-foreground py-2 border-l first:border-l-0"
+                    className="flex-1 text-center text-[10px] text-muted-foreground py-2 border-l first:border-l-0"
                   >
-                    {/* Show every other hour on mobile for readability */}
-                    <span className="sm:hidden">{idx % 2 === 0 ? formatHour(hour) : ''}</span>
-                    <span className="hidden sm:inline">{formatHour(hour)}</span>
+                    {formatHour(hour)}
                   </div>
                 ))}
               </div>
@@ -367,12 +485,12 @@ export function TimelineView({
             {/* Timeline rows */}
             <div className="divide-y">
               {Object.entries(groupedShifts).length === 0 ? (
-                <div className={`p-6 sm:p-8 text-center ${viewStyles.labelBg} ${viewStyles.rowAccent}`}>
-                  <div className={`inline-flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-full mb-3 ${viewMode === 'store' ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-teal-100 dark:bg-teal-900/50'}`}>
+                <div className={`p-8 text-center ${viewStyles.labelBg} ${viewStyles.rowAccent}`}>
+                  <div className={`inline-flex items-center justify-center h-12 w-12 rounded-full mb-3 ${viewMode === 'store' ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-teal-100 dark:bg-teal-900/50'}`}>
                     {viewMode === 'store' ? (
-                      <Building2 className={`h-5 w-5 sm:h-6 sm:w-6 ${viewStyles.iconColor}`} />
+                      <Building2 className={`h-6 w-6 ${viewStyles.iconColor}`} />
                     ) : (
-                      <Users className={`h-5 w-5 sm:h-6 sm:w-6 ${viewStyles.iconColor}`} />
+                      <Users className={`h-6 w-6 ${viewStyles.iconColor}`} />
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -392,30 +510,30 @@ export function TimelineView({
                   const person = !isStore ? (entity as Profile) : null
 
                   return (
-                    <div key={id} className={`flex min-h-[50px] sm:min-h-[60px] ${viewStyles.rowAccent}`}>
+                    <div key={id} className={`flex min-h-[60px] ${viewStyles.rowAccent}`}>
                       {/* Entity label */}
-                      <div className={`w-24 sm:w-36 flex-shrink-0 px-2 sm:px-3 py-2 border-r flex items-center gap-1.5 sm:gap-2 ${viewStyles.labelBg}`}>
+                      <div className={`w-36 flex-shrink-0 px-3 py-2 border-r flex items-center gap-2 ${viewStyles.labelBg}`}>
                         {isStore ? (
                           <>
-                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-md bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
-                              <Building2 className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
+                            <div className="h-7 w-7 rounded-md bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                              <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                             </div>
-                            <span className="text-xs sm:text-sm font-medium truncate">{name}</span>
+                            <span className="text-sm font-medium truncate">{name}</span>
                           </>
                         ) : (
                           <>
-                            <Avatar className="h-6 w-6 sm:h-7 sm:w-7 flex-shrink-0">
-                              <AvatarFallback className="text-[10px] sm:text-xs bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">
+                            <Avatar className="h-7 w-7 flex-shrink-0">
+                              <AvatarFallback className="text-xs bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300">
                                 {getInitials(person?.full_name || null)}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-xs sm:text-sm font-medium truncate">{name}</span>
+                            <span className="text-sm font-medium truncate">{name}</span>
                           </>
                         )}
                       </div>
 
                       {/* Timeline area */}
-                      <div className="flex-1 relative py-2 min-h-[46px] sm:min-h-[56px]">
+                      <div className="flex-1 relative py-2 min-h-[56px]">
                         {/* Hour grid lines */}
                         <div className="absolute inset-0 flex pointer-events-none">
                           {hours.map(hour => (
@@ -443,26 +561,26 @@ export function TimelineView({
                               <Tooltip key={shift.id}>
                                 <TooltipTrigger asChild>
                                   <div
-                                    className={`absolute top-1/2 -translate-y-1/2 h-6 sm:h-8 shadow-sm cursor-pointer transition-all ${getShiftColor(shift)} text-white text-[10px] sm:text-xs flex items-center overflow-hidden rounded-md`}
+                                    className={`absolute top-1/2 -translate-y-1/2 h-8 shadow-sm cursor-pointer transition-all ${getShiftColor(shift)} text-white text-xs flex items-center overflow-hidden rounded-md`}
                                     style={{ left, width }}
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <div className="flex items-center">
                                       {isStore ? (
                                         <>
-                                          <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-white/20 flex items-center justify-center ml-0.5 sm:ml-1 flex-shrink-0">
-                                            <User className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                          <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center ml-1 flex-shrink-0">
+                                            <User className="h-3.5 w-3.5" />
                                           </div>
-                                          <span className="truncate px-1 sm:px-1.5 font-medium">
+                                          <span className="truncate px-1.5 font-medium">
                                             {shiftUser?.full_name?.split(' ')[0] || 'Staff'}
                                           </span>
                                         </>
                                       ) : (
                                         <>
-                                          <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-md bg-white/20 flex items-center justify-center ml-0.5 sm:ml-1 flex-shrink-0">
-                                            <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                          <div className="h-6 w-6 rounded-md bg-white/20 flex items-center justify-center ml-1 flex-shrink-0">
+                                            <MapPin className="h-3.5 w-3.5" />
                                           </div>
-                                          <span className="truncate px-1 sm:px-1.5 font-medium">
+                                          <span className="truncate px-1.5 font-medium">
                                             {shiftStore?.name || 'Store'}
                                           </span>
                                         </>
