@@ -126,17 +126,17 @@ export default function StockPage({ params }: StockPageProps) {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Stock Levels</h1>
-          <p className="text-muted-foreground">{store.name}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Stock Levels</h1>
+          <p className="text-sm text-muted-foreground">{store.name}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
         <Select
           value={categoryFilter}
           onValueChange={setCategoryFilter}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -148,9 +148,10 @@ export default function StockPage({ params }: StockPageProps) {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" onClick={handleExport}>
+        <Button variant="outline" size="sm" onClick={handleExport} className="ml-auto sm:ml-0">
           <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-          Export CSV
+          <span className="hidden sm:inline">Export CSV</span>
+          <span className="sm:hidden">Export</span>
         </Button>
       </div>
 

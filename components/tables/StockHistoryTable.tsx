@@ -190,85 +190,156 @@ export const StockHistoryTable = memo(function StockHistoryTable({ history, show
   }, [history, sortConfig])
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <SortableHeader
-              label="Time"
-              sortKey="time"
-              currentSort={sortConfig}
-              onSort={handleSort}
+    <>
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {sortedHistory.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center border rounded-md">
+            <EmptyState
+              icon={History}
+              title="No stock history"
+              description="Stock changes from counts and receptions will appear here."
             />
-            <SortableHeader
-              label="Item"
-              sortKey="item"
-              currentSort={sortConfig}
-              onSort={handleSort}
-            />
-            <SortableHeader
-              label="Action"
-              sortKey="action"
-              currentSort={sortConfig}
-              onSort={handleSort}
-            />
-            {showStore && (
+          </div>
+        ) : (
+          sortedHistory.map((record) => (
+            <div key={record.id} className="border rounded-lg p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{record.inventory_item?.name || '-'}</p>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                    <span>{format(new Date(record.created_at), 'h:mm a')}</span>
+                    {showStore && record.store?.name && (
+                      <>
+                        <span>•</span>
+                        <span>{record.store.name}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <Badge variant={actionColors[record.action_type]} className="text-xs flex-shrink-0">
+                  {record.action_type}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-4 mt-2 pt-2 border-t">
+                <div className="text-center">
+                  <div className="text-[10px] text-muted-foreground uppercase">Before</div>
+                  <div className="text-sm font-mono text-muted-foreground">{record.quantity_before ?? 0}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[10px] text-muted-foreground uppercase">After</div>
+                  <div className="text-sm font-mono font-medium">{record.quantity_after ?? 0}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[10px] text-muted-foreground uppercase">Change</div>
+                  <span
+                    className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                      record.quantity_change && record.quantity_change > 0
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : record.quantity_change && record.quantity_change < 0
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                    }`}
+                  >
+                    {record.quantity_change && record.quantity_change > 0 ? '+' : ''}
+                    {record.quantity_change ?? 0}
+                  </span>
+                </div>
+                {record.performer && (
+                  <div className="flex-1 text-right">
+                    <div className="text-[10px] text-muted-foreground uppercase">By</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {record.performer.full_name || record.performer.email || '-'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
               <SortableHeader
-                label="Store"
-                sortKey="store"
+                label="Time"
+                sortKey="time"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden sm:table-cell"
               />
-            )}
-            <SortableHeader
-              label="Before"
-              sortKey="before"
-              currentSort={sortConfig}
-              onSort={handleSort}
-              className="text-right"
-            />
-            <SortableHeader
-              label="After"
-              sortKey="after"
-              currentSort={sortConfig}
-              onSort={handleSort}
-              className="text-right"
-            />
-            <SortableHeader
-              label="Change"
-              sortKey="change"
-              currentSort={sortConfig}
-              onSort={handleSort}
-              className="text-right"
-            />
-            <SortableHeader
-              label="By"
-              sortKey="by"
-              currentSort={sortConfig}
-              onSort={handleSort}
-              className="hidden sm:table-cell"
-            />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedHistory.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={showStore ? 8 : 7} className="h-[250px]">
-                <EmptyState
-                  icon={History}
-                  title="No stock history"
-                  description="Stock changes from counts and receptions will appear here."
+              <SortableHeader
+                label="Item"
+                sortKey="item"
+                currentSort={sortConfig}
+                onSort={handleSort}
+              />
+              <SortableHeader
+                label="Action"
+                sortKey="action"
+                currentSort={sortConfig}
+                onSort={handleSort}
+              />
+              {showStore && (
+                <SortableHeader
+                  label="Store"
+                  sortKey="store"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                  className="hidden md:table-cell"
                 />
-              </TableCell>
+              )}
+              <SortableHeader
+                label="Before"
+                sortKey="before"
+                currentSort={sortConfig}
+                onSort={handleSort}
+                className="text-right"
+              />
+              <SortableHeader
+                label="After"
+                sortKey="after"
+                currentSort={sortConfig}
+                onSort={handleSort}
+                className="text-right"
+              />
+              <SortableHeader
+                label="Change"
+                sortKey="change"
+                currentSort={sortConfig}
+                onSort={handleSort}
+                className="text-right"
+              />
+              <SortableHeader
+                label="By"
+                sortKey="by"
+                currentSort={sortConfig}
+                onSort={handleSort}
+                className="hidden md:table-cell"
+              />
             </TableRow>
-          ) : (
-            sortedHistory.map((record) => (
-              <StockHistoryRow key={record.id} record={record} showStore={showStore} />
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {sortedHistory.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={showStore ? 8 : 7} className="h-[250px]">
+                  <EmptyState
+                    icon={History}
+                    title="No stock history"
+                    description="Stock changes from counts and receptions will appear here."
+                  />
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedHistory.map((record) => (
+                <StockHistoryRow key={record.id} record={record} showStore={showStore} />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   )
 })

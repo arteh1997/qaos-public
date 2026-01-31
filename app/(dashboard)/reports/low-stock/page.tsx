@@ -129,61 +129,88 @@ function LowStockTable({ items, storeId }: LowStockTableProps) {
   }, [items, sortConfig])
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <SortableHeader
-              label="Item"
-              sortKey="item"
-              currentSort={sortConfig}
-              onSort={handleSort}
-            />
-            <SortableHeader
-              label="Current"
-              sortKey="current"
-              currentSort={sortConfig}
-              onSort={handleSort}
-              className="text-right"
-            />
-            <SortableHeader
-              label="PAR Level"
-              sortKey="par"
-              currentSort={sortConfig}
-              onSort={handleSort}
-              className="text-right"
-            />
-            <SortableHeader
-              label="Shortage"
-              sortKey="shortage"
-              currentSort={sortConfig}
-              onSort={handleSort}
-              className="text-right"
-            />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedItems.map((item) => (
-            <TableRow key={`${storeId}-${item.inventory_item_id}`}>
-              <TableCell className="font-medium">
-                {item.item_name}
-              </TableCell>
-              <TableCell className="text-right text-red-600 font-medium">
-                {item.current_quantity}
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground">
-                {item.par_level}
-              </TableCell>
-              <TableCell className="text-right">
-                <Badge variant="destructive">
-                  -{item.shortage.toFixed(1)}
-                </Badge>
-              </TableCell>
+    <>
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {sortedItems.map((item) => (
+          <div key={`${storeId}-${item.inventory_item_id}`} className="border rounded-lg p-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-medium text-sm">{item.item_name}</p>
+              <Badge variant="destructive" className="text-xs flex-shrink-0">
+                -{item.shortage.toFixed(1)}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-4 mt-2 pt-2 border-t">
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase">Current</div>
+                <div className="text-lg font-bold text-red-600">{item.current_quantity}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase">PAR Level</div>
+                <div className="text-lg font-bold text-muted-foreground">{item.par_level}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <SortableHeader
+                label="Item"
+                sortKey="item"
+                currentSort={sortConfig}
+                onSort={handleSort}
+              />
+              <SortableHeader
+                label="Current"
+                sortKey="current"
+                currentSort={sortConfig}
+                onSort={handleSort}
+                className="text-right"
+              />
+              <SortableHeader
+                label="PAR Level"
+                sortKey="par"
+                currentSort={sortConfig}
+                onSort={handleSort}
+                className="text-right"
+              />
+              <SortableHeader
+                label="Shortage"
+                sortKey="shortage"
+                currentSort={sortConfig}
+                onSort={handleSort}
+                className="text-right"
+              />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {sortedItems.map((item) => (
+              <TableRow key={`${storeId}-${item.inventory_item_id}`}>
+                <TableCell className="font-medium">
+                  {item.item_name}
+                </TableCell>
+                <TableCell className="text-right text-red-600 font-medium">
+                  {item.current_quantity}
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {item.par_level}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Badge variant="destructive">
+                    -{item.shortage.toFixed(1)}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   )
 }
 
@@ -260,16 +287,16 @@ function LowStockPageContent() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Low Stock Report</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Low Stock Report</h1>
+          <p className="text-sm text-muted-foreground">
             Items below their PAR level
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
         <Select value={selectedStore} onValueChange={setSelectedStore}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Stores" />
           </SelectTrigger>
           <SelectContent>
@@ -289,9 +316,10 @@ function LowStockPageContent() {
         </Badge>
 
         {filteredItems.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button variant="outline" size="sm" onClick={handleExport} className="ml-auto sm:ml-0">
             <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-            Export CSV
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">Export</span>
           </Button>
         )}
       </div>

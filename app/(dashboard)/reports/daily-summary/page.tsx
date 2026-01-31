@@ -99,8 +99,8 @@ export default function DailySummaryPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Daily Summary</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Daily Summary</h1>
+          <p className="text-sm text-muted-foreground">
             View all stock changes for a specific date
           </p>
         </div>

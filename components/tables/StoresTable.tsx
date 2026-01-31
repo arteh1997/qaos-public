@@ -49,7 +49,97 @@ export function StoresTable({ stores, canManage, isLoading, onAdd, onEdit, onDel
 
   return (
     <>
-      <div className="rounded-md border">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {stores.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center border rounded-md">
+            <EmptyState
+              icon={StoreIcon}
+              title="No stores found"
+              description={canManage
+                ? "Get started by adding your first store location."
+                : "No store locations have been added yet."
+              }
+              action={canManage && onAdd ? {
+                label: "Add Store",
+                onClick: onAdd,
+                icon: Plus,
+              } : undefined}
+            />
+          </div>
+        ) : (
+          stores.map((store) => (
+            <div key={store.id} className="border rounded-lg p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm truncate">{store.name}</span>
+                    <Badge variant={store.is_active ? 'default' : 'secondary'} className="text-xs flex-shrink-0">
+                      {store.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                  {store.address && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">{store.address}</p>
+                  )}
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/stores/${store.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/stores/${store.id}/stock`}>
+                        <Package className="mr-2 h-4 w-4" />
+                        View Stock
+                      </Link>
+                    </DropdownMenuItem>
+                    {canManage && (
+                      <>
+                        <DropdownMenuItem onClick={() => onEdit?.(store)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setDeleteStore(store)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button asChild variant="outline" size="sm" className="flex-1 h-8 text-xs">
+                  <Link href={`/stores/${store.id}`}>
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    Details
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="flex-1 h-8 text-xs">
+                  <Link href={`/stores/${store.id}/stock`}>
+                    <Package className="mr-1.5 h-3.5 w-3.5" />
+                    Stock
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

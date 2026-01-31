@@ -548,8 +548,96 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
         </Button>
       </div>
 
-      {/* Item table with sortable columns */}
-      <div className="rounded-md border">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {filteredItems.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center text-muted-foreground border rounded-md">
+            No items found
+          </div>
+        ) : (
+          filteredItems.map((item) => {
+            const isLowStock = item.par_level && (item.new_quantity ?? item.current_quantity) < item.par_level
+            const hasChanged = item.new_quantity !== null && item.new_quantity !== item.current_quantity
+
+            return (
+              <div
+                key={item.inventory_item_id}
+                className={`border rounded-lg p-3 ${hasChanged ? 'bg-primary/5 border-primary/30' : ''}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm truncate">{item.name}</span>
+                      {isLowStock && (
+                        <Badge variant="destructive" className="gap-1 text-[10px] h-5">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          Low
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                      {item.category && <span>{item.category}</span>}
+                      <span>•</span>
+                      <span>{item.unit_of_measure}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <div className="text-[10px] text-muted-foreground">Current</div>
+                      <div className="text-sm font-medium">{item.current_quantity}</div>
+                    </div>
+                    <div className="text-muted-foreground">→</div>
+                    {item.isEditing ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        autoFocus
+                        value={item.new_quantity ?? ''}
+                        onChange={(e) => handleQuantityChange(item.inventory_item_id, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => handleBlur(item.inventory_item_id)}
+                        onKeyDown={(e) => {
+                          if (e.key === '.') e.preventDefault()
+                          if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
+                            e.preventDefault()
+                            navigateToItem('next')
+                          }
+                          if (e.key === 'Tab' && e.shiftKey) {
+                            e.preventDefault()
+                            navigateToItem('prev')
+                          }
+                          if (e.key === 'Escape') {
+                            e.currentTarget.blur()
+                          }
+                        }}
+                        className="w-16 h-9 text-center text-sm"
+                        aria-label={`Quantity for ${item.name}`}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditing(item.inventory_item_id)}
+                        className={`min-w-14 h-9 px-3 text-sm font-medium rounded-md border cursor-pointer transition-colors
+                          ${hasChanged
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted/50 hover:bg-muted border-input'
+                          }`}
+                        aria-label={`Edit quantity for ${item.name}`}
+                      >
+                        {item.new_quantity ?? item.current_quantity}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -564,14 +652,14 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                 sortKey="category"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden sm:table-cell"
+                className="hidden md:table-cell"
               />
               <SortableHeader
                 label="Unit"
                 sortKey="unit"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden md:table-cell"
+                className="hidden lg:table-cell"
               />
               <SortableHeader
                 label="Current"
@@ -579,7 +667,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                 currentSort={sortConfig}
                 onSort={handleSort}
               />
-              <TableHead>New Quantity</TableHead>
+              <TableHead>New Qty</TableHead>
               <SortableHeader
                 label="Status"
                 sortKey="status"
@@ -608,10 +696,10 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                     <TableCell>
                       <span className="font-medium">{item.name}</span>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-muted-foreground">
                       {item.category || '-'}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell text-muted-foreground">
                       {item.unit_of_measure}
                     </TableCell>
                     <TableCell className="text-muted-foreground">

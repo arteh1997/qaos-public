@@ -70,14 +70,83 @@ export function ShiftsTable({
 
   return (
     <>
-      <div className="rounded-md border">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-3">
+        {shifts.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8 border rounded-md">
+            No shifts found
+          </div>
+        ) : (
+          shifts.map((shift) => {
+            const status = getShiftStatus(shift)
+            return (
+              <div key={shift.id} className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-sm">
+                      {format(new Date(shift.start_time), 'EEE, MMM d')}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(shift.start_time), 'h:mm a')} - {format(new Date(shift.end_time), 'h:mm a')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={status.variant} className="text-xs">{status.label}</Badge>
+                    {canManage && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onEdit?.(shift)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteShift(shift)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {showUser && shift.user && (
+                    <span>{shift.user.full_name || shift.user.email}</span>
+                  )}
+                  {showStore && shift.store && (
+                    <span>{shift.store.name}</span>
+                  )}
+                </div>
+                {shift.clock_in_time && (
+                  <p className="text-xs text-muted-foreground">
+                    In: {format(new Date(shift.clock_in_time), 'h:mm a')}
+                    {shift.clock_out_time && (
+                      <> • Out: {format(new Date(shift.clock_out_time), 'h:mm a')}</>
+                    )}
+                  </p>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
-              {showUser && <TableHead className="hidden sm:table-cell">User</TableHead>}
-              {showStore && <TableHead className="hidden md:table-cell">Store</TableHead>}
+              {showUser && <TableHead className="hidden md:table-cell">User</TableHead>}
+              {showStore && <TableHead className="hidden lg:table-cell">Store</TableHead>}
               <TableHead>Status</TableHead>
               {canManage && <TableHead className="w-[80px]">Actions</TableHead>}
             </TableRow>
@@ -97,10 +166,10 @@ export function ShiftsTable({
                 const status = getShiftStatus(shift)
                 return (
                   <TableRow key={shift.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium whitespace-nowrap">
                       {format(new Date(shift.start_time), 'MMM d, yyyy')}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <div>
                         <p>
                           {format(new Date(shift.start_time), 'h:mm a')} -{' '}
@@ -117,12 +186,12 @@ export function ShiftsTable({
                       </div>
                     </TableCell>
                     {showUser && (
-                      <TableCell className="hidden sm:table-cell">
+                      <TableCell className="hidden md:table-cell">
                         {shift.user?.full_name || shift.user?.email || '-'}
                       </TableCell>
                     )}
                     {showStore && (
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
+                      <TableCell className="hidden lg:table-cell text-muted-foreground">
                         {shift.store?.name || '-'}
                       </TableCell>
                     )}

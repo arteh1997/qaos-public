@@ -278,7 +278,96 @@ export const UsersTable = memo(function UsersTable({
         </div>
       )}
 
-      <div className="rounded-md border">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {sortedUsers.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center">
+            <EmptyState
+              icon={Users}
+              title="No users found"
+              description="Invite team members to help manage your restaurant inventory."
+              action={onInvite ? {
+                label: "Invite User",
+                onClick: onInvite,
+                icon: UserPlus,
+              } : undefined}
+            />
+          </div>
+        ) : (
+          sortedUsers.map((user) => (
+            <div
+              key={user.id}
+              className={`border rounded-lg p-3 ${selectedIds.has(user.id) ? 'bg-muted/50 border-primary/30' : ''}`}
+            >
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  checked={selectedIds.has(user.id)}
+                  onCheckedChange={(checked) => handleSelectUser(user.id, !!checked)}
+                  aria-label={`Select ${user.full_name || user.email}`}
+                  className="mt-1"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{user.full_name || 'No name'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEdit?.(user)}>
+                          <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Edit
+                        </DropdownMenuItem>
+                        {user.status === 'Active' ? (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setActionUser(user)
+                              setActionType('deactivate')
+                            }}
+                            className="text-red-600"
+                          >
+                            <UserX className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Deactivate
+                          </DropdownMenuItem>
+                        ) : user.status === 'Inactive' && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setActionUser(user)
+                              setActionType('activate')
+                            }}
+                          >
+                            <UserCheck className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Activate
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <Badge className={`text-white text-xs ${roleColors[user.role]}`}>
+                      {user.role}
+                    </Badge>
+                    <Badge variant={statusColors[user.status]} className="text-xs">
+                      {user.status}
+                    </Badge>
+                    {user.store?.name && (
+                      <span className="text-xs text-muted-foreground">{user.store.name}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -301,7 +390,7 @@ export const UsersTable = memo(function UsersTable({
                 sortKey="email"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden sm:table-cell"
+                className="hidden md:table-cell"
               />
               <SortableHeader
                 label="Role"
@@ -314,7 +403,7 @@ export const UsersTable = memo(function UsersTable({
                 sortKey="store"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden md:table-cell"
+                className="hidden lg:table-cell"
               />
               <SortableHeader
                 label="Status"
@@ -357,12 +446,12 @@ export const UsersTable = memo(function UsersTable({
                   <TableCell>
                     <div>
                       <p className="font-medium">{user.full_name || 'No name'}</p>
-                      <p className="text-sm text-muted-foreground sm:hidden">
+                      <p className="text-sm text-muted-foreground md:hidden">
                         {user.email}
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell text-muted-foreground">
+                  <TableCell className="hidden md:table-cell text-muted-foreground">
                     {user.email}
                   </TableCell>
                   <TableCell>
@@ -370,7 +459,7 @@ export const UsersTable = memo(function UsersTable({
                       {user.role}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">
+                  <TableCell className="hidden lg:table-cell text-muted-foreground">
                     {user.store?.name || '-'}
                   </TableCell>
                   <TableCell>

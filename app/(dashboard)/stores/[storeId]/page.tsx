@@ -232,8 +232,8 @@ export default function StoreDetailPage({ params }: StoreDetailPageProps) {
           </Button>
         </Link>
         <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">{store.name}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{store.name}</h1>
             <Badge variant={store.is_active ? 'default' : 'secondary'}>
               {store.is_active ? 'Active' : 'Inactive'}
             </Badge>

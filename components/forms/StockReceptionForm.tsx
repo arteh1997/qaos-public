@@ -342,8 +342,90 @@ export function StockReceptionForm({ storeId, onSuccess }: StockReceptionFormPro
         </Badge>
       </div>
 
-      {/* Item table with sortable columns */}
-      <div className="rounded-md border">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {filteredItems.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center border rounded-md text-muted-foreground">
+            No items found
+          </div>
+        ) : (
+          filteredItems.map((item) => {
+            const isLowStock = item.par_level && item.current_quantity < item.par_level
+            const hasReceived = item.received_quantity !== null && item.received_quantity > 0
+
+            return (
+              <div
+                key={item.inventory_item_id}
+                className={`border rounded-lg p-3 ${hasReceived ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : ''}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm truncate">{item.name}</p>
+                      {isLowStock ? (
+                        <Badge variant="destructive" className="gap-1 text-[10px] h-5 flex-shrink-0">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          Low
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] h-5 flex-shrink-0">OK</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                      {item.category && <span>{item.category}</span>}
+                      {item.category && <span>•</span>}
+                      <span>{item.unit_of_measure}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 mt-2 pt-2 border-t">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase">Current</div>
+                    <div className="text-lg font-bold text-muted-foreground">{item.current_quantity}</div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[10px] text-muted-foreground uppercase">Received</div>
+                    {item.isEditing ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        autoFocus
+                        value={item.received_quantity ?? ''}
+                        onChange={(e) => handleQuantityChange(item.inventory_item_id, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => handleBlur(item.inventory_item_id)}
+                        onKeyDown={(e) => {
+                          if (e.key === '.') e.preventDefault()
+                          if (e.key === 'Enter') e.currentTarget.blur()
+                        }}
+                        className="w-20 h-8 text-center text-sm mt-1"
+                        aria-label={`Received quantity for ${item.name}`}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditing(item.inventory_item_id)}
+                        className={`min-w-16 h-8 px-3 text-sm font-medium rounded-md border cursor-pointer transition-colors flex items-center justify-center gap-1 mt-1
+                          ${hasReceived
+                            ? 'bg-green-600 text-white border-green-600'
+                            : 'bg-muted/50 hover:bg-muted border-input'
+                          }`}
+                        aria-label={`Add received quantity for ${item.name}`}
+                      >
+                        {hasReceived ? `+${item.received_quantity}` : <Plus className="h-4 w-4" />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -358,14 +440,14 @@ export function StockReceptionForm({ storeId, onSuccess }: StockReceptionFormPro
                 sortKey="category"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden sm:table-cell"
+                className="hidden md:table-cell"
               />
               <SortableHeader
                 label="Unit"
                 sortKey="unit"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden md:table-cell"
+                className="hidden lg:table-cell"
               />
               <SortableHeader
                 label="Current Stock"
@@ -402,10 +484,10 @@ export function StockReceptionForm({ storeId, onSuccess }: StockReceptionFormPro
                     <TableCell>
                       <span className="font-medium">{item.name}</span>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-muted-foreground">
                       {item.category || '-'}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell text-muted-foreground">
                       {item.unit_of_measure}
                     </TableCell>
                     <TableCell className="text-muted-foreground">

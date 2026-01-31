@@ -112,23 +112,26 @@ export default function ShiftTimetablePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <CalendarDays className="h-8 w-8" />
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+            <CalendarDays className="h-6 w-6 sm:h-8 sm:w-8" />
             Shift Timetable
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Weekly view of all scheduled shifts
           </p>
         </div>
         {canManage && (
-          <Button onClick={() => {
-            setQuickAddState({ date: new Date() })
-            setQuickAddOpen(true)
-          }}>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => {
+              setQuickAddState({ date: new Date() })
+              setQuickAddOpen(true)
+            }}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Shift
           </Button>
@@ -137,19 +140,19 @@ export default function ShiftTimetablePage() {
 
       {/* Controls */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
             {/* View Mode Toggle */}
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">View by:</span>
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'store' | 'staff')}>
-                <TabsList>
-                  <TabsTrigger value="store" className="gap-1.5">
-                    <Store className="h-4 w-4" />
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap">View by:</span>
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'store' | 'staff')} className="flex-1 sm:flex-initial">
+                <TabsList className="w-full sm:w-auto">
+                  <TabsTrigger value="store" className="gap-1.5 flex-1 sm:flex-initial text-xs sm:text-sm">
+                    <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     Store
                   </TabsTrigger>
-                  <TabsTrigger value="staff" className="gap-1.5">
-                    <Users className="h-4 w-4" />
+                  <TabsTrigger value="staff" className="gap-1.5 flex-1 sm:flex-initial text-xs sm:text-sm">
+                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     Staff
                   </TabsTrigger>
                 </TabsList>
@@ -158,9 +161,9 @@ export default function ShiftTimetablePage() {
 
             {/* Filter - changes based on view mode */}
             <div className="flex items-center gap-2 sm:ml-auto">
-              <span className="text-sm font-medium">Filter:</span>
+              <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Filter:</span>
               <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="flex-1 sm:w-48">
                   <SelectValue placeholder={viewMode === 'store' ? 'All Stores' : 'All Staff'} />
                 </SelectTrigger>
                 <SelectContent>
@@ -200,37 +203,37 @@ export default function ShiftTimetablePage() {
       />
 
       {/* Stats Summary */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Shifts This Week
+          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">
+              Shifts
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{shifts.length}</div>
+          <CardContent className="pt-0 p-3 sm:p-6">
+            <div className="text-xl sm:text-2xl font-bold">{shifts.length}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Staff Scheduled
+          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">
+              Staff
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="pt-0 p-3 sm:p-6">
+            <div className="text-xl sm:text-2xl font-bold">
               {new Set(shifts.map(s => s.user_id)).size}
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Stores With Shifts
+          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">
+              Stores
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
+          <CardContent className="pt-0 p-3 sm:p-6">
+            <div className="text-xl sm:text-2xl font-bold">
               {new Set(shifts.map(s => s.store_id)).size}
             </div>
           </CardContent>

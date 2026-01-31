@@ -245,7 +245,79 @@ export const InventoryTable = memo(function InventoryTable({
         </div>
       )}
 
-      <div className="rounded-md border">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {sortedItems.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center border rounded-md">
+            <EmptyState
+              icon={Package}
+              title="No inventory items"
+              description="Add items to your master inventory list to start tracking stock across stores."
+              action={onAdd ? {
+                label: "Add Item",
+                onClick: onAdd,
+                icon: Plus,
+              } : undefined}
+            />
+          </div>
+        ) : (
+          sortedItems.map((item) => (
+            <div
+              key={item.id}
+              className={`border rounded-lg p-3 ${selectedIds.has(item.id) ? 'bg-muted/50 border-primary/30' : ''}`}
+            >
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  checked={selectedIds.has(item.id)}
+                  onCheckedChange={(checked) => handleSelectItem(item.id, !!checked)}
+                  aria-label={`Select ${item.name}`}
+                  className="mt-1"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{item.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                        {item.category && <span>{item.category}</span>}
+                        <span>•</span>
+                        <span>{item.unit_of_measure}</span>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEdit?.(item)}>
+                          <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setDeleteItem(item)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                          Deactivate
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <div className="mt-2">
+                    <Badge variant={item.is_active ? 'default' : 'secondary'} className="text-xs">
+                      {item.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -268,7 +340,7 @@ export const InventoryTable = memo(function InventoryTable({
                 sortKey="category"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden sm:table-cell"
+                className="hidden md:table-cell"
               />
               <SortableHeader
                 label="Unit"
@@ -315,7 +387,7 @@ export const InventoryTable = memo(function InventoryTable({
                     />
                   </TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="hidden sm:table-cell text-muted-foreground">
+                  <TableCell className="hidden md:table-cell text-muted-foreground">
                     {item.category || '-'}
                   </TableCell>
                   <TableCell>{item.unit_of_measure}</TableCell>

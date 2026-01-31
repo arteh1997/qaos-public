@@ -219,7 +219,89 @@ export const StockTable = memo(function StockTable({
         />
       </div>
 
-      <div className="rounded-md border">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {filteredInventory.length === 0 ? (
+          <div className="h-[200px] flex items-center justify-center border rounded-md">
+            <EmptyState
+              icon={Package}
+              title="No inventory items"
+              description={searchQuery
+                ? "No items match your search. Try a different search term."
+                : "This store doesn't have any inventory items yet."
+              }
+            />
+          </div>
+        ) : (
+          filteredInventory.map((item) => {
+            const isLowStock = item.par_level && item.quantity < item.par_level
+            const isEditingParLevel = editing?.itemId === item.id
+
+            return (
+              <div key={item.id} className="border rounded-lg p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm truncate">{item.inventory_item?.name}</p>
+                      {isLowStock ? (
+                        <Badge variant="destructive" className="gap-1 text-[10px] h-5 flex-shrink-0">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          Low
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] h-5 flex-shrink-0">OK</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                      {item.inventory_item?.category && <span>{item.inventory_item.category}</span>}
+                      <span>•</span>
+                      <span>{item.inventory_item?.unit_of_measure}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 mt-2 pt-2 border-t">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase">Qty</div>
+                    <div className="text-lg font-bold">{item.quantity}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase">PAR</div>
+                    {canEditParLevel && onUpdateParLevel ? (
+                      isEditingParLevel ? (
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          autoFocus
+                          value={editing?.value ?? ''}
+                          onChange={(e) => handleChange(e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          onBlur={() => handleBlur(item)}
+                          onKeyDown={(e) => handleKeyDown(e, item)}
+                          className="w-16 h-8 text-center text-sm"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditing(item.id, item.par_level)}
+                          className="text-lg font-bold text-left"
+                        >
+                          {item.par_level ?? '-'}
+                        </button>
+                      )
+                    ) : (
+                      <div className="text-lg font-bold">{item.par_level ?? '-'}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -234,7 +316,7 @@ export const StockTable = memo(function StockTable({
                 sortKey="category"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden sm:table-cell"
+                className="hidden md:table-cell"
               />
               <SortableHeader
                 label="Quantity"
@@ -247,7 +329,7 @@ export const StockTable = memo(function StockTable({
                 sortKey="parLevel"
                 currentSort={sortConfig}
                 onSort={handleSort}
-                className="hidden sm:table-cell"
+                className="hidden md:table-cell"
               />
               <SortableHeader
                 label="Status"
@@ -286,13 +368,13 @@ export const StockTable = memo(function StockTable({
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-muted-foreground">
                       {item.inventory_item?.category || '-'}
                     </TableCell>
                     <TableCell className="font-medium">
                       {item.quantity}
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">
+                    <TableCell className="hidden md:table-cell">
                       {canEditParLevel && onUpdateParLevel ? (
                         isEditingParLevel ? (
                           <Input

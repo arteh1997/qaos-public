@@ -71,10 +71,10 @@ export default function MyShiftsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Shifts</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Shifts</h1>
+          <p className="text-sm text-muted-foreground">
             View your schedule and clock in/out
           </p>
         </div>
@@ -82,11 +82,11 @@ export default function MyShiftsPage() {
         {/* View Toggle */}
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
           <TabsList>
-            <TabsTrigger value="calendar" className="gap-2">
+            <TabsTrigger value="calendar" className="gap-1.5 sm:gap-2">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Calendar</span>
             </TabsTrigger>
-            <TabsTrigger value="list" className="gap-2">
+            <TabsTrigger value="list" className="gap-1.5 sm:gap-2">
               <List className="h-4 w-4" />
               <span className="hidden sm:inline">List</span>
             </TabsTrigger>
