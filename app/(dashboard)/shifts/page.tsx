@@ -238,24 +238,26 @@ function ShiftsPageContent() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Shifts Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Shifts Management</h1>
+          <p className="text-sm text-muted-foreground">
             Schedule and manage staff shifts across all stores
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/shifts/timetable">
-            <Button variant="outline">
+          <Link href="/shifts/timetable" className="flex-1 sm:flex-initial">
+            <Button variant="outline" className="w-full sm:w-auto">
               <CalendarDays className="mr-2 h-4 w-4" />
-              Timetable View
+              <span className="hidden sm:inline">Timetable View</span>
+              <span className="sm:hidden">Timetable</span>
             </Button>
           </Link>
-          <Button onClick={() => setIsFormOpen(true)}>
+          <Button onClick={() => setIsFormOpen(true)} className="flex-1 sm:flex-initial">
             <Plus className="mr-2 h-4 w-4" />
-            Create Shift
+            <span className="hidden sm:inline">Create Shift</span>
+            <span className="sm:hidden">Create</span>
           </Button>
         </div>
       </div>
@@ -330,113 +332,196 @@ function ShiftsPageContent() {
               }}
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortableHeader
-                    label="Staff Member"
-                    sortKey="staff"
-                    currentSort={sortConfig}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    label="Store"
-                    sortKey="store"
-                    currentSort={sortConfig}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    label="Date"
-                    sortKey="date"
-                    currentSort={sortConfig}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    label="Time"
-                    sortKey="time"
-                    currentSort={sortConfig}
-                    onSort={handleSort}
-                  />
-                  <SortableHeader
-                    label="Status"
-                    sortKey="status"
-                    currentSort={sortConfig}
-                    onSort={handleSort}
-                  />
-                  <TableHead>Clock In/Out</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card view */}
+              <div className="sm:hidden space-y-3">
                 {sortedShifts.map((shift) => {
                   const status = getShiftStatus(shift)
                   return (
-                    <TableRow key={shift.id}>
-                      <TableCell className="font-medium">
-                        {shift.user?.full_name || shift.user?.email || 'Unknown'}
-                      </TableCell>
-                      <TableCell>{shift.store?.name || 'Unknown'}</TableCell>
-                      <TableCell>
-                        {format(new Date(shift.start_time), 'EEE, MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          {format(new Date(shift.start_time), 'h:mm a')} -{' '}
-                          {format(new Date(shift.end_time), 'h:mm a')}
+                    <div key={shift.id} className="border rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {shift.user?.full_name || shift.user?.email || 'Unknown'}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {shift.store?.name || 'Unknown'}
+                          </p>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {shift.clock_in_time && (
-                          <div>In: {format(new Date(shift.clock_in_time), 'h:mm a')}</div>
-                        )}
-                        {shift.clock_out_time && (
-                          <div>Out: {format(new Date(shift.clock_out_time), 'h:mm a')}</div>
-                        )}
-                        {!shift.clock_in_time && !shift.clock_out_time && '—'}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                if (document.activeElement instanceof HTMLElement) {
-                                  document.activeElement.blur()
-                                }
-                                setTimeout(() => setEditingShift(shift), 150)
-                              }}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                if (document.activeElement instanceof HTMLElement) {
-                                  document.activeElement.blur()
-                                }
-                                setTimeout(() => setDeleteShiftId(shift.id), 150)
-                              }}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={status.variant} className="text-xs">
+                            {status.label}
+                          </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  if (document.activeElement instanceof HTMLElement) {
+                                    document.activeElement.blur()
+                                  }
+                                  setTimeout(() => setEditingShift(shift), 150)
+                                }}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  if (document.activeElement instanceof HTMLElement) {
+                                    document.activeElement.blur()
+                                  }
+                                  setTimeout(() => setDeleteShiftId(shift.id), 150)
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 mt-2 pt-2 border-t text-xs">
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(shift.start_time), 'EEE, MMM d')}
+                        </div>
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {format(new Date(shift.start_time), 'h:mm a')} - {format(new Date(shift.end_time), 'h:mm a')}
+                        </div>
+                      </div>
+                      {(shift.clock_in_time || shift.clock_out_time) && (
+                        <div className="flex gap-3 mt-2 text-xs">
+                          {shift.clock_in_time && (
+                            <span className="text-green-600">In: {format(new Date(shift.clock_in_time), 'h:mm a')}</span>
+                          )}
+                          {shift.clock_out_time && (
+                            <span className="text-muted-foreground">Out: {format(new Date(shift.clock_out_time), 'h:mm a')}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table view */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <SortableHeader
+                        label="Staff Member"
+                        sortKey="staff"
+                        currentSort={sortConfig}
+                        onSort={handleSort}
+                      />
+                      <SortableHeader
+                        label="Store"
+                        sortKey="store"
+                        currentSort={sortConfig}
+                        onSort={handleSort}
+                      />
+                      <SortableHeader
+                        label="Date"
+                        sortKey="date"
+                        currentSort={sortConfig}
+                        onSort={handleSort}
+                      />
+                      <SortableHeader
+                        label="Time"
+                        sortKey="time"
+                        currentSort={sortConfig}
+                        onSort={handleSort}
+                      />
+                      <SortableHeader
+                        label="Status"
+                        sortKey="status"
+                        currentSort={sortConfig}
+                        onSort={handleSort}
+                      />
+                      <TableHead>Clock In/Out</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedShifts.map((shift) => {
+                      const status = getShiftStatus(shift)
+                      return (
+                        <TableRow key={shift.id}>
+                          <TableCell className="font-medium">
+                            {shift.user?.full_name || shift.user?.email || 'Unknown'}
+                          </TableCell>
+                          <TableCell>{shift.store?.name || 'Unknown'}</TableCell>
+                          <TableCell>
+                            {format(new Date(shift.start_time), 'EEE, MMM d, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              {format(new Date(shift.start_time), 'h:mm a')} -{' '}
+                              {format(new Date(shift.end_time), 'h:mm a')}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={status.variant}>{status.label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {shift.clock_in_time && (
+                              <div>In: {format(new Date(shift.clock_in_time), 'h:mm a')}</div>
+                            )}
+                            {shift.clock_out_time && (
+                              <div>Out: {format(new Date(shift.clock_out_time), 'h:mm a')}</div>
+                            )}
+                            {!shift.clock_in_time && !shift.clock_out_time && '—'}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    if (document.activeElement instanceof HTMLElement) {
+                                      document.activeElement.blur()
+                                    }
+                                    setTimeout(() => setEditingShift(shift), 150)
+                                  }}
+                                >
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    if (document.activeElement instanceof HTMLElement) {
+                                      document.activeElement.blur()
+                                    }
+                                    setTimeout(() => setDeleteShiftId(shift.id), 150)
+                                  }}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
