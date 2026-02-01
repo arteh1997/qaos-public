@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useStores } from '@/hooks/useStores'
-import { useStockHistory, useDailyCounts } from '@/hooks/useReports'
+import { useStockHistoryRange } from '@/hooks/useReports'
+import { DateRange } from 'react-day-picker'
 import { StockHistoryTable } from '@/components/tables/StockHistoryTable'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -17,36 +17,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ArrowLeft, CheckCircle, XCircle, ClipboardList, Truck, Download } from 'lucide-react'
-import { format } from 'date-fns'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { ArrowLeft, CheckCircle, XCircle, ClipboardList, Truck, Download, Calendar } from 'lucide-react'
+import { format, startOfWeek } from 'date-fns'
 import { exportToCSV, generateExportFilename, formatDateTimeForExport } from '@/lib/export'
 import { toast } from 'sonner'
 
 export default function DailySummaryPage() {
   const [selectedStore, setSelectedStore] = useState<string>('')
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  )
+  // Default to "This week" - from Monday to today
+  const [dateRange, setDateRange] = useState<DateRange>(() => ({
+    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+    to: new Date(),
+  }))
   const { stores, isLoading: storesLoading } = useStores()
-  const { data: history, isLoading: historyLoading } = useStockHistory(
+  const { data: history, isLoading: historyLoading } = useStockHistoryRange(
     selectedStore || undefined,
-    selectedDate
+    dateRange
   )
-  const { data: dailyCounts, isLoading: countsLoading } = useDailyCounts(selectedDate)
 
-  const isLoading = storesLoading || historyLoading || countsLoading
+  const isLoading = storesLoading || historyLoading
 
   // Separate counts and receptions
   const counts = (history ?? []).filter(h => h.action_type === 'Count')
   const receptions = (history ?? []).filter(h => h.action_type === 'Reception')
 
-  // Get stores that completed count
-  const completedStoreIds = new Set((dailyCounts ?? []).map(c => c.store_id))
+  // Get stores that have activity in the date range
+  const activeStoreIds = useMemo(() => {
+    const ids = new Set<string>()
+    history?.forEach(h => ids.add(h.store_id))
+    return ids
+  }, [history])
 
   // Filter stores for display
   const displayStores = selectedStore
     ? stores.filter(s => s.id === selectedStore)
     : stores.filter(s => s.is_active)
+
+  // Format date range for display
+  const dateRangeLabel = useMemo(() => {
+    if (!dateRange?.from) return 'Select dates'
+    if (!dateRange?.to || format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd')) {
+      return format(dateRange.from, 'MMMM d, yyyy')
+    }
+    return `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d, yyyy')}`
+  }, [dateRange])
+
+  // Format filename for export
+  const exportFilename = useMemo(() => {
+    if (!dateRange?.from) return 'stock-summary'
+    const fromStr = format(dateRange.from, 'yyyy-MM-dd')
+    const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr
+    if (fromStr === toStr) return `stock-summary-${fromStr}`
+    return `stock-summary-${fromStr}-to-${toStr}`
+  }, [dateRange])
 
   const handleExport = () => {
     if (!history || history.length === 0) {
@@ -70,7 +94,7 @@ export default function DailySummaryPage() {
       { key: 'notes', header: 'Notes', transform: (v: unknown) => String(v || '') },
     ]
 
-    exportToCSV(history, columns, generateExportFilename(`daily-summary-${selectedDate}`))
+    exportToCSV(history, columns, generateExportFilename(exportFilename))
     toast.success(`Exported ${history.length} records`)
   }
 
@@ -99,20 +123,18 @@ export default function DailySummaryPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Daily Summary</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Stock Summary</h1>
           <p className="text-sm text-muted-foreground">
-            View all stock changes for a specific date
+            View all stock changes for a date range
           </p>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="w-40"
-          aria-label="Select date"
+      <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+        <DateRangePicker
+          value={dateRange}
+          onChange={(range) => setDateRange(range || { from: new Date(), to: new Date() })}
+          className="w-auto min-w-[280px]"
         />
         <Select value={selectedStore} onValueChange={setSelectedStore}>
           <SelectTrigger className="w-48">
@@ -137,17 +159,29 @@ export default function DailySummaryPage() {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-blue-500" />
+              Date Range
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-semibold truncate">{dateRangeLabel}</div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              Stores Counted
+              Stores with Activity
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {completedStoreIds.size} / {displayStores.length}
+              {activeStoreIds.size} / {displayStores.length}
             </div>
           </CardContent>
         </Card>
@@ -178,15 +212,15 @@ export default function DailySummaryPage() {
       </div>
 
       <div className="space-y-2">
-        <h2 className="font-semibold">Store Status</h2>
+        <h2 className="font-semibold">Store Activity</h2>
         <div className="flex flex-wrap gap-2">
           {displayStores.map((store) => (
             <Badge
               key={store.id}
-              variant={completedStoreIds.has(store.id) ? 'default' : 'outline'}
+              variant={activeStoreIds.has(store.id) ? 'default' : 'outline'}
               className="gap-1"
             >
-              {completedStoreIds.has(store.id) ? (
+              {activeStoreIds.has(store.id) ? (
                 <CheckCircle className="h-3 w-3" />
               ) : (
                 <XCircle className="h-3 w-3" />
@@ -199,9 +233,15 @@ export default function DailySummaryPage() {
 
       <div className="space-y-4">
         <h2 className="font-semibold">
-          Stock Changes on {format(new Date(selectedDate), 'MMMM d, yyyy')}
+          Stock Changes {dateRangeLabel && `(${dateRangeLabel})`}
         </h2>
-        <StockHistoryTable history={history ?? []} showStore={!selectedStore} />
+        {history && history.length > 0 ? (
+          <StockHistoryTable history={history} showStore={!selectedStore} />
+        ) : (
+          <div className="text-center py-12 text-muted-foreground">
+            No stock changes found for the selected date range.
+          </div>
+        )}
       </div>
     </div>
   )

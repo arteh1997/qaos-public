@@ -68,6 +68,7 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string | null;
+  phone: string | null; // User's phone number
   role: AppRole | LegacyAppRole; // Kept for backward compatibility, use store_users for new system
   store_id: string | null; // Deprecated - use store_users for multi-store access
   is_platform_admin: boolean; // Super-admin access for platform support
@@ -282,4 +283,33 @@ export interface StaffDashboardStats {
   store: Store | null;
   today_count_completed: boolean;
   current_shift: Shift | null;
+}
+
+// Audit log types
+export type AuditCategory =
+  | 'auth'      // Login, logout, password reset
+  | 'user'      // User management (invite, role change, deactivate)
+  | 'store'     // Store management (create, update, delete)
+  | 'stock'     // Stock operations (count, reception, adjustment)
+  | 'inventory' // Inventory item management
+  | 'shift'     // Shift/schedule management
+  | 'settings'  // Settings changes
+  | 'report';   // Report generation/export
+
+export interface AuditLog {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  action: string;
+  action_category: AuditCategory;
+  store_id: string | null;
+  resource_type: string | null;
+  resource_id: string | null;
+  details: Record<string, unknown>;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+  // Joined fields
+  user?: Profile;
+  store?: Store;
 }

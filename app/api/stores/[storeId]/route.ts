@@ -120,16 +120,31 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { context } = auth
 
-    // Check if store has any users assigned
+    // Check if store has any users assigned via store_users table
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { count: userCount } = await (context.supabase as any)
-      .from('profiles')
+      .from('store_users')
       .select('*', { count: 'exact', head: true })
       .eq('store_id', storeId)
 
     if (userCount && userCount > 0) {
       return apiBadRequest(
-        'Cannot delete store with assigned users. Reassign users first.',
+        'Cannot delete store with assigned users. Remove all users from the store first.',
+        context.requestId
+      )
+    }
+
+    // Also check for pending invitations
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count: inviteCount } = await (context.supabase as any)
+      .from('user_invites')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId)
+      .is('used_at', null)
+
+    if (inviteCount && inviteCount > 0) {
+      return apiBadRequest(
+        'Cannot delete store with pending invitations. Cancel invitations first.',
         context.requestId
       )
     }

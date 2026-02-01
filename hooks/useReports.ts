@@ -4,6 +4,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabaseFetch } from '@/lib/supabase/client'
 import { StockHistory, LowStockItem, DailyCount } from '@/types'
 
+export interface DateRange {
+  from?: Date
+  to?: Date
+}
+
 export function useStockHistory(storeId?: string | null, date?: string) {
   const [data, setData] = useState<StockHistory[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -49,6 +54,70 @@ export function useStockHistory(storeId?: string | null, date?: string) {
       setIsLoading(false)
     }
   }, [storeId, date])
+
+  useEffect(() => {
+    fetchStockHistory()
+  }, [fetchStockHistory])
+
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: fetchStockHistory,
+  }
+}
+
+/**
+ * Hook for fetching stock history with date range support
+ */
+export function useStockHistoryRange(storeId?: string | null, dateRange?: DateRange) {
+  const [data, setData] = useState<StockHistory[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  const fetchStockHistory = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const filter: Record<string, string> = {}
+
+      if (storeId) {
+        filter['store_id'] = `eq.${storeId}`
+      }
+
+      if (dateRange?.from) {
+        const startDate = dateRange.from.toISOString().split('T')[0]
+        filter['created_at'] = `gte.${startDate}T00:00:00.000Z`
+      }
+
+      if (dateRange?.to) {
+        const endDate = dateRange.to.toISOString().split('T')[0]
+        filter['and'] = `(created_at.lte.${endDate}T23:59:59.999Z)`
+      }
+
+      const { data: historyData, error: fetchError } = await supabaseFetch<StockHistory>('stock_history', {
+        select: '*,inventory_item:inventory_items!stock_history_inventory_item_id_fkey(*),store:stores!stock_history_store_id_fkey(*),performer:profiles!stock_history_performed_by_fkey(*)',
+        order: 'created_at.desc',
+        filter,
+        range: { from: 0, to: 499 }, // Limit to 500 results for date ranges
+      })
+
+      if (fetchError) {
+        if (fetchError.message?.includes('does not exist')) {
+          setData([])
+          return
+        }
+        throw fetchError
+      }
+
+      setData(historyData || [])
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch stock history'))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [storeId, dateRange?.from, dateRange?.to])
 
   useEffect(() => {
     fetchStockHistory()

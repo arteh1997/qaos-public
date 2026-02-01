@@ -1,14 +1,22 @@
 'use client'
 
+import { useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useStores } from '@/hooks/useStores'
 import { useUsers } from '@/hooks/useUsers'
 import { useMissingCounts, useLowStockReport, useStockHistory } from '@/hooks/useReports'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import { StatsCard } from '@/components/cards/StatsCard'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   Store,
   Users,
@@ -17,22 +25,65 @@ import {
   ArrowRight,
   History,
   Clock,
+  RefreshCw,
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, formatDistanceToNow } from 'date-fns'
 
 export function OwnerDashboard() {
-  const { stores, isLoading: storesLoading, error: storesError } = useStores()
-  const { users, isLoading: usersLoading, error: usersError } = useUsers()
-  const { data: missingCounts, isLoading: missingLoading, error: missingError } = useMissingCounts()
-  const { data: lowStockItems, isLoading: lowStockLoading, error: lowStockError } = useLowStockReport()
+  const { stores, isLoading: storesLoading, error: storesError, refetch: refetchStores } = useStores()
+  const { users, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useUsers()
+  const { data: missingCounts, isLoading: missingLoading, error: missingError, refetch: refetchMissing } = useMissingCounts()
+  const { data: lowStockItems, isLoading: lowStockLoading, error: lowStockError, refetch: refetchLowStock } = useLowStockReport()
 
   // Get today's date for recent activity
   const today = new Date().toISOString().split('T')[0]
-  const { data: recentActivity, isLoading: activityLoading } = useStockHistory(null, today)
+  const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useStockHistory(null, today)
 
   const isLoading = storesLoading || usersLoading || missingLoading || lowStockLoading || activityLoading
 
-  // Show error if any query failed
+  // Combine all refetch functions
+  const refreshAll = useCallback(() => {
+    refetchStores()
+    refetchUsers()
+    refetchMissing()
+    refetchLowStock()
+    refetchActivity()
+  }, [refetchStores, refetchUsers, refetchMissing, refetchLowStock, refetchActivity])
+
+  // Auto-refresh every 60 seconds
+  const { lastRefreshed, isRefreshing, refresh, isAutoRefreshEnabled, toggleAutoRefresh } = useAutoRefresh({
+    interval: 60000, // 1 minute
+    enabled: true,
+    onRefresh: refreshAll,
+  })
+
+  // Memoize computed values - must be before any conditional returns
+  const activeStores = useMemo(() => stores.filter(s => s.is_active).length, [stores])
+  const activeUsers = useMemo(() => users.filter(u => u.status === 'Active').length, [users])
+  const missingCount = missingCounts?.length ?? 0
+  const lowStockCount = lowStockItems?.length ?? 0
+
+  // Memoize low stock grouping - expensive reduce operation
+  const lowStockStores = useMemo(() => {
+    const byStore = (lowStockItems ?? []).reduce((acc, item) => {
+      if (!acc[item.store_id]) {
+        acc[item.store_id] = {
+          store_id: item.store_id,
+          store_name: item.store_name,
+          count: 0,
+        }
+      }
+      acc[item.store_id].count++
+      return acc
+    }, {} as Record<string, { store_id: string; store_name: string; count: number }>)
+
+    return Object.values(byStore).sort((a, b) => b.count - a.count)
+  }, [lowStockItems])
+
+  // Memoize recent activity slice
+  const recentActivityItems = useMemo(() => recentActivity?.slice(0, 8) ?? [], [recentActivity])
+
+  // Show error if any query failed - after all hooks
   const hasError = storesError || usersError || missingError || lowStockError
   if (hasError) {
     return (
@@ -64,37 +115,48 @@ export function OwnerDashboard() {
     )
   }
 
-  const activeStores = stores.filter(s => s.is_active).length
-  const activeUsers = users.filter(u => u.status === 'Active').length
-  const missingCount = missingCounts?.length ?? 0
-  const lowStockCount = lowStockItems?.length ?? 0
-
-  // Group low stock items by store for better dashboard display
-  const lowStockByStore = (lowStockItems ?? []).reduce((acc, item) => {
-    if (!acc[item.store_id]) {
-      acc[item.store_id] = {
-        store_id: item.store_id,
-        store_name: item.store_name,
-        count: 0,
-      }
-    }
-    acc[item.store_id].count++
-    return acc
-  }, {} as Record<string, { store_id: string; store_name: string; count: number }>)
-
-  const lowStockStores = Object.values(lowStockByStore).sort((a, b) => b.count - a.count)
-
-  // Get recent activity limited to 8 items for the dashboard
-  const recentActivityItems = recentActivity?.slice(0, 8) ?? []
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview for {format(new Date(), 'EEEE, MMMM d, yyyy')}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Overview for {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refresh}
+                  disabled={isRefreshing}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Last updated {formatDistanceToNow(lastRefreshed, { addSuffix: true })}</p>
+                <p className="text-xs text-muted-foreground">
+                  Auto-refresh: {isAutoRefreshEnabled ? 'On (every 60s)' : 'Off'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button
+            variant={isAutoRefreshEnabled ? 'default' : 'ghost'}
+            size="sm"
+            onClick={toggleAutoRefresh}
+            className="hidden sm:flex"
+          >
+            {isAutoRefreshEnabled ? 'Auto' : 'Manual'}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}

@@ -9,6 +9,8 @@ import {
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { stockCountSchema } from '@/lib/validations/inventory'
 import { sanitizeNotes } from '@/lib/utils'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -120,6 +122,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
 
     if (dailyCountError) throw dailyCountError
+
+    // Audit log the stock count
+    const adminClient = createAdminClient()
+    await auditLog(adminClient, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'stock.count_submit',
+      storeId,
+      resourceType: 'stock_count',
+      details: {
+        itemsUpdated: items.length,
+        date: today,
+      },
+      request,
+    })
 
     return apiSuccess(
       {

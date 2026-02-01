@@ -4,12 +4,15 @@ import { Suspense, useState, useEffect } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { useUsers, UsersFilters } from '@/hooks/useUsers'
 import { useStores } from '@/hooks/useStores'
+import { usePendingInvites } from '@/hooks/usePendingInvites'
 import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { UsersTable } from '@/components/tables/UsersTable'
+import { PendingInvitesTable } from '@/components/tables/PendingInvitesTable'
 import { InviteUserForm } from '@/components/forms/InviteUserForm'
 import { UserForm } from '@/components/forms/UserForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { PageHeaderSkeleton, UsersTableSkeleton } from '@/components/ui/skeletons'
 import {
   Select,
@@ -18,10 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { Profile, AppRole, UserStatus } from '@/types'
 import { InviteUserFormData, UpdateUserFormData } from '@/lib/validations/user'
 import { ROLES } from '@/lib/constants'
-import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, ChevronLeft, ChevronRight, ChevronDown, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 
 const FILTER_DEFAULTS = {
@@ -35,6 +43,8 @@ const FILTER_DEFAULTS = {
 function UsersPageContent() {
   const { currentStore, role: currentUserRole } = useAuth()
   const { stores, isLoading: storesLoading } = useStores()
+  const { invites: pendingInvites, cancelInvite, resendInvite, refetch: refetchInvites } = usePendingInvites()
+  const [pendingInvitesOpen, setPendingInvitesOpen] = useState(true)
 
   // URL-based filter state
   const { filters, setFilter } = useUrlFilters({ defaults: FILTER_DEFAULTS })
@@ -102,6 +112,7 @@ function UsersPageContent() {
       toast.success(`Invitation sent to ${data.email}`)
       setInviteFormOpen(false)
       refetch()
+      refetchInvites()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to send invitation')
     } finally {
@@ -228,6 +239,31 @@ function UsersPageContent() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Pending Invitations Section */}
+      {pendingInvites.length > 0 && (
+        <Collapsible open={pendingInvitesOpen} onOpenChange={setPendingInvitesOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between p-4 h-auto border rounded-lg hover:bg-muted/50">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Pending Invitations</span>
+                <Badge variant="secondary" className="ml-1">
+                  {pendingInvites.length}
+                </Badge>
+              </div>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${pendingInvitesOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <PendingInvitesTable
+              invites={pendingInvites}
+              onCancel={cancelInvite}
+              onResend={async (invite) => { await resendInvite(invite.id) }}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
 
       <UsersTable
         users={users}

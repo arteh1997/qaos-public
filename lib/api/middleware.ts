@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit, RateLimitConfig } from '@/lib/rate-limit'
+import { validateCSRFToken } from '@/lib/csrf'
 import { AppRole, StoreUserWithStore, LegacyAppRole } from '@/types'
 import {
   generateRequestId,
   apiUnauthorized,
   apiForbidden,
   apiRateLimited,
+  apiBadRequest,
 } from './response'
 import {
   canAccessStore as canAccessStoreAuth,
@@ -50,6 +52,8 @@ export interface ApiMiddlewareOptions {
   requireAuth?: boolean
   /** Whether to require platform admin access */
   requirePlatformAdmin?: boolean
+  /** Whether to require CSRF token validation for state-changing requests (default: false) */
+  requireCSRF?: boolean
 }
 
 /**
@@ -70,7 +74,21 @@ export async function withApiAuth(
     rateLimit: rateLimitConfig,
     requireAuth = true,
     requirePlatformAdmin = false,
+    requireCSRF = false,
   } = options
+
+  // Validate CSRF token for state-changing requests
+  if (requireCSRF) {
+    const method = request.method.toUpperCase()
+    const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+
+    if (isStateChanging) {
+      const isValidCSRF = await validateCSRFToken(request)
+      if (!isValidCSRF) {
+        return { success: false, response: apiBadRequest('Invalid or missing CSRF token', requestId) }
+      }
+    }
+  }
 
   // Create Supabase client
   const supabase = await createClient()

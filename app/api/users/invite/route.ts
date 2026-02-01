@@ -5,6 +5,7 @@ import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth } from '@/lib/api/middleware'
 import { INVITABLE_ROLES_BY_ROLE } from '@/lib/constants'
 import { sendEmail, getInviteEmailHtml } from '@/lib/email'
+import { auditLog } from '@/lib/audit'
 import { AppRole } from '@/types'
 import {
   apiSuccess,
@@ -181,6 +182,21 @@ export async function POST(request: NextRequest) {
 
       return apiError('Failed to send invitation email. Please try again.')
     }
+
+    // Audit log the invitation
+    await auditLog(supabaseAdmin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'user.invite',
+      storeId: validatedData.storeId || null,
+      resourceType: 'user_invite',
+      details: {
+        invitedEmail: validatedData.email,
+        role: validatedData.role,
+        storeName,
+      },
+      request,
+    })
 
     return apiSuccess(
       {

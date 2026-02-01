@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createClient } from '@/lib/supabase/client'
 import { loginSchema, LoginFormData } from '@/lib/validations/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,10 +39,10 @@ function getSafeRedirect(redirect: string | null): string {
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const [retryAfter, setRetryAfter] = useState<number | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = getSafeRedirect(searchParams.get('redirect'))
-  const supabase = createClient()
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -55,14 +54,25 @@ export function LoginForm() {
 
   async function onSubmit(data: LoginFormData) {
     setIsLoading(true)
+    setRetryAfter(null)
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
       })
 
-      if (error) {
-        toast.error(error.message)
+      const result = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          // Rate limited
+          setRetryAfter(result.retryAfter || 60)
+          toast.error(result.message || 'Too many attempts. Please try again later.')
+        } else {
+          toast.error(result.message || 'Invalid email or password')
+        }
         return
       }
 
@@ -137,10 +147,16 @@ export function LoginForm() {
           </Link>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
+        <Button type="submit" className="w-full" disabled={isLoading || retryAfter !== null}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Sign In
+          {retryAfter !== null ? `Try again in ${retryAfter}s` : 'Sign In'}
         </Button>
+
+        {retryAfter !== null && (
+          <p className="text-sm text-muted-foreground text-center">
+            Too many login attempts. Please wait before trying again.
+          </p>
+        )}
       </form>
     </Form>
   )

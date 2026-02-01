@@ -90,11 +90,12 @@ export async function POST(request: NextRequest) {
       ? invite.store_id || null
       : null
 
-    // Update the profile with user data
+    // Update the profile with user data (including phone number)
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({
         full_name: fullName,
+        phone: phone || null,
         role: invite.role,
         store_id: profileStoreId,
         status: 'Active',
