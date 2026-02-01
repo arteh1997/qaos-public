@@ -77,12 +77,17 @@ export const PERMISSIONS = {
 
 // Route configurations
 export const PUBLIC_ROUTES = [
+  '/',              // Landing page (smart: shows dashboard if logged in)
   '/login',
   '/forgot-password',
   '/reset-password',
   '/accept-invite',
   '/onboard',
+  '/onboarding',    // New user onboarding
   '/offline',
+  '/terms',         // Terms of Service
+  '/privacy',       // Privacy Policy
+  '/cookies',       // Cookie Policy
 ]
 
 // Roles that each role can invite

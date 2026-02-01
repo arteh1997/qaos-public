@@ -73,11 +73,16 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/stores - Create a new store
+ *
+ * Two scenarios:
+ * 1. New user (onboarding) - no stores yet, creating their first store
+ * 2. Existing Owner - adding another store to their account
  */
 export async function POST(request: NextRequest) {
   try {
+    // Allow authenticated users (for onboarding) or Owners (for adding stores)
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Owner'],
+      // Don't restrict roles - we'll check manually for onboarding flow
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 
@@ -85,6 +90,23 @@ export async function POST(request: NextRequest) {
 
     const { context } = auth
     const body = await request.json()
+
+    // Check if this is an onboarding scenario (user has no stores)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingMemberships } = await (context.supabase as any)
+      .from('store_users')
+      .select('id')
+      .eq('user_id', context.user.id)
+      .limit(1)
+
+    const isOnboarding = !existingMemberships || existingMemberships.length === 0
+    const isOwner = context.profile?.role === 'Owner' ||
+      existingMemberships?.some((m: { role?: string }) => m.role === 'Owner')
+
+    // Only allow if onboarding or if user is already an Owner
+    if (!isOnboarding && !isOwner) {
+      return apiBadRequest('Only Owners can create new stores', context.requestId)
+    }
 
     // Validate input
     const validationResult = storeSchema.safeParse(body)
@@ -95,14 +117,50 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Create the store with billing_user_id set to current user
+    const storeData = {
+      ...validationResult.data,
+      billing_user_id: context.user.id,
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: store, error } = await (context.supabase as any)
+    const { data: store, error: storeError } = await (context.supabase as any)
       .from('stores')
-      .insert(validationResult.data)
+      .insert(storeData)
       .select()
       .single()
 
-    if (error) throw error
+    if (storeError) throw storeError
+
+    // Add the user as Owner of this store in store_users
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: membershipError } = await (context.supabase as any)
+      .from('store_users')
+      .insert({
+        store_id: store.id,
+        user_id: context.user.id,
+        role: 'Owner',
+        is_billing_owner: true,
+      })
+
+    if (membershipError) {
+      // Rollback: delete the store if we couldn't create the membership
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (context.supabase as any).from('stores').delete().eq('id', store.id)
+      throw membershipError
+    }
+
+    // If this is onboarding (first store), update the profile's default_store_id
+    if (isOnboarding) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (context.supabase as any)
+        .from('profiles')
+        .update({
+          default_store_id: store.id,
+          role: 'Owner', // Update legacy role field
+        })
+        .eq('id', context.user.id)
+    }
 
     return apiSuccess(store as Store, {
       requestId: context.requestId,

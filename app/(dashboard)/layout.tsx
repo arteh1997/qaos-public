@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
@@ -13,7 +15,20 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { isLoading, role } = useAuth()
+  const router = useRouter()
+  const { isLoading, role, user, stores } = useAuth()
+
+  // Redirect to onboarding if user has no stores
+  useEffect(() => {
+    if (!isLoading && user && stores && stores.length === 0) {
+      router.push('/onboarding')
+    }
+  }, [isLoading, user, stores, router])
+
+  // Show nothing while redirecting to onboarding
+  if (!isLoading && user && stores && stores.length === 0) {
+    return null
+  }
 
   if (isLoading) {
     return (

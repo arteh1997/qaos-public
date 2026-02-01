@@ -112,7 +112,9 @@ export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
         collapsed ? 'justify-center' : 'justify-between'
       )}>
         {!collapsed && (
-          <span className="font-semibold text-lg">Inventory</span>
+          <Link href="/" className="font-semibold text-lg hover:text-primary transition-colors">
+            Inventory
+          </Link>
         )}
         <Button
           variant="ghost"

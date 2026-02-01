@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // If authenticated and trying to access login page
+  // If authenticated and trying to access login page, redirect to home
   if (hasAuthCookie && pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/'

@@ -1,0 +1,7 @@
+export { MarketingHeader } from './Header'
+export { Hero } from './Hero'
+export { PainPoints } from './PainPoints'
+export { Features } from './Features'
+export { Pricing } from './Pricing'
+export { CTA } from './CTA'
+export { Footer } from './Footer'
