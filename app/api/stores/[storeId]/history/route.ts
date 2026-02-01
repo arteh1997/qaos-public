@@ -33,8 +33,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
 
-    // Check store access
-    if (!canAccessStore(context.profile, storeId)) {
+    // Check store access (uses store_users membership)
+    if (!canAccessStore(context, storeId)) {
       return apiForbidden('You do not have access to this store', context.requestId)
     }
 

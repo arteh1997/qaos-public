@@ -66,7 +66,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { shiftId } = await params
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin'],
+      allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 
@@ -127,7 +127,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { shiftId } = await params
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin'],
+      allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 

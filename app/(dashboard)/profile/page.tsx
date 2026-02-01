@@ -30,7 +30,11 @@ import {
   Store,
   Loader2,
   CheckCircle,
+  Crown,
+  Briefcase,
 } from 'lucide-react'
+import { AppRole, LegacyAppRole } from '@/types'
+import { normalizeRole } from '@/lib/auth'
 
 const profileSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -53,14 +57,29 @@ export default function ProfilePage() {
     },
   })
 
-  const roleConfig = {
-    Admin: {
-      icon: Shield,
-      color: 'text-red-500',
-      bg: 'bg-red-500/10',
-      borderColor: 'border-red-500/20',
-      label: 'Administrator',
-      description: 'Full access to all features and settings',
+  const roleConfig: Record<AppRole, {
+    icon: typeof Shield
+    color: string
+    bg: string
+    borderColor: string
+    label: string
+    description: string
+  }> = {
+    Owner: {
+      icon: Crown,
+      color: 'text-amber-500',
+      bg: 'bg-amber-500/10',
+      borderColor: 'border-amber-500/20',
+      label: 'Owner',
+      description: 'Full access to owned stores, billing, and user management',
+    },
+    Manager: {
+      icon: Briefcase,
+      color: 'text-purple-500',
+      bg: 'bg-purple-500/10',
+      borderColor: 'border-purple-500/20',
+      label: 'Manager',
+      description: 'Full operational access to assigned store',
     },
     Driver: {
       icon: Truck,
@@ -68,7 +87,7 @@ export default function ProfilePage() {
       bg: 'bg-blue-500/10',
       borderColor: 'border-blue-500/20',
       label: 'Driver',
-      description: 'Can manage deliveries and stock reception',
+      description: 'Can manage deliveries and stock reception across stores',
     },
     Staff: {
       icon: UserCircle,
@@ -76,11 +95,13 @@ export default function ProfilePage() {
       bg: 'bg-emerald-500/10',
       borderColor: 'border-emerald-500/20',
       label: 'Staff Member',
-      description: 'Can perform stock counts and view inventory',
+      description: 'Can clock in/out and perform stock counts',
     },
   }
 
-  const currentRole = role ? roleConfig[role] : null
+  // Normalize role (handles legacy Admin -> Owner mapping)
+  const normalizedRole = normalizeRole(role as AppRole | LegacyAppRole | null)
+  const currentRole = normalizedRole ? roleConfig[normalizedRole] : null
   const RoleIcon = currentRole?.icon
 
   const initials = profile?.full_name

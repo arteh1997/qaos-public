@@ -51,6 +51,7 @@ export const storeSchema = z.object({
   opening_time: z.string().regex(timeRegex, 'Invalid time format (HH:MM)').optional().nullable(),
   closing_time: z.string().regex(timeRegex, 'Invalid time format (HH:MM)').optional().nullable(),
   weekly_hours: weeklyHoursSchema,
+  billing_user_id: z.string().uuid().optional().nullable(),
 }).refine((data) => {
   // If default times are set, both should be set
   if ((data.opening_time && !data.closing_time) || (!data.opening_time && data.closing_time)) {

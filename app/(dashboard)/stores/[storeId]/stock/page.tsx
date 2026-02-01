@@ -26,13 +26,14 @@ interface StockPageProps {
 
 export default function StockPage({ params }: StockPageProps) {
   const { storeId } = use(params)
-  const { role } = useAuth()
+  const { role, canManageCurrentStore } = useAuth()
   const { data: store, isLoading: storeLoading } = useStore(storeId)
   const { inventory, isLoading: inventoryLoading, setParLevel } = useStoreInventory(storeId)
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
 
   const isLoading = storeLoading || inventoryLoading
-  const isAdmin = role === 'Admin'
+  // Owner and Manager can manage (canManageCurrentStore uses store context)
+  const canManage = canManageCurrentStore || role === 'Owner' || role === 'Manager'
 
   // Get unique categories from actual inventory data
   const categories = useMemo(() => {
@@ -158,8 +159,8 @@ export default function StockPage({ params }: StockPageProps) {
       <StockTable
         inventory={inventory}
         categoryFilter={categoryFilter === 'all' ? undefined : categoryFilter}
-        canEditParLevel={isAdmin}
-        onUpdateParLevel={isAdmin ? handleUpdateParLevel : undefined}
+        canEditParLevel={canManage}
+        onUpdateParLevel={canManage ? handleUpdateParLevel : undefined}
       />
     </div>
   )

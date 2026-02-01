@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseUpdate } from '@/lib/supabase/client'
-import { Profile, AppRole, UserStatus } from '@/types'
+import { supabaseFetch, supabaseUpdate, supabaseInsert, supabaseDelete } from '@/lib/supabase/client'
+import { Profile, AppRole, UserStatus, StoreUser } from '@/types'
 import { sanitizeSearchInput, sanitizeErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -12,11 +12,23 @@ export interface UsersFilters {
   search?: string
   role?: AppRole | 'all'
   status?: UserStatus | 'all'
+  storeId?: string | 'all'
   page?: number
 }
 
+// Store user entry with store name for display
+export type StoreUserWithStore = Pick<StoreUser, 'store_id' | 'role' | 'is_billing_owner'> & {
+  store: { id: string; name: string } | null
+}
+
+// User with store and store_users data for determining billing owner status
+export type UserWithStoreInfo = Profile & {
+  store: { id: string; name: string } | null
+  store_users: StoreUserWithStore[]
+}
+
 export interface PaginatedUsers {
-  users: (Profile & { store: { id: string; name: string } | null })[]
+  users: UserWithStoreInfo[]
   totalCount: number
   totalPages: number
   currentPage: number
@@ -26,11 +38,12 @@ export interface UpdateUserData {
   full_name?: string
   role?: AppRole
   store_id?: string | null
+  store_ids?: string[] // For Driver role - multiple stores
   status?: UserStatus
 }
 
 export function useUsers(filters: UsersFilters = {}) {
-  const { search = '', role = 'all', status = 'all', page = 1 } = filters
+  const { search = '', role = 'all', status = 'all', storeId = 'all', page = 1 } = filters
   const [users, setUsers] = useState<PaginatedUsers['users']>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -61,31 +74,41 @@ export function useUsers(filters: UsersFilters = {}) {
       const from = (page - 1) * PAGE_SIZE
       const to = from + PAGE_SIZE - 1
 
-      const { data, error: fetchError, count } = await supabaseFetch<PaginatedUsers['users'][0]>('profiles', {
-        select: '*,store:stores(*)',
+      // Build the store_users filter for store-specific queries
+      // Include store name for display purposes
+      // Must specify the foreign key relationship explicitly since there are two FKs (user_id and invited_by)
+      const storeUsersFilter = storeId && storeId !== 'all'
+        ? `store_users!store_users_user_id_fkey!inner(store_id,role,is_billing_owner,store:stores(id,name))&store_users.store_id=eq.${storeId}`
+        : 'store_users!store_users_user_id_fkey(store_id,role,is_billing_owner,store:stores(id,name))'
+
+      const { data, error: fetchError, count } = await supabaseFetch<UserWithStoreInfo>('profiles', {
+        select: `*,store:stores!profiles_store_id_fkey(*),${storeUsersFilter}`,
         order: 'full_name',
         filter,
         range: { from, to },
         count: true,
       })
 
+      console.log('[useUsers] Fetch result:', { data, error: fetchError, count, filter, storeId })
+
       if (fetchError) throw fetchError
 
       setUsers(data || [])
       setTotalCount(count ?? 0)
     } catch (err) {
+      console.error('[useUsers] Error:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch users'))
     } finally {
       setIsLoading(false)
     }
-  }, [search, role, status, page])
+  }, [search, role, status, storeId, page])
 
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
 
   const updateUser = useCallback(async ({ id, data }: { id: string; data: UpdateUserData }) => {
-    // Filter out undefined values
+    // Filter out undefined values for profile update
     const updateData: Record<string, unknown> = {}
     if (data.full_name !== undefined) updateData.full_name = data.full_name
     if (data.role !== undefined) updateData.role = data.role
@@ -98,10 +121,47 @@ export function useUsers(filters: UsersFilters = {}) {
     ))
 
     try {
+      // Update profile
       const { error } = await supabaseUpdate('profiles', id, updateData)
-
       if (error) throw error
+
+      // Handle store_users for Driver role
+      if (data.role === 'Driver' && data.store_ids !== undefined) {
+        // Get current store_users for this user with Driver role
+        const { data: currentStoreUsers } = await supabaseFetch<{ id: string; store_id: string }>('store_users', {
+          select: 'id,store_id',
+          filter: {
+            user_id: `eq.${id}`,
+            role: 'eq.Driver',
+          },
+        })
+
+        const currentStoreIds = currentStoreUsers?.map(su => su.store_id) ?? []
+        const newStoreIds = data.store_ids
+
+        // Find stores to add and remove
+        const storesToAdd = newStoreIds.filter(storeId => !currentStoreIds.includes(storeId))
+        const storesToRemove = currentStoreUsers?.filter(su => !newStoreIds.includes(su.store_id)) ?? []
+
+        // Remove old store_users entries
+        for (const storeUser of storesToRemove) {
+          await supabaseDelete('store_users', storeUser.id)
+        }
+
+        // Add new store_users entries
+        for (const storeId of storesToAdd) {
+          await supabaseInsert('store_users', {
+            user_id: id,
+            store_id: storeId,
+            role: 'Driver',
+            is_billing_owner: false,
+          })
+        }
+      }
+
       toast.success('User updated successfully')
+      // Refetch to get updated store_users
+      fetchUsers()
     } catch (err) {
       fetchUsers()
       toast.error('Failed to update user: ' + sanitizeErrorMessage(err))

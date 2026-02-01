@@ -29,7 +29,7 @@ interface QuickAddState {
 }
 
 export default function ShiftTimetablePage() {
-  const { role } = useAuth()
+  const { role, canManageCurrentStore } = useAuth()
   const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift } = useShifts()
   const { stores, isLoading: storesLoading } = useStores()
   const { users, isLoading: usersLoading } = useUsers()
@@ -43,7 +43,8 @@ export default function ShiftTimetablePage() {
   const [editFormOpen, setEditFormOpen] = useState(false)
 
   const isLoading = shiftsLoading || storesLoading || usersLoading
-  const canManage = role === 'Admin'
+  // Owner and Manager can manage shifts
+  const canManage = canManageCurrentStore || role === 'Owner' || role === 'Manager'
 
   // Handle quick add from timetable cell click
   const handleAddShift = useCallback((date: Date, storeId?: string, staffId?: string) => {

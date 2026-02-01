@@ -4,9 +4,10 @@ import { useForm } from 'react-hook-form'
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { updateUserSchema, UpdateUserFormData } from '@/lib/validations/user'
-import { Profile, Store } from '@/types'
+import { Profile, Store, StoreUser } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -31,12 +32,19 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Loader2 } from 'lucide-react'
-import { ROLES } from '@/lib/constants'
+import { INVITE_ROLES, INVITE_ROLE_LABELS, INVITE_ROLE_DESCRIPTIONS, SINGLE_STORE_ROLES } from '@/lib/constants'
+import { AppRole, LegacyAppRole } from '@/types'
+import { normalizeRole } from '@/lib/auth'
+
+// Extended profile type with store_users for getting current driver stores
+type ProfileWithStoreUsers = Profile & {
+  store_users?: Pick<StoreUser, 'store_id' | 'role'>[]
+}
 
 interface UserFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  user: Profile | null
+  user: ProfileWithStoreUsers | null
   stores: Store[]
   onSubmit: (data: UpdateUserFormData) => Promise<void>
   isLoading?: boolean
@@ -56,6 +64,7 @@ export function UserForm({
       fullName: '',
       role: undefined,
       storeId: undefined,
+      storeIds: [],
       status: undefined,
     },
   })
@@ -63,10 +72,19 @@ export function UserForm({
   // Reset form when user changes or dialog opens
   useEffect(() => {
     if (user && open) {
+      // Normalize legacy roles (Admin -> Owner)
+      const normalizedRole = normalizeRole(user.role as AppRole | LegacyAppRole) ?? undefined
+
+      // Get current store IDs for drivers from store_users
+      const currentStoreIds = user.store_users
+        ?.filter(su => su.role === 'Driver')
+        .map(su => su.store_id) ?? []
+
       form.reset({
         fullName: user.full_name ?? '',
-        role: user.role,
+        role: normalizedRole,
         storeId: user.store_id ?? undefined,
+        storeIds: currentStoreIds,
         status: user.status,
       })
     }
@@ -79,9 +97,12 @@ export function UserForm({
   }
 
   const handleSubmit = async (data: UpdateUserFormData) => {
-    // Clear store_id if role is not Staff
-    if (data.role !== 'Staff') {
+    // Clear store_id for Driver role (they use storeIds instead)
+    // Clear storeIds for non-Driver roles (they use storeId instead)
+    if (data.role === 'Driver') {
       data.storeId = null
+    } else {
+      data.storeIds = undefined
     }
     await onSubmit(data)
   }
@@ -130,30 +151,31 @@ export function UserForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {ROLES.map((role) => (
+                      {INVITE_ROLES.map((role) => (
                         <SelectItem key={role} value={role}>
-                          {role}
+                          {INVITE_ROLE_LABELS[role]}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    {selectedRole === 'Admin' && 'Full access to all stores and features'}
-                    {selectedRole === 'Driver' && 'Can view all stores and record deliveries'}
-                    {selectedRole === 'Staff' && 'Can only access their assigned store'}
+                    {selectedRole && INVITE_ROLE_DESCRIPTIONS[selectedRole as AppRole]}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {selectedRole === 'Staff' && (
+            {/* Store selection - required for Co-Owner/Manager/Staff */}
+            {selectedRole && (SINGLE_STORE_ROLES.includes(selectedRole as AppRole) || selectedRole === 'Owner') && (
               <FormField
                 control={form.control}
                 name="storeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Assigned Store</FormLabel>
+                    <FormLabel>
+                      {selectedRole === 'Owner' ? 'Store to Co-Own' : 'Assigned Store'}
+                    </FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value || ''}
@@ -173,6 +195,58 @@ export function UserForm({
                           ))}
                       </SelectContent>
                     </Select>
+                    <FormDescription>
+                      {selectedRole === 'Owner' && 'Co-owners have full access to the store but cannot remove the billing owner'}
+                      {selectedRole === 'Manager' && 'Managers are assigned to a specific store'}
+                      {selectedRole === 'Staff' && 'Staff members must be assigned to a specific store'}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Multi-store selection for Drivers */}
+            {selectedRole === 'Driver' && (
+              <FormField
+                control={form.control}
+                name="storeIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assigned Stores</FormLabel>
+                    <FormDescription className="mb-2">
+                      Select the stores this driver can access for deliveries and receptions.
+                    </FormDescription>
+                    <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                      {stores.filter(s => s.is_active).map((store) => {
+                        const isChecked = field.value?.includes(store.id) ?? false
+                        return (
+                          <div key={store.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`store-${store.id}`}
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                const currentValues = field.value ?? []
+                                if (checked) {
+                                  field.onChange([...currentValues, store.id])
+                                } else {
+                                  field.onChange(currentValues.filter(id => id !== store.id))
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`store-${store.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {store.name}
+                            </label>
+                          </div>
+                        )
+                      })}
+                      {stores.filter(s => s.is_active).length === 0 && (
+                        <p className="text-sm text-muted-foreground">No active stores available</p>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

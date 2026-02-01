@@ -4,11 +4,11 @@ import { inviteUserSchema, updateUserSchema } from '@/lib/validations/user'
 describe('User Validation Schemas', () => {
   describe('inviteUserSchema', () => {
     describe('Valid Inputs', () => {
-      it('should accept valid Admin invite without storeId', () => {
+      it('should accept valid Owner invite without storeId', () => {
         const result = inviteUserSchema.safeParse({
-          email: 'admin@example.com',
-          fullName: 'Admin User',
-          role: 'Admin',
+          email: 'owner@example.com',
+          fullName: 'Owner User',
+          role: 'Owner',
         })
         expect(result.success).toBe(true)
       })
@@ -22,11 +22,11 @@ describe('User Validation Schemas', () => {
         expect(result.success).toBe(true)
       })
 
-      it('should accept Admin with optional storeId', () => {
+      it('should accept Owner with optional storeId', () => {
         const result = inviteUserSchema.safeParse({
-          email: 'admin@example.com',
-          fullName: 'Admin User',
-          role: 'Admin',
+          email: 'owner@example.com',
+          fullName: 'Owner User',
+          role: 'Owner',
           storeId: 'store-123',
         })
         expect(result.success).toBe(true)
@@ -42,11 +42,21 @@ describe('User Validation Schemas', () => {
         expect(result.success).toBe(true)
       })
 
+      it('should accept Manager with storeId', () => {
+        const result = inviteUserSchema.safeParse({
+          email: 'manager@example.com',
+          fullName: 'Manager User',
+          role: 'Manager',
+          storeId: 'store-789',
+        })
+        expect(result.success).toBe(true)
+      })
+
       it('should accept minimum length fullName (2 characters)', () => {
         const result = inviteUserSchema.safeParse({
           email: 'user@example.com',
           fullName: 'Jo',
-          role: 'Admin',
+          role: 'Owner',
         })
         expect(result.success).toBe(true)
       })
@@ -74,7 +84,24 @@ describe('User Validation Schemas', () => {
             (issue) => issue.path.includes('storeId')
           )
           expect(storeError?.message).toBe(
-            'Staff members must be assigned to a store'
+            'Staff and Manager must be assigned to a store'
+          )
+        }
+      })
+
+      it('should reject Manager without storeId', () => {
+        const result = inviteUserSchema.safeParse({
+          email: 'manager@example.com',
+          fullName: 'Manager User',
+          role: 'Manager',
+        })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          const storeError = result.error.issues.find(
+            (issue) => issue.path.includes('storeId')
+          )
+          expect(storeError?.message).toBe(
+            'Staff and Manager must be assigned to a store'
           )
         }
       })
@@ -83,7 +110,7 @@ describe('User Validation Schemas', () => {
         const result = inviteUserSchema.safeParse({
           email: 'not-an-email',
           fullName: 'Test User',
-          role: 'Admin',
+          role: 'Owner',
         })
         expect(result.success).toBe(false)
         if (!result.success) {
@@ -97,7 +124,7 @@ describe('User Validation Schemas', () => {
         const result = inviteUserSchema.safeParse({
           email: '',
           fullName: 'Test User',
-          role: 'Admin',
+          role: 'Owner',
         })
         expect(result.success).toBe(false)
       })
@@ -106,7 +133,7 @@ describe('User Validation Schemas', () => {
         const result = inviteUserSchema.safeParse({
           email: 'user@example.com',
           fullName: 'J',
-          role: 'Admin',
+          role: 'Owner',
         })
         expect(result.success).toBe(false)
         if (!result.success) {
@@ -120,7 +147,7 @@ describe('User Validation Schemas', () => {
         const result = inviteUserSchema.safeParse({
           email: 'user@example.com',
           fullName: 'Test User',
-          role: 'Manager', // Invalid role
+          role: 'Admin', // Admin is now a legacy role, not valid for invites
         })
         expect(result.success).toBe(false)
       })
@@ -151,11 +178,21 @@ describe('User Validation Schemas', () => {
     })
 
     describe('Role Validation', () => {
-      it('should accept exactly Admin role', () => {
+      it('should accept exactly Owner role', () => {
         const result = inviteUserSchema.safeParse({
           email: 'test@example.com',
           fullName: 'Test User',
-          role: 'Admin',
+          role: 'Owner',
+        })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept exactly Manager role with store', () => {
+        const result = inviteUserSchema.safeParse({
+          email: 'test@example.com',
+          fullName: 'Test User',
+          role: 'Manager',
+          storeId: 'store-id',
         })
         expect(result.success).toBe(true)
       })
@@ -184,7 +221,7 @@ describe('User Validation Schemas', () => {
           inviteUserSchema.safeParse({
             email: 'test@example.com',
             fullName: 'Test User',
-            role: 'admin', // lowercase
+            role: 'owner', // lowercase
           }).success
         ).toBe(false)
 
@@ -192,7 +229,7 @@ describe('User Validation Schemas', () => {
           inviteUserSchema.safeParse({
             email: 'test@example.com',
             fullName: 'Test User',
-            role: 'ADMIN', // uppercase
+            role: 'OWNER', // uppercase
           }).success
         ).toBe(false)
       })
@@ -264,7 +301,8 @@ describe('User Validation Schemas', () => {
       })
 
       it('should accept all valid role values', () => {
-        expect(updateUserSchema.safeParse({ role: 'Admin' }).success).toBe(true)
+        expect(updateUserSchema.safeParse({ role: 'Owner' }).success).toBe(true)
+        expect(updateUserSchema.safeParse({ role: 'Manager' }).success).toBe(true)
         expect(updateUserSchema.safeParse({ role: 'Driver' }).success).toBe(true)
         expect(updateUserSchema.safeParse({ role: 'Staff' }).success).toBe(true)
       })
@@ -286,6 +324,13 @@ describe('User Validation Schemas', () => {
       it('should reject invalid role', () => {
         const result = updateUserSchema.safeParse({
           role: 'SuperAdmin',
+        })
+        expect(result.success).toBe(false)
+      })
+
+      it('should reject legacy Admin role', () => {
+        const result = updateUserSchema.safeParse({
+          role: 'Admin',
         })
         expect(result.success).toBe(false)
       })

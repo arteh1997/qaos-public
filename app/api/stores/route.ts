@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin'],
+      allowedRoles: ['Owner'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 

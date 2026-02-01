@@ -4,7 +4,7 @@ import { memo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { AppRole } from '@/types'
+import { AppRole, LegacyAppRole } from '@/types'
 import {
   LayoutDashboard,
   Store,
@@ -14,8 +14,11 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { normalizeRole } from '@/lib/auth'
+import { StoreSelector } from './StoreSelector'
 
 interface NavItem {
   title: string
@@ -24,61 +27,75 @@ interface NavItem {
   roles: AppRole[]
 }
 
+// Navigation items with new role system
+// Owner: Full access (replaces Admin)
+// Manager: Operational access to their store
+// Staff: Limited access, clock in/out
+// Driver: Multi-store delivery access
 const navItems: NavItem[] = [
   {
     title: 'Dashboard',
     href: '/',
     icon: LayoutDashboard,
-    roles: ['Admin', 'Driver', 'Staff'],
+    roles: ['Owner', 'Manager', 'Driver', 'Staff'],
   },
   {
     title: 'Stores',
     href: '/stores',
     icon: Store,
-    roles: ['Admin', 'Driver', 'Staff'],
+    roles: ['Owner', 'Manager', 'Driver', 'Staff'],
   },
   {
     title: 'Inventory',
     href: '/inventory',
     icon: Package,
-    roles: ['Admin'],
+    roles: ['Owner', 'Manager'],
   },
   {
     title: 'Users',
     href: '/users',
     icon: Users,
-    roles: ['Admin'],
+    roles: ['Owner', 'Manager'],
   },
   {
     title: 'Shifts',
     href: '/shifts',
     icon: Clock,
-    roles: ['Admin'],
+    roles: ['Owner', 'Manager'],
   },
   {
     title: 'Reports',
     href: '/reports',
     icon: FileText,
-    roles: ['Admin', 'Driver'],
+    roles: ['Owner', 'Manager', 'Driver'],
   },
   {
     title: 'My Shifts',
     href: '/my-shifts',
     icon: Clock,
-    roles: ['Staff'],
+    roles: ['Staff', 'Driver'],
+  },
+  {
+    title: 'Billing',
+    href: '/billing',
+    icon: CreditCard,
+    roles: ['Owner'],
   },
 ]
 
 interface SidebarProps {
-  role: AppRole | null
+  role: AppRole | LegacyAppRole | null
 }
 
 export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
 
+  // Normalize legacy roles (Admin -> Owner)
+  const normalizedRole = normalizeRole(role)
+
   const filteredItems = navItems.filter(item =>
-    role && item.roles.includes(role)
+    normalizedRole && item.roles.includes(normalizedRole)
   )
 
   return (
@@ -112,6 +129,9 @@ export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
           )}
         </Button>
       </div>
+
+      {/* Store selector for multi-store users */}
+      <StoreSelector collapsed={collapsed} className="py-2 border-b" />
 
       <nav className="flex-1 p-2 space-y-1" aria-label="Primary">
         {filteredItems.map((item) => {

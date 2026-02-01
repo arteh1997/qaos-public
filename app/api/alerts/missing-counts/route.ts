@@ -6,7 +6,7 @@ import { apiSuccess, apiError } from '@/lib/api/response'
 export async function GET(request: NextRequest) {
   try {
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin', 'Driver'],
+      allowedRoles: ['Owner', 'Manager', 'Driver'],
       rateLimit: { key: 'reports', config: RATE_LIMITS.reports },
     })
 

@@ -30,8 +30,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const { context } = auth
 
-    // Check store access
-    if (!canAccessStore(context.profile, storeId)) {
+    // Check store access (uses store_users membership)
+    if (!canAccessStore(context, storeId)) {
       return apiForbidden('You do not have access to this store', context.requestId)
     }
 
@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { storeId } = await params
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin'],
+      allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 
@@ -112,7 +112,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { storeId } = await params
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin'],
+      allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 

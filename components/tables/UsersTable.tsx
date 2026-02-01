@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback, memo } from 'react'
-import { Profile } from '@/types'
+import React, { useState, useMemo, useCallback, memo } from 'react'
+import { Profile, StoreUser } from '@/types'
 import {
   Table,
   TableBody,
@@ -24,7 +24,85 @@ import { MoreHorizontal, Edit, UserX, UserCheck, Users, UserPlus, ArrowUp, Arrow
 import { UsersTableSkeleton } from '@/components/ui/skeletons'
 import { EmptyState } from '@/components/ui/empty-state'
 
-type UserWithStore = Profile & { store?: { id: string; name: string } | null }
+// Store user entry with store name for display
+type StoreUserWithStore = Pick<StoreUser, 'store_id' | 'role' | 'is_billing_owner'> & {
+  store: { id: string; name: string } | null
+}
+
+type UserWithStore = Profile & {
+  store?: { id: string; name: string } | null
+  store_users?: StoreUserWithStore[]
+}
+
+/**
+ * Get the display role for a user relative to a specific store (if selected)
+ * - If selectedStoreId is provided, find the user's role at THAT store
+ *   - If role is Owner and is_billing_owner -> "Owner"
+ *   - If role is Owner and NOT is_billing_owner -> "Co-Owner"
+ *   - Otherwise -> their role at that store
+ * - If no selectedStoreId, fall back to profile role with billing owner check
+ */
+function getDisplayRole(user: UserWithStore, selectedStoreId?: string): string {
+  if (selectedStoreId && user.store_users) {
+    // Find the user's membership at the selected store
+    const storeUserEntry = user.store_users.find(su => su.store_id === selectedStoreId)
+
+    if (storeUserEntry) {
+      if (storeUserEntry.role === 'Owner') {
+        return storeUserEntry.is_billing_owner ? 'Owner' : 'Co-Owner'
+      }
+      return storeUserEntry.role
+    }
+
+    // User is not a member of the selected store - show their profile role
+    return user.role
+  }
+
+  // No store selected - fall back to checking if billing owner of any store
+  const isBillingOwner = user.store_users?.some(su => su.is_billing_owner) ?? false
+
+  if (user.role === 'Owner') {
+    return isBillingOwner ? 'Owner' : 'Co-Owner'
+  }
+
+  return user.role
+}
+
+/**
+ * Get formatted role string for a store user entry
+ */
+function getStoreRoleDisplay(su: StoreUserWithStore): string {
+  if (su.role === 'Owner') {
+    return su.is_billing_owner ? 'Owner' : 'Co-Owner'
+  }
+  return su.role
+}
+
+/**
+ * Get the stores display for a user
+ * - If selectedStoreId is provided, show that store name
+ * - If no selectedStoreId, show all store names
+ */
+function getStoresDisplay(user: UserWithStore, selectedStoreId?: string): React.ReactNode {
+  if (selectedStoreId) {
+    // When filtered by store, show that store name
+    const storeEntry = user.store_users?.find(su => su.store_id === selectedStoreId)
+    return storeEntry?.store?.name || user.store?.name || '-'
+  }
+
+  // No filter - show all store names
+  if (!user.store_users || user.store_users.length === 0) {
+    return user.store?.name || '-'
+  }
+
+  // Single store - just show the name
+  if (user.store_users.length === 1) {
+    return user.store_users[0].store?.name || 'Unknown'
+  }
+
+  // Multiple stores - show as comma-separated list
+  return user.store_users.map(su => su.store?.name || 'Unknown').join(', ')
+}
 
 // Sort configuration
 type SortKey = 'name' | 'email' | 'role' | 'store' | 'status'
@@ -37,9 +115,10 @@ interface SortConfig {
 
 // Priority for role sorting (lower = shows first in ascending order)
 const ROLE_PRIORITY: Record<string, number> = {
-  'Admin': 1,
-  'Driver': 2,
-  'Staff': 3,
+  'Owner': 1,
+  'Manager': 2,
+  'Driver': 3,
+  'Staff': 4,
 }
 
 // Priority for status sorting (lower = shows first in ascending order)
@@ -82,6 +161,7 @@ function SortableHeader({ label, sortKey, currentSort, onSort, className = '' }:
 
 interface UsersTableProps {
   users: UserWithStore[]
+  selectedStoreId?: string  // When set, show role relative to this store
   isLoading?: boolean
   onInvite?: () => void
   onEdit?: (user: Profile) => void
@@ -93,6 +173,7 @@ interface UsersTableProps {
 
 export const UsersTable = memo(function UsersTable({
   users,
+  selectedStoreId,
   isLoading,
   onInvite,
   onEdit,
@@ -222,8 +303,11 @@ export const UsersTable = memo(function UsersTable({
   const activeInSelection = selectedUsers.filter(u => u.status === 'Active').length
   const inactiveInSelection = selectedUsers.filter(u => u.status === 'Inactive').length
 
-  const roleColors = {
-    Admin: 'bg-red-500',
+  const roleColors: Record<string, string> = {
+    Owner: 'bg-amber-500',
+    'Co-Owner': 'bg-amber-400', // Slightly lighter to distinguish from billing owner
+    Manager: 'bg-purple-500',
+    Admin: 'bg-amber-500', // Legacy: maps to Owner
     Driver: 'bg-blue-500',
     Staff: 'bg-green-500',
   }
@@ -349,15 +433,15 @@ export const UsersTable = memo(function UsersTable({
                     </DropdownMenu>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <Badge className={`text-white text-xs ${roleColors[user.role]}`}>
-                      {user.role}
+                    <Badge className={`text-white text-xs ${roleColors[getDisplayRole(user, selectedStoreId)]}`}>
+                      {getDisplayRole(user, selectedStoreId)}
                     </Badge>
                     <Badge variant={statusColors[user.status]} className="text-xs">
                       {user.status}
                     </Badge>
-                    {user.store?.name && (
-                      <span className="text-xs text-muted-foreground">{user.store.name}</span>
-                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {getStoresDisplay(user, selectedStoreId)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -455,12 +539,12 @@ export const UsersTable = memo(function UsersTable({
                     {user.email}
                   </TableCell>
                   <TableCell>
-                    <Badge className={`text-white ${roleColors[user.role]}`}>
-                      {user.role}
+                    <Badge className={`text-white ${roleColors[getDisplayRole(user, selectedStoreId)]}`}>
+                      {getDisplayRole(user, selectedStoreId)}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-muted-foreground">
-                    {user.store?.name || '-'}
+                    {getStoresDisplay(user, selectedStoreId)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusColors[user.status]}>

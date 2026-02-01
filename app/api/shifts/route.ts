@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         query = query.eq('store_id', context.profile.store_id)
       }
     } else {
-      // Apply filters for Admin/Driver
+      // Apply filters for Owner/Manager/Driver
       if (storeId) {
         query = query.eq('store_id', storeId)
       }
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin'],
+      allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 

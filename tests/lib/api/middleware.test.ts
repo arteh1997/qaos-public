@@ -1,10 +1,64 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   canAccessStore,
+  canManageStore,
+  canManageUsersAtStore,
+  getUserRoleAtStore,
   parsePaginationParams,
   parseFilterParams,
+  AuthContext,
 } from '@/lib/api/middleware'
 import { NextRequest } from 'next/server'
+import { AppRole, StoreUserWithStore } from '@/types'
+
+// Helper to create a mock StoreUserWithStore
+function createStoreMembership(
+  storeId: string,
+  role: AppRole,
+  isBillingOwner = false
+): StoreUserWithStore {
+  return {
+    id: `membership-${storeId}`,
+    store_id: storeId,
+    user_id: 'user-123',
+    role,
+    is_billing_owner: isBillingOwner,
+    invited_by: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    store: {
+      id: storeId,
+      name: `Store ${storeId}`,
+      address: '123 Test St',
+      is_active: true,
+      billing_user_id: null,
+      subscription_status: 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  }
+}
+
+// Helper to create a mock AuthContext
+function createAuthContext(options: {
+  stores?: StoreUserWithStore[]
+  isPlatformAdmin?: boolean
+  role?: AppRole | null
+  storeId?: string | null
+}): AuthContext {
+  return {
+    user: { id: 'user-123', email: 'test@example.com' },
+    profile: {
+      role: options.role ?? null,
+      store_id: options.storeId ?? null,
+      is_platform_admin: options.isPlatformAdmin ?? false,
+    },
+    stores: options.stores ?? [],
+    requestId: 'test-request-id',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase: {} as any,
+  }
+}
 
 // Mock NextRequest for parameter parsing tests
 function createMockRequest(searchParams: Record<string, string>): NextRequest {
@@ -23,73 +77,188 @@ describe('API Middleware Helpers', () => {
     const targetStoreId = 'store-target-123'
     const userStoreId = 'store-user-456'
 
-    describe('Admin Role', () => {
-      it('should allow access to any store', () => {
-        expect(
-          canAccessStore(
-            { role: 'Admin', store_id: null },
-            targetStoreId
-          )
-        ).toBe(true)
+    describe('Owner Role', () => {
+      it('should allow access to their store', () => {
+        const context = createAuthContext({
+          stores: [createStoreMembership(targetStoreId, 'Owner')],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(true)
       })
 
-      it('should allow access even with different store_id', () => {
-        expect(
-          canAccessStore(
-            { role: 'Admin', store_id: userStoreId },
-            targetStoreId
-          )
-        ).toBe(true)
+      it('should deny access to stores without membership', () => {
+        const context = createAuthContext({
+          stores: [createStoreMembership(userStoreId, 'Owner')],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(false)
+      })
+    })
+
+    describe('Manager Role', () => {
+      it('should allow access to their store', () => {
+        const context = createAuthContext({
+          stores: [createStoreMembership(targetStoreId, 'Manager')],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(true)
+      })
+
+      it('should deny access to different store', () => {
+        const context = createAuthContext({
+          stores: [createStoreMembership(userStoreId, 'Manager')],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(false)
       })
     })
 
     describe('Driver Role', () => {
-      it('should allow access to any store', () => {
-        expect(
-          canAccessStore(
-            { role: 'Driver', store_id: null },
-            targetStoreId
-          )
-        ).toBe(true)
+      it('should allow access to their assigned stores', () => {
+        const context = createAuthContext({
+          stores: [createStoreMembership(targetStoreId, 'Driver')],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(true)
       })
 
-      it('should allow access even with different store_id', () => {
-        expect(
-          canAccessStore(
-            { role: 'Driver', store_id: userStoreId },
-            targetStoreId
-          )
-        ).toBe(true)
+      it('should allow access to multiple stores', () => {
+        const context = createAuthContext({
+          stores: [
+            createStoreMembership(targetStoreId, 'Driver'),
+            createStoreMembership(userStoreId, 'Driver'),
+          ],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(true)
+        expect(canAccessStore(context, userStoreId)).toBe(true)
       })
     })
 
     describe('Staff Role', () => {
       it('should allow access to assigned store', () => {
-        expect(
-          canAccessStore(
-            { role: 'Staff', store_id: targetStoreId },
-            targetStoreId
-          )
-        ).toBe(true)
+        const context = createAuthContext({
+          stores: [createStoreMembership(targetStoreId, 'Staff')],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(true)
       })
 
       it('should deny access to different store', () => {
-        expect(
-          canAccessStore(
-            { role: 'Staff', store_id: userStoreId },
-            targetStoreId
-          )
-        ).toBe(false)
+        const context = createAuthContext({
+          stores: [createStoreMembership(userStoreId, 'Staff')],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(false)
       })
 
       it('should deny access when no store assigned', () => {
-        expect(
-          canAccessStore(
-            { role: 'Staff', store_id: null },
-            targetStoreId
-          )
-        ).toBe(false)
+        const context = createAuthContext({
+          stores: [],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(false)
       })
+    })
+
+    describe('Platform Admin', () => {
+      it('should allow access to any store', () => {
+        const context = createAuthContext({
+          isPlatformAdmin: true,
+          stores: [],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(true)
+      })
+
+      it('should allow access even without store membership', () => {
+        const context = createAuthContext({
+          isPlatformAdmin: true,
+          stores: [createStoreMembership(userStoreId, 'Staff')],
+        })
+        expect(canAccessStore(context, targetStoreId)).toBe(true)
+      })
+    })
+  })
+
+  describe('canManageStore', () => {
+    const targetStoreId = 'store-123'
+
+    it('should return true for Owner', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership(targetStoreId, 'Owner')],
+      })
+      expect(canManageStore(context, targetStoreId)).toBe(true)
+    })
+
+    it('should return true for Manager', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership(targetStoreId, 'Manager')],
+      })
+      expect(canManageStore(context, targetStoreId)).toBe(true)
+    })
+
+    it('should return false for Staff', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership(targetStoreId, 'Staff')],
+      })
+      expect(canManageStore(context, targetStoreId)).toBe(false)
+    })
+
+    it('should return false for Driver', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership(targetStoreId, 'Driver')],
+      })
+      expect(canManageStore(context, targetStoreId)).toBe(false)
+    })
+
+    it('should return true for platform admin', () => {
+      const context = createAuthContext({
+        isPlatformAdmin: true,
+        stores: [],
+      })
+      expect(canManageStore(context, targetStoreId)).toBe(true)
+    })
+  })
+
+  describe('canManageUsersAtStore', () => {
+    const targetStoreId = 'store-123'
+
+    it('should return true for Owner', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership(targetStoreId, 'Owner')],
+      })
+      expect(canManageUsersAtStore(context, targetStoreId)).toBe(true)
+    })
+
+    it('should return false for Manager', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership(targetStoreId, 'Manager')],
+      })
+      expect(canManageUsersAtStore(context, targetStoreId)).toBe(false)
+    })
+
+    it('should return false for Staff', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership(targetStoreId, 'Staff')],
+      })
+      expect(canManageUsersAtStore(context, targetStoreId)).toBe(false)
+    })
+
+    it('should return true for platform admin', () => {
+      const context = createAuthContext({
+        isPlatformAdmin: true,
+        stores: [],
+      })
+      expect(canManageUsersAtStore(context, targetStoreId)).toBe(true)
+    })
+  })
+
+  describe('getUserRoleAtStore', () => {
+    const targetStoreId = 'store-123'
+
+    it('should return the role at the store', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership(targetStoreId, 'Manager')],
+      })
+      expect(getUserRoleAtStore(context, targetStoreId)).toBe('Manager')
+    })
+
+    it('should return null if no membership at store', () => {
+      const context = createAuthContext({
+        stores: [createStoreMembership('other-store', 'Owner')],
+      })
+      expect(getUserRoleAtStore(context, targetStoreId)).toBe(null)
     })
   })
 

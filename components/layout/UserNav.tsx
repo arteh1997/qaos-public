@@ -13,7 +13,9 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { LogOut, User, Shield, Truck, UserCircle } from 'lucide-react'
+import { LogOut, User, Shield, Truck, UserCircle, Crown, Briefcase } from 'lucide-react'
+import { AppRole, LegacyAppRole } from '@/types'
+import { normalizeRole } from '@/lib/auth'
 
 export function UserNav() {
   const { profile, role, signOut } = useAuth()
@@ -25,12 +27,23 @@ export function UserNav() {
     .toUpperCase()
     .slice(0, 2) || profile?.email?.[0]?.toUpperCase() || '?'
 
-  const roleConfig = {
-    Admin: {
-      icon: Shield,
-      color: 'text-red-500',
-      bg: 'bg-red-500/10',
-      label: 'Administrator',
+  const roleConfig: Record<AppRole, {
+    icon: typeof Shield
+    color: string
+    bg: string
+    label: string
+  }> = {
+    Owner: {
+      icon: Crown,
+      color: 'text-amber-500',
+      bg: 'bg-amber-500/10',
+      label: 'Owner',
+    },
+    Manager: {
+      icon: Briefcase,
+      color: 'text-purple-500',
+      bg: 'bg-purple-500/10',
+      label: 'Manager',
     },
     Driver: {
       icon: Truck,
@@ -42,11 +55,13 @@ export function UserNav() {
       icon: UserCircle,
       color: 'text-emerald-500',
       bg: 'bg-emerald-500/10',
-      label: 'Staff Member',
+      label: 'Staff',
     },
   }
 
-  const currentRole = role ? roleConfig[role] : null
+  // Normalize role (handles legacy Admin -> Owner mapping)
+  const normalizedRole = normalizeRole(role as AppRole | LegacyAppRole | null)
+  const currentRole = normalizedRole ? roleConfig[normalizedRole] : null
   const RoleIcon = currentRole?.icon
 
   return (
@@ -67,10 +82,12 @@ export function UserNav() {
                 {initials}
               </AvatarFallback>
             </Avatar>
-            {role && (
+            {normalizedRole && (
               <span
                 className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-background ${
-                  role === 'Admin' ? 'bg-red-500' : role === 'Driver' ? 'bg-blue-500' : 'bg-emerald-500'
+                  normalizedRole === 'Owner' ? 'bg-amber-500' :
+                  normalizedRole === 'Manager' ? 'bg-purple-500' :
+                  normalizedRole === 'Driver' ? 'bg-blue-500' : 'bg-emerald-500'
                 }`}
                 aria-hidden="true"
               />

@@ -3,9 +3,10 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { inviteUserSchema, InviteUserFormData } from '@/lib/validations/user'
-import { Store } from '@/types'
+import { Store, AppRole } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -29,8 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2 } from 'lucide-react'
-import { ROLES } from '@/lib/constants'
+import { Loader2, Mail } from 'lucide-react'
+import { INVITE_ROLE_LABELS, INVITE_ROLE_DESCRIPTIONS, SINGLE_STORE_ROLES, INVITABLE_ROLES_BY_ROLE } from '@/lib/constants'
 
 interface InviteUserFormProps {
   open: boolean
@@ -38,6 +39,7 @@ interface InviteUserFormProps {
   stores: Store[]
   onSubmit: (data: InviteUserFormData) => Promise<void>
   isLoading?: boolean
+  inviterRole?: AppRole // Role of the person doing the inviting
 }
 
 export function InviteUserForm({
@@ -46,18 +48,22 @@ export function InviteUserForm({
   stores,
   onSubmit,
   isLoading,
+  inviterRole = 'Owner',
 }: InviteUserFormProps) {
   const form = useForm<InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
     defaultValues: {
       email: '',
-      fullName: '',
       role: undefined,
       storeId: undefined,
+      storeIds: [],
     },
   })
 
   const selectedRole = form.watch('role')
+
+  // Get available roles based on inviter's role
+  const availableRoles = INVITABLE_ROLES_BY_ROLE[inviterRole] || []
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
@@ -67,6 +73,13 @@ export function InviteUserForm({
   }
 
   const handleSubmit = async (data: InviteUserFormData) => {
+    // For Driver role, clear storeId and use storeIds
+    if (data.role === 'Driver') {
+      data.storeId = undefined
+    } else {
+      // For non-Driver roles, clear storeIds
+      data.storeIds = undefined
+    }
     await onSubmit(data)
     form.reset()
   }
@@ -75,9 +88,9 @@ export function InviteUserForm({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create New User</DialogTitle>
+          <DialogTitle>Invite Team Member</DialogTitle>
           <DialogDescription>
-            Create a new user account. A temporary password will be generated.
+            Send an invitation email to add a new team member. They&apos;ll complete their account setup when they accept.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -87,28 +100,21 @@ export function InviteUserForm({
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="user@example.com"
-                      {...field}
-                    />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        placeholder="teammate@example.com"
+                        className="pl-10"
+                        {...field}
+                      />
+                    </div>
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Doe" {...field} />
-                  </FormControl>
+                  <FormDescription>
+                    We&apos;ll send them an invitation link that expires in 1 hour
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -127,30 +133,31 @@ export function InviteUserForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {ROLES.map((role) => (
+                      {availableRoles.map((role) => (
                         <SelectItem key={role} value={role}>
-                          {role}
+                          {INVITE_ROLE_LABELS[role]}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    {selectedRole === 'Admin' && 'Full access to all stores and features'}
-                    {selectedRole === 'Driver' && 'Can view all stores and record deliveries'}
-                    {selectedRole === 'Staff' && 'Can only access their assigned store'}
+                    {selectedRole && INVITE_ROLE_DESCRIPTIONS[selectedRole as AppRole]}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {selectedRole === 'Staff' && (
+            {/* Store selection - required for Co-Owner/Manager/Staff */}
+            {selectedRole && (SINGLE_STORE_ROLES.includes(selectedRole as AppRole) || selectedRole === 'Owner') && (
               <FormField
                 control={form.control}
                 name="storeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Assigned Store</FormLabel>
+                    <FormLabel>
+                      {selectedRole === 'Owner' ? 'Store to Co-Own' : 'Assigned Store'}
+                    </FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -168,8 +175,57 @@ export function InviteUserForm({
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Staff members must be assigned to a specific store
+                      {selectedRole === 'Owner' && 'Co-owners have full access to the store but cannot remove the billing owner'}
+                      {selectedRole === 'Manager' && 'Managers have full operational access to their assigned store'}
+                      {selectedRole === 'Staff' && 'Staff members can clock in/out and perform stock counts'}
                     </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Multi-store selection for Drivers */}
+            {selectedRole === 'Driver' && (
+              <FormField
+                control={form.control}
+                name="storeIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assigned Stores (Optional)</FormLabel>
+                    <FormDescription className="mb-2">
+                      Select the stores this driver can access. Leave empty to assign stores later.
+                    </FormDescription>
+                    <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                      {stores.filter(s => s.is_active).map((store) => {
+                        const isChecked = field.value?.includes(store.id) ?? false
+                        return (
+                          <div key={store.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`invite-store-${store.id}`}
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                const currentValues = field.value ?? []
+                                if (checked) {
+                                  field.onChange([...currentValues, store.id])
+                                } else {
+                                  field.onChange(currentValues.filter(id => id !== store.id))
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`invite-store-${store.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {store.name}
+                            </label>
+                          </div>
+                        )
+                      })}
+                      {stores.filter(s => s.is_active).length === 0 && (
+                        <p className="text-sm text-muted-foreground">No active stores available</p>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -186,7 +242,7 @@ export function InviteUserForm({
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create User
+                Send Invitation
               </Button>
             </div>
           </form>

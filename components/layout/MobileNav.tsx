@@ -4,8 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { AppRole } from '@/types'
+import { AppRole, LegacyAppRole } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
+import { normalizeRole } from '@/lib/auth'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,53 +27,54 @@ interface NavItem {
   roles: AppRole[]
 }
 
+// Navigation items with new role system
 const navItems: NavItem[] = [
   {
     title: 'Dashboard',
     href: '/',
     icon: LayoutDashboard,
-    roles: ['Admin', 'Driver', 'Staff'],
+    roles: ['Owner', 'Manager', 'Driver', 'Staff'],
   },
   {
     title: 'Stores',
     href: '/stores',
     icon: Store,
-    roles: ['Admin', 'Driver', 'Staff'],
+    roles: ['Owner', 'Manager', 'Driver', 'Staff'],
   },
   {
     title: 'Inventory',
     href: '/inventory',
     icon: Package,
-    roles: ['Admin'],
+    roles: ['Owner', 'Manager'],
   },
   {
     title: 'Users',
     href: '/users',
     icon: Users,
-    roles: ['Admin'],
+    roles: ['Owner', 'Manager'],
   },
   {
     title: 'Shifts',
     href: '/shifts',
     icon: Clock,
-    roles: ['Admin'],
+    roles: ['Owner', 'Manager'],
   },
   {
     title: 'Reports',
     href: '/reports',
     icon: FileText,
-    roles: ['Admin', 'Driver'],
+    roles: ['Owner', 'Manager', 'Driver'],
   },
   {
     title: 'My Shifts',
     href: '/my-shifts',
     icon: Clock,
-    roles: ['Staff'],
+    roles: ['Staff', 'Driver'],
   },
 ]
 
 interface MobileNavProps {
-  role: AppRole | null
+  role: AppRole | LegacyAppRole | null
 }
 
 export function MobileNav({ role }: MobileNavProps) {
@@ -80,8 +82,11 @@ export function MobileNav({ role }: MobileNavProps) {
   const pathname = usePathname()
   const { signOut } = useAuth()
 
+  // Normalize legacy roles (Admin -> Owner)
+  const normalizedRole = normalizeRole(role)
+
   const filteredItems = navItems.filter(item =>
-    role && item.roles.includes(role)
+    normalizedRole && item.roles.includes(normalizedRole)
   )
 
   const handleLogout = async () => {

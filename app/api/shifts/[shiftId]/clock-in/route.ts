@@ -41,8 +41,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Shift', context.requestId)
     }
 
-    // Verify user owns this shift (unless Admin)
-    if (context.profile.role !== 'Admin' && shift.user_id !== context.user.id) {
+    // Verify user owns this shift (unless Owner/Manager or platform admin)
+    const canManageShifts = context.profile.role === 'Owner' ||
+      context.profile.role === 'Manager' ||
+      context.profile.is_platform_admin
+    if (!canManageShifts && shift.user_id !== context.user.id) {
       return apiForbidden('You can only clock in to your own shifts', context.requestId)
     }
 

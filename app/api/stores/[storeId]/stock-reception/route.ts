@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { storeId } = await params
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin', 'Driver'],
+      allowedRoles: ['Owner', 'Manager', 'Driver'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const { context } = auth
 
-    // Check store access (Admin and Driver have global access)
-    if (!canAccessStore(context.profile, storeId)) {
+    // Check store access (uses store_users membership)
+    if (!canAccessStore(context, storeId)) {
       return apiForbidden('You do not have access to this store', context.requestId)
     }
 

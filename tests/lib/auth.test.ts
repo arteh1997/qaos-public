@@ -11,15 +11,70 @@ import {
   canManageShifts,
   canViewReports,
   canAccessStore,
+  canAccessStoreLegacy,
   getDefaultStoreId,
+  normalizeRole,
+  isMultiStoreRole,
+  isSingleStoreRole,
 } from '@/lib/auth'
-import { AppRole } from '@/types'
+import { AppRole, StoreUserWithStore } from '@/types'
+
+// Helper to create a mock StoreUserWithStore
+function createStoreMembership(
+  storeId: string,
+  role: AppRole,
+  isBillingOwner = false
+): StoreUserWithStore {
+  return {
+    id: `membership-${storeId}`,
+    store_id: storeId,
+    user_id: 'user-123',
+    role,
+    is_billing_owner: isBillingOwner,
+    invited_by: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    store: {
+      id: storeId,
+      name: `Store ${storeId}`,
+      address: '123 Test St',
+      is_active: true,
+      billing_user_id: null,
+      subscription_status: 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  }
+}
 
 describe('Auth Helpers', () => {
-  const roles: (AppRole | null | undefined)[] = ['Admin', 'Driver', 'Staff', null, undefined]
+  // New role system: Owner, Manager, Staff, Driver
+  const roles: (AppRole | null | undefined)[] = ['Owner', 'Manager', 'Staff', 'Driver', null, undefined]
 
-  describe('hasGlobalAccess', () => {
-    it('should return true for Admin', () => {
+  describe('normalizeRole', () => {
+    it('should map Admin to Owner', () => {
+      expect(normalizeRole('Admin')).toBe('Owner')
+    })
+
+    it('should pass through new roles unchanged', () => {
+      expect(normalizeRole('Owner')).toBe('Owner')
+      expect(normalizeRole('Manager')).toBe('Manager')
+      expect(normalizeRole('Staff')).toBe('Staff')
+      expect(normalizeRole('Driver')).toBe('Driver')
+    })
+
+    it('should return null for null/undefined', () => {
+      expect(normalizeRole(null)).toBe(null)
+      expect(normalizeRole(undefined)).toBe(null)
+    })
+  })
+
+  describe('hasGlobalAccess (legacy)', () => {
+    it('should return true for Owner', () => {
+      expect(hasGlobalAccess('Owner')).toBe(true)
+    })
+
+    it('should return true for Admin (legacy)', () => {
       expect(hasGlobalAccess('Admin')).toBe(true)
     })
 
@@ -31,6 +86,10 @@ describe('Auth Helpers', () => {
       expect(hasGlobalAccess('Staff')).toBe(false)
     })
 
+    it('should return false for Manager', () => {
+      expect(hasGlobalAccess('Manager')).toBe(false)
+    })
+
     it('should return false for null', () => {
       expect(hasGlobalAccess(null)).toBe(false)
     })
@@ -40,9 +99,9 @@ describe('Auth Helpers', () => {
     })
   })
 
-  describe('isStoreScopedRole', () => {
-    it('should return false for Admin', () => {
-      expect(isStoreScopedRole('Admin')).toBe(false)
+  describe('isStoreScopedRole (legacy)', () => {
+    it('should return false for Owner', () => {
+      expect(isStoreScopedRole('Owner')).toBe(false)
     })
 
     it('should return false for Driver', () => {
@@ -51,6 +110,10 @@ describe('Auth Helpers', () => {
 
     it('should return true for Staff', () => {
       expect(isStoreScopedRole('Staff')).toBe(true)
+    })
+
+    it('should return true for Manager', () => {
+      expect(isStoreScopedRole('Manager')).toBe(true)
     })
 
     it('should return false for null', () => {
@@ -62,9 +125,47 @@ describe('Auth Helpers', () => {
     })
   })
 
-  describe('canManageStores', () => {
-    it('should return true only for Admin', () => {
+  describe('isMultiStoreRole', () => {
+    it('should return true for Owner', () => {
+      expect(isMultiStoreRole('Owner')).toBe(true)
+    })
+
+    it('should return true for Driver', () => {
+      expect(isMultiStoreRole('Driver')).toBe(true)
+    })
+
+    it('should return false for Manager', () => {
+      expect(isMultiStoreRole('Manager')).toBe(false)
+    })
+
+    it('should return false for Staff', () => {
+      expect(isMultiStoreRole('Staff')).toBe(false)
+    })
+  })
+
+  describe('isSingleStoreRole', () => {
+    it('should return true for Manager', () => {
+      expect(isSingleStoreRole('Manager')).toBe(true)
+    })
+
+    it('should return true for Staff', () => {
+      expect(isSingleStoreRole('Staff')).toBe(true)
+    })
+
+    it('should return false for Owner', () => {
+      expect(isSingleStoreRole('Owner')).toBe(false)
+    })
+
+    it('should return false for Driver', () => {
+      expect(isSingleStoreRole('Driver')).toBe(false)
+    })
+  })
+
+  describe('canManageStores (legacy)', () => {
+    it('should return true only for Owner and Admin', () => {
+      expect(canManageStores('Owner')).toBe(true)
       expect(canManageStores('Admin')).toBe(true)
+      expect(canManageStores('Manager')).toBe(false)
       expect(canManageStores('Driver')).toBe(false)
       expect(canManageStores('Staff')).toBe(false)
     })
@@ -75,13 +176,14 @@ describe('Auth Helpers', () => {
     })
   })
 
-  describe('canViewAllStores', () => {
-    it('should return true for Admin and Driver', () => {
-      expect(canViewAllStores('Admin')).toBe(true)
+  describe('canViewAllStores (legacy)', () => {
+    it('should return true for Owner and Driver', () => {
+      expect(canViewAllStores('Owner')).toBe(true)
       expect(canViewAllStores('Driver')).toBe(true)
     })
 
-    it('should return false for Staff', () => {
+    it('should return false for Manager and Staff', () => {
+      expect(canViewAllStores('Manager')).toBe(false)
       expect(canViewAllStores('Staff')).toBe(false)
     })
 
@@ -92,24 +194,33 @@ describe('Auth Helpers', () => {
   })
 
   describe('canManageUsers', () => {
-    it('should return true only for Admin', () => {
-      expect(canManageUsers('Admin')).toBe(true)
+    it('should return true for Owner and Manager', () => {
+      expect(canManageUsers('Owner')).toBe(true)
+      expect(canManageUsers('Manager')).toBe(true)
+    })
+
+    it('should return false for Staff and Driver', () => {
       expect(canManageUsers('Driver')).toBe(false)
       expect(canManageUsers('Staff')).toBe(false)
     })
   })
 
   describe('canManageInventoryItems', () => {
-    it('should return true only for Admin', () => {
-      expect(canManageInventoryItems('Admin')).toBe(true)
+    it('should return true for Owner and Manager', () => {
+      expect(canManageInventoryItems('Owner')).toBe(true)
+      expect(canManageInventoryItems('Manager')).toBe(true)
+    })
+
+    it('should return false for Staff and Driver', () => {
       expect(canManageInventoryItems('Driver')).toBe(false)
       expect(canManageInventoryItems('Staff')).toBe(false)
     })
   })
 
   describe('canDoStockCount', () => {
-    it('should return true for Admin and Staff', () => {
-      expect(canDoStockCount('Admin')).toBe(true)
+    it('should return true for Owner, Manager, and Staff', () => {
+      expect(canDoStockCount('Owner')).toBe(true)
+      expect(canDoStockCount('Manager')).toBe(true)
       expect(canDoStockCount('Staff')).toBe(true)
     })
 
@@ -119,8 +230,9 @@ describe('Auth Helpers', () => {
   })
 
   describe('canDoStockReception', () => {
-    it('should return true for Admin and Driver', () => {
-      expect(canDoStockReception('Admin')).toBe(true)
+    it('should return true for Owner, Manager, and Driver', () => {
+      expect(canDoStockReception('Owner')).toBe(true)
+      expect(canDoStockReception('Manager')).toBe(true)
       expect(canDoStockReception('Driver')).toBe(true)
     })
 
@@ -130,16 +242,21 @@ describe('Auth Helpers', () => {
   })
 
   describe('canManageShifts', () => {
-    it('should return true only for Admin', () => {
-      expect(canManageShifts('Admin')).toBe(true)
+    it('should return true for Owner and Manager', () => {
+      expect(canManageShifts('Owner')).toBe(true)
+      expect(canManageShifts('Manager')).toBe(true)
+    })
+
+    it('should return false for Staff and Driver', () => {
       expect(canManageShifts('Driver')).toBe(false)
       expect(canManageShifts('Staff')).toBe(false)
     })
   })
 
   describe('canViewReports', () => {
-    it('should return true for Admin and Driver', () => {
-      expect(canViewReports('Admin')).toBe(true)
+    it('should return true for Owner, Manager, and Driver', () => {
+      expect(canViewReports('Owner')).toBe(true)
+      expect(canViewReports('Manager')).toBe(true)
       expect(canViewReports('Driver')).toBe(true)
     })
 
@@ -148,54 +265,103 @@ describe('Auth Helpers', () => {
     })
   })
 
-  describe('canAccessStore', () => {
+  describe('canAccessStore (new multi-tenant)', () => {
     const targetStoreId = 'store-123'
     const otherStoreId = 'store-456'
 
-    describe('Global Access Roles (Admin, Driver)', () => {
-      it('should allow Admin to access any store', () => {
-        expect(canAccessStore('Admin', null, targetStoreId)).toBe(true)
-        expect(canAccessStore('Admin', otherStoreId, targetStoreId)).toBe(true)
-      })
+    it('should allow access when user has membership at target store', () => {
+      const stores = [createStoreMembership(targetStoreId, 'Staff')]
+      expect(canAccessStore(stores, targetStoreId)).toBe(true)
+    })
 
-      it('should allow Driver to access any store', () => {
-        expect(canAccessStore('Driver', null, targetStoreId)).toBe(true)
-        expect(canAccessStore('Driver', otherStoreId, targetStoreId)).toBe(true)
+    it('should allow access for any role with membership', () => {
+      const roles: AppRole[] = ['Owner', 'Manager', 'Staff', 'Driver']
+      roles.forEach(role => {
+        const stores = [createStoreMembership(targetStoreId, role)]
+        expect(canAccessStore(stores, targetStoreId)).toBe(true)
       })
     })
 
-    describe('Store Scoped Roles (Staff)', () => {
+    it('should deny access when user has no membership at target store', () => {
+      const stores = [createStoreMembership(otherStoreId, 'Owner')]
+      expect(canAccessStore(stores, targetStoreId)).toBe(false)
+    })
+
+    it('should deny access when user has no store memberships', () => {
+      const stores: StoreUserWithStore[] = []
+      expect(canAccessStore(stores, targetStoreId)).toBe(false)
+    })
+
+    it('should allow access to multiple stores with multiple memberships', () => {
+      const stores = [
+        createStoreMembership(targetStoreId, 'Manager'),
+        createStoreMembership(otherStoreId, 'Owner'),
+      ]
+      expect(canAccessStore(stores, targetStoreId)).toBe(true)
+      expect(canAccessStore(stores, otherStoreId)).toBe(true)
+    })
+  })
+
+  describe('canAccessStoreLegacy', () => {
+    const targetStoreId = 'store-123'
+    const otherStoreId = 'store-456'
+
+    describe('Global Access Roles (Owner, Driver)', () => {
+      it('should allow Owner to access any store', () => {
+        expect(canAccessStoreLegacy('Owner', null, targetStoreId)).toBe(true)
+        expect(canAccessStoreLegacy('Owner', otherStoreId, targetStoreId)).toBe(true)
+      })
+
+      it('should allow Driver to access any store', () => {
+        expect(canAccessStoreLegacy('Driver', null, targetStoreId)).toBe(true)
+        expect(canAccessStoreLegacy('Driver', otherStoreId, targetStoreId)).toBe(true)
+      })
+    })
+
+    describe('Store Scoped Roles (Staff, Manager)', () => {
       it('should allow Staff to access their assigned store', () => {
-        expect(canAccessStore('Staff', targetStoreId, targetStoreId)).toBe(true)
+        expect(canAccessStoreLegacy('Staff', targetStoreId, targetStoreId)).toBe(true)
       })
 
       it('should deny Staff access to other stores', () => {
-        expect(canAccessStore('Staff', otherStoreId, targetStoreId)).toBe(false)
+        expect(canAccessStoreLegacy('Staff', otherStoreId, targetStoreId)).toBe(false)
       })
 
       it('should deny Staff access when they have no store assigned', () => {
-        expect(canAccessStore('Staff', null, targetStoreId)).toBe(false)
-        expect(canAccessStore('Staff', undefined, targetStoreId)).toBe(false)
+        expect(canAccessStoreLegacy('Staff', null, targetStoreId)).toBe(false)
+        expect(canAccessStoreLegacy('Staff', undefined, targetStoreId)).toBe(false)
+      })
+
+      it('should allow Manager to access their assigned store', () => {
+        expect(canAccessStoreLegacy('Manager', targetStoreId, targetStoreId)).toBe(true)
+      })
+
+      it('should deny Manager access to other stores', () => {
+        expect(canAccessStoreLegacy('Manager', otherStoreId, targetStoreId)).toBe(false)
       })
     })
 
     describe('Edge Cases', () => {
       it('should deny access for null role', () => {
-        expect(canAccessStore(null, targetStoreId, targetStoreId)).toBe(false)
+        expect(canAccessStoreLegacy(null, targetStoreId, targetStoreId)).toBe(false)
       })
 
       it('should deny access for undefined role', () => {
-        expect(canAccessStore(undefined, targetStoreId, targetStoreId)).toBe(false)
+        expect(canAccessStoreLegacy(undefined, targetStoreId, targetStoreId)).toBe(false)
       })
     })
   })
 
-  describe('getDefaultStoreId', () => {
+  describe('getDefaultStoreId (legacy)', () => {
     const storeId = 'store-123'
 
     describe('Store Scoped Roles', () => {
       it('should return assigned store for Staff', () => {
         expect(getDefaultStoreId('Staff', storeId)).toBe(storeId)
+      })
+
+      it('should return assigned store for Manager', () => {
+        expect(getDefaultStoreId('Manager', storeId)).toBe(storeId)
       })
 
       it('should return null for Staff with no assigned store', () => {
@@ -205,9 +371,9 @@ describe('Auth Helpers', () => {
     })
 
     describe('Global Access Roles', () => {
-      it('should return null for Admin regardless of store assignment', () => {
-        expect(getDefaultStoreId('Admin', storeId)).toBe(null)
-        expect(getDefaultStoreId('Admin', null)).toBe(null)
+      it('should return null for Owner regardless of store assignment', () => {
+        expect(getDefaultStoreId('Owner', storeId)).toBe(null)
+        expect(getDefaultStoreId('Owner', null)).toBe(null)
       })
 
       it('should return null for Driver regardless of store assignment', () => {
@@ -239,7 +405,7 @@ describe('Auth Helpers', () => {
       })
     })
 
-    it('should ensure stock count and reception have no overlap except Admin', () => {
+    it('should ensure stock count and reception have appropriate role overlap', () => {
       // Driver can do reception but not count
       expect(canDoStockReception('Driver')).toBe(true)
       expect(canDoStockCount('Driver')).toBe(false)
@@ -248,9 +414,13 @@ describe('Auth Helpers', () => {
       expect(canDoStockCount('Staff')).toBe(true)
       expect(canDoStockReception('Staff')).toBe(false)
 
-      // Admin can do both
-      expect(canDoStockReception('Admin')).toBe(true)
-      expect(canDoStockCount('Admin')).toBe(true)
+      // Owner can do both
+      expect(canDoStockReception('Owner')).toBe(true)
+      expect(canDoStockCount('Owner')).toBe(true)
+
+      // Manager can do both
+      expect(canDoStockReception('Manager')).toBe(true)
+      expect(canDoStockCount('Manager')).toBe(true)
     })
   })
 })

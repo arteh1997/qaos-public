@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/hooks/useAuth'
-import { AdminDashboard } from '@/components/dashboard/AdminDashboard'
+import { OwnerDashboard } from '@/components/dashboard/OwnerDashboard'
 import { DriverDashboard } from '@/components/dashboard/DriverDashboard'
 import { StaffDashboard } from '@/components/dashboard/StaffDashboard'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,17 +26,18 @@ export default function DashboardPage() {
   }
 
   // If role is not yet loaded but we're not in loading state,
-  // default to Admin dashboard for authenticated users
-  const effectiveRole = role || 'Admin'
+  // default to Owner dashboard for authenticated users
+  const effectiveRole = role || 'Owner'
 
   switch (effectiveRole) {
-    case 'Admin':
-      return <AdminDashboard />
+    case 'Owner':
+    case 'Manager':
+      return <OwnerDashboard />
     case 'Driver':
       return <DriverDashboard />
     case 'Staff':
       return <StaffDashboard />
     default:
-      return <AdminDashboard />
+      return <OwnerDashboard />
   }
 }

@@ -1,13 +1,13 @@
 'use client'
 
 import { Suspense, useState, useEffect } from 'react'
+import { useAuth } from '@/components/providers/AuthProvider'
 import { useUsers, UsersFilters } from '@/hooks/useUsers'
 import { useStores } from '@/hooks/useStores'
 import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { UsersTable } from '@/components/tables/UsersTable'
 import { InviteUserForm } from '@/components/forms/InviteUserForm'
 import { UserForm } from '@/components/forms/UserForm'
-import { TempPasswordDialog } from '@/components/dialogs/TempPasswordDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeaderSkeleton, UsersTableSkeleton } from '@/components/ui/skeletons'
@@ -28,10 +28,12 @@ const FILTER_DEFAULTS = {
   search: '',
   role: 'all',
   status: 'all',
+  storeId: 'all',
   page: 1,
 }
 
 function UsersPageContent() {
+  const { currentStore, role: currentUserRole } = useAuth()
   const { stores, isLoading: storesLoading } = useStores()
 
   // URL-based filter state
@@ -60,6 +62,7 @@ function UsersPageContent() {
     search: filters.search,
     role: filters.role as AppRole | 'all',
     status: filters.status as UserStatus | 'all',
+    storeId: filters.storeId as string | 'all',
     page: filters.page,
   }
 
@@ -80,9 +83,6 @@ function UsersPageContent() {
   const [editUser, setEditUser] = useState<Profile | null>(null)
   const [isInviting, setIsInviting] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
-  const [tempPasswordDialogOpen, setTempPasswordDialogOpen] = useState(false)
-  const [newUserEmail, setNewUserEmail] = useState('')
-  const [newUserTempPassword, setNewUserTempPassword] = useState('')
 
   const handleInvite = async (data: InviteUserFormData) => {
     setIsInviting(true)
@@ -96,17 +96,14 @@ function UsersPageContent() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to create user')
+        throw new Error(result.message || 'Failed to send invitation')
       }
 
-      toast.success('User invited successfully')
-      setNewUserEmail(data.email)
-      setNewUserTempPassword(result.tempPassword)
+      toast.success(`Invitation sent to ${data.email}`)
       setInviteFormOpen(false)
-      setTempPasswordDialogOpen(true)
       refetch()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create user')
+      toast.error(error instanceof Error ? error.message : 'Failed to send invitation')
     } finally {
       setIsInviting(false)
     }
@@ -128,6 +125,7 @@ function UsersPageContent() {
           full_name: data.fullName,
           role: data.role,
           store_id: data.storeId,
+          store_ids: data.storeIds, // For Driver role - multiple stores
           status: data.status,
         },
       })
@@ -213,10 +211,27 @@ function UsersPageContent() {
             <SelectItem value="Inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
+        <Select
+          value={filters.storeId}
+          onValueChange={(value) => setFilter('storeId', value)}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="All Stores" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Stores</SelectItem>
+            {stores.filter(s => s.is_active).map((store) => (
+              <SelectItem key={store.id} value={store.id}>
+                {store.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <UsersTable
         users={users}
+        selectedStoreId={filters.storeId !== 'all' ? filters.storeId : undefined}
         onInvite={() => setInviteFormOpen(true)}
         onEdit={handleEdit}
         onDeactivate={handleDeactivate}
@@ -261,6 +276,7 @@ function UsersPageContent() {
         stores={stores}
         onSubmit={handleInvite}
         isLoading={isInviting}
+        inviterRole={(currentStore?.role || currentUserRole || 'Owner') as AppRole}
       />
 
       <UserForm
@@ -275,18 +291,6 @@ function UsersPageContent() {
         isLoading={isUpdating}
       />
 
-      <TempPasswordDialog
-        open={tempPasswordDialogOpen}
-        onOpenChange={(open) => {
-          setTempPasswordDialogOpen(open)
-          if (!open) {
-            setNewUserEmail('')
-            setNewUserTempPassword('')
-          }
-        }}
-        email={newUserEmail}
-        tempPassword={newUserTempPassword}
-      />
     </div>
   )
 }

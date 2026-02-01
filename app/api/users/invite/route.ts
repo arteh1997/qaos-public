@@ -3,16 +3,25 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { inviteUserSchema } from '@/lib/validations/user'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth } from '@/lib/api/middleware'
+import { INVITABLE_ROLES_BY_ROLE } from '@/lib/constants'
+import { sendEmail, getInviteEmailHtml } from '@/lib/email'
+import { AppRole } from '@/types'
 import {
   apiSuccess,
   apiError,
   apiBadRequest,
+  apiForbidden,
 } from '@/lib/api/response'
+import crypto from 'crypto'
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const INVITE_EXPIRY_HOURS = 1
 
 export async function POST(request: NextRequest) {
   try {
+    // Allow both Owners and Managers to invite (with restrictions)
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Admin'],
+      allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'createUser', config: RATE_LIMITS.createUser },
     })
 
@@ -33,8 +42,47 @@ export async function POST(request: NextRequest) {
 
     const validatedData = validationResult.data
 
-    // Use admin client to create user
+    // Get the inviter's role at the relevant store to check permissions
     const adminClient = createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabaseAdmin = adminClient as any
+
+    // Determine inviter's highest role at the target store
+    let inviterRole: AppRole = 'Staff' // Default lowest
+
+    if (validatedData.storeId) {
+      const { data: storeUser } = await supabaseAdmin
+        .from('store_users')
+        .select('role')
+        .eq('user_id', context.user.id)
+        .eq('store_id', validatedData.storeId)
+        .single()
+
+      if (storeUser) {
+        inviterRole = storeUser.role as AppRole
+      }
+    } else {
+      // For Driver invites (no store), check if user is Owner at any store
+      const { data: storeUsers } = await supabaseAdmin
+        .from('store_users')
+        .select('role')
+        .eq('user_id', context.user.id)
+        .in('role', ['Owner', 'Manager'])
+
+      if (storeUsers && storeUsers.length > 0) {
+        // Use highest role
+        inviterRole = storeUsers.some((su: { role: string }) => su.role === 'Owner') ? 'Owner' : 'Manager'
+      }
+    }
+
+    // Check if inviter can invite this role
+    const invitableRoles = INVITABLE_ROLES_BY_ROLE[inviterRole] || []
+    if (!invitableRoles.includes(validatedData.role as AppRole)) {
+      return apiForbidden(
+        `You don't have permission to invite users with the ${validatedData.role} role`,
+        context.requestId
+      )
+    }
 
     // Check if user already exists
     const { data: existingUsers } = await adminClient.auth.admin.listUsers()
@@ -49,47 +97,96 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create the user directly (without email invite)
-    // Generate a temporary password - user will set their own on first login
-    const tempPassword = crypto.randomUUID()
+    // Check if there's an existing pending invite for this email
+    const { data: existingInvite } = await supabaseAdmin
+      .from('user_invites')
+      .select('id, expires_at')
+      .eq('email', validatedData.email.toLowerCase())
+      .is('used_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .single()
 
-    const { data: userData, error: createError } = await adminClient.auth.admin.createUser({
-      email: validatedData.email,
-      password: tempPassword,
-      email_confirm: true, // Auto-confirm the email
-      user_metadata: {
-        full_name: validatedData.fullName,
-        role: validatedData.role,
-      },
-    })
-
-    if (createError) {
-      console.error('Create user error:', createError)
-      return apiBadRequest(createError.message, context.requestId)
+    if (existingInvite) {
+      return apiBadRequest(
+        'An active invitation already exists for this email address',
+        context.requestId
+      )
     }
 
-    // Update the profile with additional data
-    if (userData.user) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: profileError } = await (adminClient as any)
-        .from('profiles')
-        .update({
-          full_name: validatedData.fullName,
-          role: validatedData.role,
-          store_id: validatedData.storeId || null,
-          status: 'Active',
-        })
-        .eq('id', userData.user.id)
+    // Generate secure token
+    const token = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + INVITE_EXPIRY_HOURS * 60 * 60 * 1000)
 
-      if (profileError) {
-        console.error('Profile update error:', profileError)
-      }
+    // Create the invite record
+    const { error: insertError } = await supabaseAdmin
+      .from('user_invites')
+      .insert({
+        email: validatedData.email.toLowerCase(),
+        role: validatedData.role,
+        store_id: validatedData.storeId || null,
+        store_ids: validatedData.storeIds || [],
+        token,
+        invited_by: context.user.id,
+        expires_at: expiresAt.toISOString(),
+      })
+
+    if (insertError) {
+      console.error('Insert invite error:', insertError)
+      return apiError('Failed to create invitation')
+    }
+
+    // Get store name for the email
+    let storeName: string | undefined
+    if (validatedData.storeId) {
+      const { data: store } = await supabaseAdmin
+        .from('stores')
+        .select('name')
+        .eq('id', validatedData.storeId)
+        .single()
+
+      storeName = store?.name
+    }
+
+    // Get inviter's name
+    const { data: inviterProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', context.user.id)
+      .single()
+
+    const inviterName = inviterProfile?.full_name || inviterProfile?.email || 'A team member'
+
+    // Send invitation email
+    const onboardingUrl = `${APP_URL}/onboard?token=${token}`
+    const emailHtml = getInviteEmailHtml({
+      inviterName,
+      role: validatedData.role,
+      storeName,
+      onboardingUrl,
+      expiresIn: `${INVITE_EXPIRY_HOURS} hour${INVITE_EXPIRY_HOURS > 1 ? 's' : ''}`,
+    })
+
+    const emailResult = await sendEmail({
+      to: validatedData.email,
+      subject: `You've been invited to join ${process.env.NEXT_PUBLIC_APP_NAME || 'Mr Fries Inventory'}`,
+      html: emailHtml,
+    })
+
+    if (!emailResult.success) {
+      // Delete the invite if email fails
+      await supabaseAdmin
+        .from('user_invites')
+        .delete()
+        .eq('token', token)
+
+      return apiError('Failed to send invitation email. Please try again.')
     }
 
     return apiSuccess(
       {
-        message: 'User created successfully',
-        tempPassword: tempPassword,
+        message: 'Invitation sent successfully',
+        email: validatedData.email,
+        expiresAt: expiresAt.toISOString(),
       },
       { requestId: context.requestId, status: 201 }
     )

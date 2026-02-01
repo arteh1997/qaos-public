@@ -5,32 +5,54 @@
  *
  * This provider maintains auth state globally so it persists across
  * client-side navigations without re-fetching on every page change.
+ *
+ * Multi-tenant support: Users can belong to multiple stores with different roles.
+ * The currentStore determines the active context for permissions and data access.
  */
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
 import { createClient, supabaseFetch, getUserFromCookies } from '@/lib/supabase/client'
-import { Profile, AppRole } from '@/types'
-import { hasGlobalAccess as checkGlobalAccess, isStoreScopedRole as checkStoreScopedRole } from '@/lib/auth'
+import { Profile, AppRole, StoreUserWithStore } from '@/types'
+import {
+  hasGlobalAccess as checkGlobalAccess,
+  isStoreScopedRole as checkStoreScopedRole,
+  getDefaultStore,
+  canManageStore,
+  canManageUsersAtStore,
+  isMultiStoreRole,
+  normalizeRole,
+} from '@/lib/auth'
 
 /** Authentication state shape */
 interface AuthState {
   user: User | null
   profile: Profile | null
-  role: AppRole | null
-  storeId: string | null
+  stores: StoreUserWithStore[]          // All stores user has access to
+  currentStore: StoreUserWithStore | null  // Currently selected store context
+  role: AppRole | null                  // Current role (at currentStore or legacy)
+  storeId: string | null                // Current store ID (deprecated, use currentStore)
   isLoading: boolean
   hasGlobalAccess: boolean
   isStoreScopedRole: boolean
+  isPlatformAdmin: boolean              // Super-admin access
 }
 
 interface AuthContextValue extends AuthState {
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  setCurrentStore: (storeId: string) => void
+  // Permission helpers for current store context
+  canManageCurrentStore: boolean
+  canManageUsersAtCurrentStore: boolean
+  isMultiStoreUser: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+// Local storage key for persisting current store selection
+const CURRENT_STORE_KEY = 'restaurant-inventory-current-store'
 
 // Global state to persist across navigations
 let globalAuthState: AuthState | null = null
@@ -44,11 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       user: null,
       profile: null,
+      stores: [],
+      currentStore: null,
       role: null,
       storeId: null,
       isLoading: true,
       hasGlobalAccess: false,
       isStoreScopedRole: false,
+      isPlatformAdmin: false,
     }
   })
 
@@ -64,46 +89,106 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchAndSetProfile = useCallback(async (user: User) => {
     try {
-      const { data: profileData, error } = await supabaseFetch<Profile>('profiles', {
-        filter: { id: `eq.${user.id}` },
-      })
+      console.log('[AuthProvider] Fetching profile and stores for user:', user.id, user.email)
 
-      if (error) {
+      // Fetch profile and store memberships in parallel
+      const [profileResult, storesResult] = await Promise.all([
+        supabaseFetch<Profile>('profiles', {
+          filter: { id: `eq.${user.id}` },
+        }),
+        // Fetch store_users with store data
+        supabaseFetch<StoreUserWithStore>('store_users', {
+          filter: { user_id: `eq.${user.id}` },
+          select: '*, store:stores(*)',
+        }),
+      ])
+
+      console.log('[AuthProvider] Profile result:', profileResult)
+      console.log('[AuthProvider] Stores result:', storesResult)
+
+      if (profileResult.error) {
+        console.error('[AuthProvider] Profile error:', profileResult.error)
         const newState: AuthState = {
           user,
           profile: null,
+          stores: [],
+          currentStore: null,
           role: null,
           storeId: null,
           isLoading: false,
           hasGlobalAccess: false,
           isStoreScopedRole: false,
+          isPlatformAdmin: false,
         }
         setAuthState(newState)
         return
       }
 
-      const profile = profileData && profileData.length > 0 ? profileData[0] : null
+      const profile = profileResult.data && profileResult.data.length > 0 ? profileResult.data[0] : null
+      const stores: StoreUserWithStore[] = (storesResult.data || []).filter(
+        (s): s is StoreUserWithStore => s.store !== null && s.store !== undefined
+      )
+
+      console.log('[AuthProvider] Parsed profile:', profile)
+      console.log('[AuthProvider] Parsed stores:', stores)
+      console.log('[AuthProvider] Raw storesResult.data:', storesResult.data)
 
       if (profile) {
+        // Determine current store:
+        // 1. Check localStorage for previously selected store
+        // 2. Use profile.default_store_id if set
+        // 3. Fall back to getDefaultStore() logic
+        let currentStore: StoreUserWithStore | null = null
+
+        // Try to restore from localStorage
+        const savedStoreId = typeof window !== 'undefined'
+          ? localStorage.getItem(CURRENT_STORE_KEY)
+          : null
+
+        if (savedStoreId) {
+          currentStore = stores.find(s => s.store_id === savedStoreId) || null
+        }
+
+        // Fall back to default_store_id
+        if (!currentStore && profile.default_store_id) {
+          currentStore = stores.find(s => s.store_id === profile.default_store_id) || null
+        }
+
+        // Fall back to getDefaultStore logic
+        if (!currentStore) {
+          currentStore = getDefaultStore(stores)
+        }
+
+        // Determine role - prefer current store role, fall back to legacy profile.role
+        const currentRole = currentStore
+          ? currentStore.role
+          : normalizeRole(profile.role)
+
         const newState: AuthState = {
           user,
           profile,
-          role: profile.role,
-          storeId: profile.store_id,
+          stores,
+          currentStore,
+          role: currentRole,
+          storeId: currentStore?.store_id || profile.store_id,
           isLoading: false,
-          hasGlobalAccess: checkGlobalAccess(profile.role),
-          isStoreScopedRole: checkStoreScopedRole(profile.role),
+          hasGlobalAccess: checkGlobalAccess(currentRole),
+          isStoreScopedRole: checkStoreScopedRole(currentRole),
+          isPlatformAdmin: profile.is_platform_admin || false,
         }
         setAuthState(newState)
       } else {
         const newState: AuthState = {
           user,
           profile: null,
+          stores: [],
+          currentStore: null,
           role: null,
           storeId: null,
           isLoading: false,
           hasGlobalAccess: false,
           isStoreScopedRole: false,
+          isPlatformAdmin: false,
         }
         setAuthState(newState)
       }
@@ -182,11 +267,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const newState: AuthState = {
             user: null,
             profile: null,
+            stores: [],
+            currentStore: null,
             role: null,
             storeId: null,
             isLoading: false,
             hasGlobalAccess: false,
             isStoreScopedRole: false,
+            isPlatformAdmin: false,
           }
           setAuthState(newState)
           return
@@ -218,14 +306,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const newState: AuthState = {
             user: null,
             profile: null,
+            stores: [],
+            currentStore: null,
             role: null,
             storeId: null,
             isLoading: false,
             hasGlobalAccess: false,
             isStoreScopedRole: false,
+            isPlatformAdmin: false,
           }
           setAuthState(newState)
           globalAuthState = null
+          // Clear saved store selection
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem(CURRENT_STORE_KEY)
+          }
           router.push('/login')
         }
       }
@@ -268,10 +363,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [authState.user, fetchAndSetProfile])
 
+  // Switch current store context
+  const setCurrentStore = useCallback((storeId: string) => {
+    const newStore = authState.stores.find(s => s.store_id === storeId)
+    if (!newStore) return
+
+    // Persist selection to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CURRENT_STORE_KEY, storeId)
+    }
+
+    // Update state with new store context
+    setAuthState(prev => ({
+      ...prev,
+      currentStore: newStore,
+      role: newStore.role,
+      storeId: newStore.store_id,
+      hasGlobalAccess: checkGlobalAccess(newStore.role),
+      isStoreScopedRole: checkStoreScopedRole(newStore.role),
+    }))
+  }, [authState.stores])
+
+  // Compute permission flags for current store context
+  const canManageCurrentStore = authState.currentStore
+    ? canManageStore(authState.stores, authState.currentStore.store_id)
+    : false
+
+  const canManageUsersAtCurrentStore = authState.currentStore
+    ? canManageUsersAtStore(authState.stores, authState.currentStore.store_id)
+    : false
+
+  const isMultiStoreUser = authState.stores.length > 1 ||
+    authState.stores.some(s => isMultiStoreRole(s.role))
+
   const value: AuthContextValue = {
     ...authState,
     signOut,
     refreshProfile,
+    setCurrentStore,
+    canManageCurrentStore,
+    canManageUsersAtCurrentStore,
+    isMultiStoreUser,
   }
 
   return (

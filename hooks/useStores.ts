@@ -59,11 +59,14 @@ export function useStores(filters: StoresFilters = {}) {
         count: true,
       })
 
+      console.log('[useStores] Fetch result:', { data, error: fetchError, count, filter })
+
       if (fetchError) throw fetchError
 
       setStores(data || [])
       setTotalCount(count ?? 0)
     } catch (err) {
+      console.error('[useStores] Error:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch stores'))
     } finally {
       setIsLoading(false)
@@ -84,6 +87,8 @@ export function useStores(filters: StoresFilters = {}) {
       opening_time: formData.opening_time ?? null,
       closing_time: formData.closing_time ?? null,
       weekly_hours: formData.weekly_hours ?? null,
+      billing_user_id: formData.billing_user_id ?? null,
+      subscription_status: 'active', // Default to active (billing deferred)
       created_at: now,
       updated_at: now,
     }

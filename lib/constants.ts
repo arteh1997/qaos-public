@@ -1,39 +1,78 @@
-import { AppRole } from '@/types'
+import { AppRole, LegacyAppRole } from '@/types'
 
-// Role definitions - Only 3 roles (NO Manager)
-export const ROLES: AppRole[] = ['Admin', 'Driver', 'Staff']
+// Role definitions - 4 roles: Owner, Manager, Staff, Driver
+export const ROLES: AppRole[] = ['Owner', 'Manager', 'Staff', 'Driver']
 
-// Roles with global access (can see all stores)
-export const GLOBAL_ACCESS_ROLES: AppRole[] = ['Admin', 'Driver']
+// Roles available when inviting users (Owner shows as "Co-Owner" in UI)
+// Note: "Owner" role is only automatically assigned when someone creates & pays for a store
+// When inviting, "Owner" role means "Co-Owner" (has Owner privileges but not billing owner)
+export const INVITE_ROLES: AppRole[] = ['Owner', 'Manager', 'Staff', 'Driver']
 
-// Roles that are store-scoped (can only see assigned store)
-export const STORE_SCOPED_ROLES: AppRole[] = ['Staff']
+// Display labels for invite form (maps Owner -> Co-Owner for clarity)
+export const INVITE_ROLE_LABELS: Record<AppRole, string> = {
+  Owner: 'Co-Owner',
+  Manager: 'Manager',
+  Staff: 'Staff',
+  Driver: 'Driver',
+}
 
-// Permission definitions
+// Descriptions for invite form
+export const INVITE_ROLE_DESCRIPTIONS: Record<AppRole, string> = {
+  Owner: 'Full access to the store as a co-owner. Cannot remove the billing owner.',
+  Manager: 'Full operational access to their assigned store. Can manage inventory and shifts.',
+  Staff: 'Limited access to their store. Can clock in/out and perform stock counts.',
+  Driver: 'Can access multiple stores for deliveries and stock receptions.',
+}
+
+// Legacy roles for backward compatibility during migration
+export const LEGACY_ROLES: LegacyAppRole[] = ['Admin', 'Driver', 'Staff']
+
+// Roles that can manage store settings (create/update/delete)
+export const STORE_MANAGEMENT_ROLES: AppRole[] = ['Owner', 'Manager']
+
+// Roles that can manage users at a store
+export const USER_MANAGEMENT_ROLES: AppRole[] = ['Owner']
+
+// Roles that can have access to multiple stores
+export const MULTI_STORE_ROLES: AppRole[] = ['Owner', 'Driver']
+
+// Roles that are typically single-store focused
+export const SINGLE_STORE_ROLES: AppRole[] = ['Manager', 'Staff']
+
+// Permission definitions - now store-contextual
 export const PERMISSIONS = {
-  // Store permissions
-  MANAGE_STORES: ['Admin'] as AppRole[],
-  VIEW_ALL_STORES: ['Admin', 'Driver'] as AppRole[],
+  // Store management permissions
+  CREATE_STORE: ['Owner'] as AppRole[], // Requires billing
+  MANAGE_STORE_SETTINGS: ['Owner', 'Manager'] as AppRole[],
+  DELETE_STORE: ['Owner'] as AppRole[], // Only billing owner
 
-  // User permissions
-  MANAGE_USERS: ['Admin'] as AppRole[],
-  VIEW_ALL_USERS: ['Admin'] as AppRole[],
+  // User management at store level
+  INVITE_USERS: ['Owner'] as AppRole[],
+  MANAGE_USERS: ['Owner', 'Manager'] as AppRole[],
+  VIEW_STORE_USERS: ['Owner', 'Manager'] as AppRole[],
 
   // Inventory permissions
-  MANAGE_INVENTORY_ITEMS: ['Admin'] as AppRole[],
-  VIEW_INVENTORY_ITEMS: ['Admin', 'Driver', 'Staff'] as AppRole[],
+  MANAGE_INVENTORY_ITEMS: ['Owner', 'Manager'] as AppRole[],
+  VIEW_INVENTORY_ITEMS: ['Owner', 'Manager', 'Staff', 'Driver'] as AppRole[],
 
   // Stock permissions
-  DO_STOCK_COUNT: ['Admin', 'Staff'] as AppRole[],
-  DO_STOCK_RECEPTION: ['Admin', 'Driver'] as AppRole[],
-  VIEW_ALL_STOCK: ['Admin', 'Driver'] as AppRole[],
+  DO_STOCK_COUNT: ['Owner', 'Manager', 'Staff'] as AppRole[],
+  DO_STOCK_RECEPTION: ['Owner', 'Manager', 'Driver'] as AppRole[],
+  DO_STOCK_ADJUSTMENT: ['Owner', 'Manager'] as AppRole[],
+  VIEW_STOCK_HISTORY: ['Owner', 'Manager', 'Staff', 'Driver'] as AppRole[],
 
   // Shift permissions
-  MANAGE_SHIFTS: ['Admin'] as AppRole[],
-  VIEW_OWN_SHIFTS: ['Staff'] as AppRole[],
+  MANAGE_SHIFTS: ['Owner', 'Manager'] as AppRole[],
+  VIEW_ALL_SHIFTS: ['Owner', 'Manager'] as AppRole[],
+  VIEW_OWN_SHIFTS: ['Staff', 'Driver'] as AppRole[],
 
   // Report permissions
-  VIEW_REPORTS: ['Admin', 'Driver'] as AppRole[],
+  VIEW_REPORTS: ['Owner', 'Manager', 'Driver'] as AppRole[],
+  VIEW_DETAILED_REPORTS: ['Owner', 'Manager'] as AppRole[],
+
+  // Billing permissions
+  MANAGE_BILLING: ['Owner'] as AppRole[],
+  VIEW_BILLING: ['Owner'] as AppRole[],
 } as const
 
 // Route configurations
@@ -42,8 +81,19 @@ export const PUBLIC_ROUTES = [
   '/forgot-password',
   '/reset-password',
   '/accept-invite',
+  '/onboard',
   '/offline',
 ]
+
+// Roles that each role can invite
+// Owner/Co-Owner can invite: Co-Owner, Manager, Staff, Driver
+// Manager can only invite: Staff, Driver
+export const INVITABLE_ROLES_BY_ROLE: Record<AppRole, AppRole[]> = {
+  Owner: ['Owner', 'Manager', 'Staff', 'Driver'], // Owner shown as Co-Owner in UI
+  Manager: ['Staff', 'Driver'],
+  Staff: [],
+  Driver: [],
+}
 
 export const PROTECTED_ROUTES = [
   '/',
@@ -51,19 +101,36 @@ export const PROTECTED_ROUTES = [
   '/stores',
   '/users',
   '/reports',
+  '/shifts',
   '/my-shifts',
+  '/billing',
+  '/settings',
 ]
 
 // Role-specific route access
 export const ROLE_ROUTES: Record<AppRole, string[]> = {
-  Admin: [
+  Owner: [
     '/',
     '/inventory',
     '/stores',
     '/users',
+    '/shifts',
     '/reports',
     '/reports/daily-summary',
     '/reports/low-stock',
+    '/billing',
+    '/settings',
+  ],
+  Manager: [
+    '/',
+    '/inventory',
+    '/stores',
+    '/users',
+    '/shifts',
+    '/reports',
+    '/reports/daily-summary',
+    '/reports/low-stock',
+    '/settings',
   ],
   Driver: [
     '/',
@@ -71,12 +138,20 @@ export const ROLE_ROUTES: Record<AppRole, string[]> = {
     '/reports',
     '/reports/daily-summary',
     '/reports/low-stock',
+    '/my-shifts',
   ],
   Staff: [
     '/',
     '/stores',
     '/my-shifts',
   ],
+}
+
+// Legacy route mapping for backward compatibility
+export const LEGACY_ROLE_ROUTES: Record<LegacyAppRole, string[]> = {
+  Admin: ROLE_ROUTES.Owner,
+  Driver: ROLE_ROUTES.Driver,
+  Staff: ROLE_ROUTES.Staff,
 }
 
 // Categories for inventory items (matching Mr Fries inventory)
@@ -110,3 +185,19 @@ export const UNITS_OF_MEASURE = [
   'can',
   'pack',
 ]
+
+// Role display labels
+export const ROLE_LABELS: Record<AppRole, string> = {
+  Owner: 'Owner',
+  Manager: 'Manager',
+  Staff: 'Staff',
+  Driver: 'Driver',
+}
+
+// Role descriptions for UI
+export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
+  Owner: 'Full access to all stores they own. Can invite users and manage billing.',
+  Manager: 'Full operational access to their assigned store. Can manage inventory and shifts.',
+  Staff: 'Limited access to their store. Can clock in/out and perform stock counts.',
+  Driver: 'Can access multiple stores for deliveries and stock receptions.',
+}

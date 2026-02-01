@@ -32,8 +32,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const category = searchParams.get('category')
     const lowStock = searchParams.get('low_stock') === 'true'
 
-    // Check store access
-    if (!canAccessStore(context.profile, storeId)) {
+    // Check store access (uses store_users membership)
+    if (!canAccessStore(context, storeId)) {
       return apiForbidden('You do not have access to this store', context.requestId)
     }
 

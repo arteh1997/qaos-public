@@ -311,5 +311,6 @@ export function apiValidationError(
     requestId,
     status: 400,
     code: 'VALIDATION_ERROR',
+    skipSanitization: true,  // Validation messages are already formatted and safe
   })
 }

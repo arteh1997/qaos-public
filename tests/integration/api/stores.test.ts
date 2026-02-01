@@ -93,22 +93,48 @@ describe('Stores API Integration Tests', () => {
 
     describe('Authorized Requests', () => {
       beforeEach(() => {
-        // Setup: Authenticated Admin user
+        // Setup: Authenticated Owner user (new role system)
         mockSupabaseClient.auth.getUser.mockResolvedValue({
           data: {
-            user: { id: 'user-123', email: 'admin@test.com' },
+            user: { id: 'user-123', email: 'owner@test.com' },
           },
           error: null,
         })
       })
 
       it('should return stores list for authenticated user', async () => {
-        // Setup profile query
+        // Setup profile query (new multi-tenant model includes is_platform_admin)
         const profileQuery = {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           single: vi.fn().mockResolvedValue({
-            data: { role: 'Admin', store_id: null },
+            data: { role: 'Owner', store_id: null, is_platform_admin: false, default_store_id: null },
+            error: null,
+          }),
+        }
+
+        // Setup store_users query (required for multi-tenant)
+        const storeUsersQuery = {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'su-1',
+                store_id: 'store-1',
+                user_id: 'user-123',
+                role: 'Owner',
+                is_billing_owner: true,
+                store: { id: 'store-1', name: 'Store A', is_active: true },
+              },
+              {
+                id: 'su-2',
+                store_id: 'store-2',
+                user_id: 'user-123',
+                role: 'Owner',
+                is_billing_owner: false,
+                store: { id: 'store-2', name: 'Store B', is_active: true },
+              },
+            ],
             error: null,
           }),
         }
@@ -131,6 +157,7 @@ describe('Stores API Integration Tests', () => {
 
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === 'profiles') return profileQuery
+          if (table === 'store_users') return storeUsersQuery
           if (table === 'stores') return storesQuery
           return storesQuery
         })
@@ -151,8 +178,8 @@ describe('Stores API Integration Tests', () => {
 
   describe('POST /api/stores', () => {
     describe('Authorization', () => {
-      it('should return 403 for non-Admin users', async () => {
-        // Setup: Authenticated Driver user (not Admin)
+      it('should return 403 for non-Owner users', async () => {
+        // Setup: Authenticated Driver user (not Owner)
         mockSupabaseClient.auth.getUser.mockResolvedValue({
           data: {
             user: { id: 'user-123', email: 'driver@test.com' },
@@ -164,12 +191,33 @@ describe('Stores API Integration Tests', () => {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           single: vi.fn().mockResolvedValue({
-            data: { role: 'Driver', store_id: null },
+            data: { role: 'Driver', store_id: null, is_platform_admin: false, default_store_id: null },
             error: null,
           }),
         }
 
-        mockSupabaseClient.from.mockImplementation(() => profileQuery)
+        const storeUsersQuery = {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'su-1',
+                store_id: 'store-1',
+                user_id: 'user-123',
+                role: 'Driver',
+                is_billing_owner: false,
+                store: { id: 'store-1', name: 'Store A', is_active: true },
+              },
+            ],
+            error: null,
+          }),
+        }
+
+        mockSupabaseClient.from.mockImplementation((table: string) => {
+          if (table === 'profiles') return profileQuery
+          if (table === 'store_users') return storeUsersQuery
+          return profileQuery
+        })
 
         const { POST } = await import('@/app/api/stores/route')
 
@@ -188,10 +236,10 @@ describe('Stores API Integration Tests', () => {
 
     describe('Validation', () => {
       beforeEach(() => {
-        // Setup: Authenticated Admin user
+        // Setup: Authenticated Owner user
         mockSupabaseClient.auth.getUser.mockResolvedValue({
           data: {
-            user: { id: 'user-123', email: 'admin@test.com' },
+            user: { id: 'user-123', email: 'owner@test.com' },
           },
           error: null,
         })
@@ -200,12 +248,33 @@ describe('Stores API Integration Tests', () => {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           single: vi.fn().mockResolvedValue({
-            data: { role: 'Admin', store_id: null },
+            data: { role: 'Owner', store_id: null, is_platform_admin: false, default_store_id: null },
             error: null,
           }),
         }
 
-        mockSupabaseClient.from.mockImplementation(() => profileQuery)
+        const storeUsersQuery = {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'su-1',
+                store_id: 'existing-store',
+                user_id: 'user-123',
+                role: 'Owner',
+                is_billing_owner: true,
+                store: { id: 'existing-store', name: 'Existing Store', is_active: true },
+              },
+            ],
+            error: null,
+          }),
+        }
+
+        mockSupabaseClient.from.mockImplementation((table: string) => {
+          if (table === 'profiles') return profileQuery
+          if (table === 'store_users') return storeUsersQuery
+          return profileQuery
+        })
       })
 
       it('should return 400 for invalid store data', async () => {
@@ -239,11 +308,11 @@ describe('Stores API Integration Tests', () => {
     })
 
     describe('Successful Creation', () => {
-      it('should create store for Admin with valid data', async () => {
-        // Setup: Authenticated Admin user
+      it('should create store for Owner with valid data', async () => {
+        // Setup: Authenticated Owner user
         mockSupabaseClient.auth.getUser.mockResolvedValue({
           data: {
-            user: { id: 'user-123', email: 'admin@test.com' },
+            user: { id: 'user-123', email: 'owner@test.com' },
           },
           error: null,
         })
@@ -252,7 +321,24 @@ describe('Stores API Integration Tests', () => {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           single: vi.fn().mockResolvedValue({
-            data: { role: 'Admin', store_id: null },
+            data: { role: 'Owner', store_id: null, is_platform_admin: false, default_store_id: null },
+            error: null,
+          }),
+        }
+
+        const storeUsersQuery = {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'su-1',
+                store_id: 'existing-store',
+                user_id: 'user-123',
+                role: 'Owner',
+                is_billing_owner: true,
+                store: { id: 'existing-store', name: 'Existing Store', is_active: true },
+              },
+            ],
             error: null,
           }),
         }
@@ -275,6 +361,7 @@ describe('Stores API Integration Tests', () => {
 
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === 'profiles') return profileQuery
+          if (table === 'store_users') return storeUsersQuery
           return insertQuery
         })
 

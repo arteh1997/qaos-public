@@ -1,29 +1,46 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit, RateLimitConfig } from '@/lib/rate-limit'
-import { AppRole } from '@/types'
+import { AppRole, StoreUserWithStore, LegacyAppRole } from '@/types'
 import {
   generateRequestId,
   apiUnauthorized,
   apiForbidden,
   apiRateLimited,
 } from './response'
+import {
+  canAccessStore as canAccessStoreAuth,
+  getRoleAtStore,
+  canManageStore as canManageStoreAuth,
+  canManageUsersAtStore as canManageUsersAuth,
+  normalizeRole,
+} from '@/lib/auth'
 
 /**
  * API Middleware Helpers
  * Common patterns for authentication, authorization, and rate limiting
+ *
+ * Multi-tenant model: Users have roles at specific stores via store_users table.
+ * Permission checks should use the store context from the request.
  */
 
 export interface AuthContext {
   user: { id: string; email?: string }
-  profile: { role: AppRole; store_id: string | null }
+  profile: {
+    role: AppRole | null
+    store_id: string | null
+    is_platform_admin: boolean
+  }
+  stores: StoreUserWithStore[]  // User's store memberships
   requestId: string
   supabase: Awaited<ReturnType<typeof createClient>>
 }
 
 export interface ApiMiddlewareOptions {
-  /** Required roles to access the endpoint */
+  /** Required roles to access the endpoint (checked against any store membership) */
   allowedRoles?: AppRole[]
+  /** Required roles at a specific store (pass storeId in request to check) */
+  requireRoleAtStore?: AppRole[]
   /** Rate limit configuration */
   rateLimit?: {
     key: string
@@ -31,6 +48,8 @@ export interface ApiMiddlewareOptions {
   }
   /** Whether the endpoint requires authentication (default: true) */
   requireAuth?: boolean
+  /** Whether to require platform admin access */
+  requirePlatformAdmin?: boolean
 }
 
 /**
@@ -45,7 +64,13 @@ export async function withApiAuth(
   | { success: false; response: ReturnType<typeof apiUnauthorized> }
 > {
   const requestId = generateRequestId()
-  const { allowedRoles, rateLimit: rateLimitConfig, requireAuth = true } = options
+  const {
+    allowedRoles,
+    requireRoleAtStore,
+    rateLimit: rateLimitConfig,
+    requireAuth = true,
+    requirePlatformAdmin = false,
+  } = options
 
   // Create Supabase client
   const supabase = await createClient()
@@ -63,7 +88,8 @@ export async function withApiAuth(
       success: true,
       context: {
         user: { id: '' },
-        profile: { role: 'Staff' as AppRole, store_id: null },
+        profile: { role: null, store_id: null, is_platform_admin: false },
+        stores: [],
         requestId,
         supabase,
       },
@@ -81,21 +107,49 @@ export async function withApiAuth(
     }
   }
 
-  // Get user profile
+  // Fetch profile and store memberships in parallel
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: profile } = await (supabase as any)
-    .from('profiles')
-    .select('role, store_id')
-    .eq('id', user.id)
-    .single()
+  const supabaseAny = supabase as any
+  const [profileResult, storesResult] = await Promise.all([
+    supabaseAny
+      .from('profiles')
+      .select('role, store_id, is_platform_admin, default_store_id')
+      .eq('id', user.id)
+      .single(),
+    supabaseAny
+      .from('store_users')
+      .select('*, store:stores(*)')
+      .eq('user_id', user.id),
+  ])
 
+  const profile = profileResult.data
   if (!profile) {
     return { success: false, response: apiUnauthorized(requestId) }
   }
 
-  // Check role authorization
+  // Filter out any memberships without valid store data
+  const stores: StoreUserWithStore[] = (storesResult.data || []).filter(
+    (s: StoreUserWithStore) => s.store !== null && s.store !== undefined
+  )
+
+  // Check platform admin requirement
+  if (requirePlatformAdmin && !profile.is_platform_admin) {
+    return {
+      success: false,
+      response: apiForbidden('This action requires platform administrator access', requestId),
+    }
+  }
+
+  // Check role authorization (any store membership with required role)
   if (allowedRoles && allowedRoles.length > 0) {
-    if (!allowedRoles.includes(profile.role as AppRole)) {
+    const hasRequiredRole = stores.some((s: StoreUserWithStore) =>
+      allowedRoles.includes(s.role)
+    )
+    // Also check legacy profile.role for backward compatibility
+    const legacyRole = normalizeRole(profile.role as AppRole | LegacyAppRole)
+    const hasLegacyRole = legacyRole && allowedRoles.includes(legacyRole)
+
+    if (!hasRequiredRole && !hasLegacyRole && !profile.is_platform_admin) {
       return {
         success: false,
         response: apiForbidden(
@@ -106,14 +160,35 @@ export async function withApiAuth(
     }
   }
 
+  // Check role at specific store if required
+  if (requireRoleAtStore && requireRoleAtStore.length > 0) {
+    const storeId = request.nextUrl.searchParams.get('store_id')
+    if (storeId) {
+      const roleAtStore = getRoleAtStore(stores, storeId)
+      if (!roleAtStore || !requireRoleAtStore.includes(roleAtStore)) {
+        if (!profile.is_platform_admin) {
+          return {
+            success: false,
+            response: apiForbidden(
+              `This action requires one of the following roles at this store: ${requireRoleAtStore.join(', ')}`,
+              requestId
+            ),
+          }
+        }
+      }
+    }
+  }
+
   return {
     success: true,
     context: {
       user: { id: user.id, email: user.email },
       profile: {
-        role: profile.role as AppRole,
+        role: normalizeRole(profile.role as AppRole | LegacyAppRole),
         store_id: profile.store_id,
+        is_platform_admin: profile.is_platform_admin || false,
       },
+      stores,
       requestId,
       supabase,
     },
@@ -122,18 +197,62 @@ export async function withApiAuth(
 
 /**
  * Check if user can access a specific store
+ * Uses store_users membership for multi-tenant access control
  */
 export function canAccessStore(
-  profile: { role: AppRole; store_id: string | null },
+  context: AuthContext,
   targetStoreId: string
 ): boolean {
-  // Admin and Driver have global access
-  if (profile.role === 'Admin' || profile.role === 'Driver') {
+  // Platform admins can access all stores
+  if (context.profile.is_platform_admin) {
     return true
   }
 
-  // Staff can only access their assigned store
-  return profile.store_id === targetStoreId
+  // Check store_users membership
+  return canAccessStoreAuth(context.stores, targetStoreId)
+}
+
+/**
+ * Check if user can manage a specific store (Owner or Manager role)
+ */
+export function canManageStore(
+  context: AuthContext,
+  targetStoreId: string
+): boolean {
+  if (context.profile.is_platform_admin) {
+    return true
+  }
+  return canManageStoreAuth(context.stores, targetStoreId)
+}
+
+/**
+ * Check if user can manage users at a specific store (Owner only)
+ */
+export function canManageUsersAtStore(
+  context: AuthContext,
+  targetStoreId: string
+): boolean {
+  if (context.profile.is_platform_admin) {
+    return true
+  }
+  return canManageUsersAuth(context.stores, targetStoreId)
+}
+
+/**
+ * Get user's role at a specific store
+ */
+export function getUserRoleAtStore(
+  context: AuthContext,
+  targetStoreId: string
+): AppRole | null {
+  return getRoleAtStore(context.stores, targetStoreId)
+}
+
+/**
+ * Get all store IDs the user has access to
+ */
+export function getAccessibleStoreIds(context: AuthContext): string[] {
+  return context.stores.map(s => s.store_id)
 }
 
 /**

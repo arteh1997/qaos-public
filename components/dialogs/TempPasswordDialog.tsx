@@ -31,9 +31,12 @@ export function TempPasswordDialog({
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // Ensure password is never undefined for the controlled input
+  const safePassword = tempPassword || ''
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(tempPassword)
+      await navigator.clipboard.writeText(safePassword)
       setCopied(true)
       toast.success('Password copied to clipboard')
       setTimeout(() => setCopied(false), 2000)
@@ -70,7 +73,7 @@ export function TempPasswordDialog({
                 <Input
                   id="temp-password"
                   type={showPassword ? 'text' : 'password'}
-                  value={tempPassword}
+                  value={safePassword}
                   readOnly
                   className="pr-10 font-mono"
                 />

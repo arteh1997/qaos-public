@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 
-export function AdminDashboard() {
+export function OwnerDashboard() {
   const { stores, isLoading: storesLoading, error: storesError } = useStores()
   const { users, isLoading: usersLoading, error: usersError } = useUsers()
   const { data: missingCounts, isLoading: missingLoading, error: missingError } = useMissingCounts()

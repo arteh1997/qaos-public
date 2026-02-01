@@ -1,5 +1,12 @@
-// Application role types - Only 3 roles: Admin, Driver, Staff (NO Manager)
-export type AppRole = 'Admin' | 'Driver' | 'Staff';
+// Application role types - 4 roles: Owner, Manager, Staff, Driver
+// Owner: Full access to owned/co-owned stores, billing, invite users
+// Manager: Full operational access to assigned store
+// Staff: Clock in/out, stock counts at assigned store
+// Driver: Deliveries/receptions across assigned stores
+export type AppRole = 'Owner' | 'Manager' | 'Staff' | 'Driver';
+
+// Legacy role type for backward compatibility during migration
+export type LegacyAppRole = 'Admin' | 'Driver' | 'Staff';
 
 export type UserStatus = 'Invited' | 'Active' | 'Inactive';
 
@@ -30,6 +37,9 @@ export interface DayHours {
 // Weekly operating hours schedule
 export type WeeklyHours = Record<DayOfWeek, DayHours>;
 
+// Subscription status for billing
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
+
 // Database table types
 export interface Store {
   id: string;
@@ -39,6 +49,8 @@ export interface Store {
   opening_time: string | null; // Default HH:MM format (e.g., "06:00") - kept for backwards compatibility
   closing_time: string | null; // Default HH:MM format (e.g., "23:00") - kept for backwards compatibility
   weekly_hours: WeeklyHours | null; // Per-day operating hours
+  billing_user_id: string | null; // User responsible for paying for this store
+  subscription_status: string | null; // Current subscription status
   created_at: string;
   updated_at: string;
 }
@@ -56,11 +68,71 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string | null;
-  role: AppRole;
-  store_id: string | null;
+  role: AppRole | LegacyAppRole; // Kept for backward compatibility, use store_users for new system
+  store_id: string | null; // Deprecated - use store_users for multi-store access
+  is_platform_admin: boolean; // Super-admin access for platform support
+  default_store_id: string | null; // User's preferred store for quick access
   status: UserStatus;
   created_at: string;
   updated_at: string;
+  // Joined fields for multi-tenant
+  store_memberships?: StoreUser[];
+}
+
+// Store-User relationship for multi-tenant access
+export interface StoreUser {
+  id: string;
+  store_id: string;
+  user_id: string;
+  role: AppRole;
+  is_billing_owner: boolean; // True if this user pays for this store
+  invited_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  store?: Store;
+  user?: Profile;
+}
+
+// StoreUser with required store (for auth context)
+export interface StoreUserWithStore extends StoreUser {
+  store: Store;
+}
+
+// User invitation for email-based onboarding
+export interface UserInvite {
+  id: string;
+  email: string;
+  role: AppRole;
+  store_id: string | null;
+  store_ids: string[]; // For Driver role - multiple stores
+  token: string;
+  invited_by: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  store?: Store;
+  inviter?: Profile;
+}
+
+// Subscription for billing (Stripe integration deferred)
+export interface Subscription {
+  id: string;
+  store_id: string;
+  billing_user_id: string;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  status: SubscriptionStatus;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  store?: Store;
+  billing_user?: Profile;
 }
 
 export interface InventoryItem {
@@ -151,6 +223,8 @@ export interface AuthUser {
   id: string;
   email: string;
   profile: Profile | null;
+  stores: StoreUserWithStore[]; // User's store memberships with store data
+  currentStore: StoreUserWithStore | null; // Currently selected store context
 }
 
 // Navigation item type
@@ -182,10 +256,20 @@ export interface LowStockItem {
 }
 
 // Dashboard stats
-export interface AdminDashboardStats {
+export interface OwnerDashboardStats {
   total_stores: number;
   total_users: number;
   stores_missing_count: number;
+  low_stock_alerts: number;
+}
+
+// Legacy alias for backward compatibility
+export type AdminDashboardStats = OwnerDashboardStats;
+
+export interface ManagerDashboardStats {
+  store: Store | null;
+  total_users: number;
+  today_count_completed: boolean;
   low_stock_alerts: number;
 }
 
