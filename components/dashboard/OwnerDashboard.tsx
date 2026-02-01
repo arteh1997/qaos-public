@@ -35,13 +35,25 @@ export function OwnerDashboard() {
   // Show error if any query failed
   const hasError = storesError || usersError || missingError || lowStockError
   if (hasError) {
+    const errorMessages = [
+      storesError && `Stores: ${storesError.message}`,
+      usersError && `Users: ${usersError.message}`,
+      missingError && `Missing Counts: ${missingError.message}`,
+      lowStockError && `Low Stock: ${lowStockError.message}`,
+    ].filter(Boolean)
+
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-red-500">
-            Error loading dashboard data. Check console for details.
+            Error loading dashboard data:
           </p>
+          <ul className="text-red-500 text-sm mt-2 list-disc list-inside">
+            {errorMessages.map((msg, i) => (
+              <li key={i}>{msg}</li>
+            ))}
+          </ul>
         </div>
       </div>
     )
