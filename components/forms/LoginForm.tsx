@@ -76,9 +76,20 @@ export function LoginForm() {
     }
   }
 
+  // Prevent native form submission from exposing credentials in URL
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    form.handleSubmit(onSubmit)(e)
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        method="post"
+        action="#"
+        onSubmit={handleSubmit}
+        className="space-y-4"
+      >
         <FormField
           control={form.control}
           name="email"
