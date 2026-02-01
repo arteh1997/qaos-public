@@ -50,7 +50,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
 // Simple HTML to text conversion
 function stripHtml(html: string): string {
   return html
-    .replace(/<style[^>]*>.*?<\/style>/gs, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/g, '')
     .replace(/<[^>]+>/g, '')
     .replace(/\s+/g, ' ')
     .trim()
