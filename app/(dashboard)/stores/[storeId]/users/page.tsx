@@ -206,7 +206,7 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
         onOpenChange={(open) => !open && setUserToRemove(null)}
         title="Remove User from Store"
         description={`Are you sure you want to remove ${userToRemove?.user?.full_name || userToRemove?.user?.email} from ${store.name}? They will lose access to this store.`}
-        confirmText="Remove"
+        confirmLabel="Remove"
         variant="destructive"
         onConfirm={handleRemoveUser}
       />
@@ -217,7 +217,7 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
         onOpenChange={(open) => !open && setUserToTransfer(null)}
         title="Transfer Billing Ownership"
         description={`Are you sure you want to transfer billing ownership of ${store.name} to ${userToTransfer?.user?.full_name || userToTransfer?.user?.email}? They will become responsible for the store subscription and you will become a co-owner.`}
-        confirmText="Transfer Ownership"
+        confirmLabel="Transfer Ownership"
         variant="default"
         onConfirm={handleTransferOwnership}
       />
