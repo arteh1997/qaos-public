@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
     // Get or create Stripe customer
     const customerId = await getOrCreateCustomer(
       context.user.id,
-      context.user.email || '',
-      context.profile?.full_name
+      context.user.email || ''
     )
 
     // Create setup intent
