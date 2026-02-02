@@ -1,5 +1,8 @@
 'use client'
 
+// Prevent static prerendering - page uses client-side data fetching
+export const dynamic = 'force-dynamic'
+
 import { useMemo } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
