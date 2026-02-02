@@ -47,7 +47,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Staff can only see their own shifts
-    if (context.profile.role === 'Staff' && shift.user_id !== context.user.id) {
+    const isStaffOnly = context.stores?.every(s => s.role === 'Staff') ?? false
+    if (isStaffOnly && shift.user_id !== context.user.id) {
       return apiForbidden('You can only view your own shifts', context.requestId)
     }
 

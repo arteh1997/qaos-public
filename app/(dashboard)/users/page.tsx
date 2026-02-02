@@ -82,8 +82,7 @@ function UsersPageContent() {
     totalPages,
     isLoading,
     updateUser,
-    deactivateUser,
-    activateUser,
+    deleteUser,
     refetch
   } = useUsers(usersFilters)
 
@@ -135,8 +134,6 @@ function UsersPageContent() {
         data: {
           full_name: data.fullName,
           role: data.role,
-          store_id: data.storeId,
-          store_ids: data.storeIds, // For Driver role - multiple stores
           status: data.status,
         },
       })
@@ -150,12 +147,10 @@ function UsersPageContent() {
     }
   }
 
-  const handleDeactivate = (user: Profile) => {
-    deactivateUser(user.id)
-  }
-
-  const handleActivate = (user: Profile) => {
-    activateUser(user.id)
+  const handleDelete = (user: Profile) => {
+    if (currentStoreId) {
+      deleteUser(user.id, currentStoreId)
+    }
   }
 
   if (isLoading || storesLoading) {
@@ -268,8 +263,7 @@ function UsersPageContent() {
         selectedStoreId={currentStoreId}
         onInvite={() => setInviteFormOpen(true)}
         onEdit={handleEdit}
-        onDeactivate={handleDeactivate}
-        onActivate={handleActivate}
+        onDelete={handleDelete}
       />
 
       {/* Pagination Controls */}
@@ -320,7 +314,6 @@ function UsersPageContent() {
           if (!open) setEditUser(null)
         }}
         user={editUser}
-        stores={stores}
         onSubmit={handleUpdate}
         isLoading={isUpdating}
       />

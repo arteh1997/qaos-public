@@ -48,9 +48,12 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_active', false)
     }
 
-    // For Staff, only show their store
-    if (context.profile.role === 'Staff' && context.profile.store_id) {
-      query = query.eq('id', context.profile.store_id)
+    // For Staff, only show stores they belong to
+    const staffStores = context.stores?.filter(s => s.role === 'Staff')
+    if (staffStores && staffStores.length > 0 && !context.stores?.some(s => ['Owner', 'Manager'].includes(s.role))) {
+      // User is only Staff (no Owner/Manager role), filter to their stores
+      const staffStoreIds = staffStores.map(s => s.store_id)
+      query = query.in('id', staffStoreIds)
     }
 
     const { data, error, count } = await query
@@ -93,16 +96,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Check if this is an onboarding scenario (user has no stores)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existingMemberships } = await (context.supabase as any)
-      .from('store_users')
-      .select('id')
-      .eq('user_id', context.user.id)
-      .limit(1)
+    // Use context.stores which is already populated from store_users
+    const isOnboarding = !context.stores || context.stores.length === 0
 
-    const isOnboarding = !existingMemberships || existingMemberships.length === 0
-    const isOwner = context.profile?.role === 'Owner' ||
-      existingMemberships?.some((m: { role?: string }) => m.role === 'Owner')
+    // Check if user is an Owner in any store
+    const isOwner = context.stores?.some(s => s.role === 'Owner') ?? false
 
     // Only allow if onboarding or if user is already an Owner
     if (!isOnboarding && !isOwner) {

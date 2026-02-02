@@ -85,15 +85,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user already exists
+    // Check if user already exists and has completed onboarding
     const { data: existingUsers } = await adminClient.auth.admin.listUsers()
     const existingUser = existingUsers?.users?.find(
       u => u.email?.toLowerCase() === validatedData.email.toLowerCase()
     )
 
-    // If user exists, add them directly to the store (no invite needed)
     if (existingUser) {
-      // Get their profile with status
+      // Get their profile to check onboarding status
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
         .select('id, status')
@@ -107,7 +106,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // If user hasn't completed onboarding (status='Invited'), they need to complete their existing invite first
+      // If user hasn't completed onboarding, they need to finish that first
       if (existingProfile.status === 'Invited') {
         return apiBadRequest(
           'This user has a pending invitation. They need to complete their account setup first before being added to another store.',
@@ -115,31 +114,25 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Determine store IDs to add
+      // User has completed onboarding - add them directly to the store
       const storeIdsToAdd = validatedData.storeIds || (validatedData.storeId ? [validatedData.storeId] : [])
 
       if (storeIdsToAdd.length === 0) {
-        return apiBadRequest(
-          'No store specified for invitation',
-          context.requestId
-        )
+        return apiBadRequest('No store specified for invitation', context.requestId)
       }
 
-      // Check if user is already a member of any of these stores
+      // Check if user is already a member of these stores
       const { data: existingMemberships } = await supabaseAdmin
         .from('store_users')
         .select('store_id')
         .eq('user_id', existingUser.id)
         .in('store_id', storeIdsToAdd)
 
-      const existingStoreIds = new Set(existingMemberships?.map(m => m.store_id) || [])
+      const existingStoreIds = new Set(existingMemberships?.map((m: { store_id: string }) => m.store_id) || [])
       const newStoreIds = storeIdsToAdd.filter(id => !existingStoreIds.has(id))
 
       if (newStoreIds.length === 0) {
-        return apiBadRequest(
-          'This user is already a member of this store',
-          context.requestId
-        )
+        return apiBadRequest('This user is already a member of this store', context.requestId)
       }
 
       // Add user to the new stores
@@ -159,7 +152,7 @@ export async function POST(request: NextRequest) {
         return apiError('Failed to add user to store')
       }
 
-      // Get store name for response
+      // Get store name for notification email
       let storeName: string | undefined
       if (validatedData.storeId) {
         const { data: store } = await supabaseAdmin
@@ -170,7 +163,7 @@ export async function POST(request: NextRequest) {
         storeName = store?.name
       }
 
-      // Get inviter's name for the notification email
+      // Get inviter's name
       const { data: inviterProfile } = await supabaseAdmin
         .from('profiles')
         .select('full_name, email')
@@ -179,7 +172,7 @@ export async function POST(request: NextRequest) {
 
       const addedByName = inviterProfile?.full_name || inviterProfile?.email || 'A team member'
 
-      // Send notification email to the user being added
+      // Send "added to store" notification email
       if (storeName) {
         const emailHtml = getAddedToStoreEmailHtml({
           storeName,
@@ -222,7 +215,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if there's an existing pending invite for this email
+    // New user - check if there's an existing pending invite for this email
     const { data: existingInvite } = await supabaseAdmin
       .from('user_invites')
       .select('id, expires_at')

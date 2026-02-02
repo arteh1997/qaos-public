@@ -40,11 +40,14 @@ export async function GET(request: NextRequest) {
         user:profiles(id, full_name, email)
       `, { count: 'exact' })
 
-    // Staff can only see their own shifts
-    if (context.profile.role === 'Staff') {
+    // Staff can only see their own shifts at their assigned stores
+    const isStaffOnly = context.stores?.every(s => s.role === 'Staff') ?? false
+    if (isStaffOnly) {
       query = query.eq('user_id', context.user.id)
-      if (context.profile.store_id) {
-        query = query.eq('store_id', context.profile.store_id)
+      // Filter to only their stores
+      const staffStoreIds = context.stores?.filter(s => s.role === 'Staff').map(s => s.store_id) ?? []
+      if (staffStoreIds.length > 0) {
+        query = query.in('store_id', staffStoreIds)
       }
     } else {
       // Apply filters for Owner/Manager/Driver

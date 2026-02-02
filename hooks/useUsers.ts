@@ -187,50 +187,41 @@ export function useUsers(filters: UsersFilters = {}) {
     }
   }, [fetchUsers, users])
 
-  const deactivateUser = useCallback(async (id: string) => {
-    // Check if user is a billing owner - they cannot be deactivated
+  const deleteUser = useCallback(async (id: string, storeId: string) => {
+    // Check if user is a billing owner - they cannot be deleted
     const targetUser = users.find(u => u.id === id)
     const isBillingOwner = targetUser?.store_users?.some(su => su.is_billing_owner) ?? false
 
     if (isBillingOwner) {
-      toast.error('Cannot deactivate billing owner')
+      toast.error('Cannot delete billing owner')
       return
     }
 
-    // Optimistic update
-    setUsers(prev => prev.map(user =>
-      user.id === id ? { ...user, status: 'Inactive' as UserStatus } : user
-    ))
+    // Optimistic update - remove from list
+    setUsers(prev => prev.filter(user => user.id !== id))
 
     try {
-      const { error } = await supabaseUpdate('profiles', id, { status: 'Inactive' })
+      // Delete the store_users entry for this user at this store
+      const { data: storeUserEntry } = await supabaseFetch<{ id: string }>('store_users', {
+        select: 'id',
+        filter: {
+          user_id: `eq.${id}`,
+          store_id: `eq.${storeId}`,
+        },
+      })
 
-      if (error) throw error
-      toast.success('User deactivated')
+      if (storeUserEntry && storeUserEntry.length > 0) {
+        const { error } = await supabaseDelete('store_users', storeUserEntry[0].id)
+        if (error) throw error
+      }
+
+      toast.success('User removed from store')
     } catch (err) {
       fetchUsers()
-      toast.error('Failed to deactivate user: ' + sanitizeErrorMessage(err))
+      toast.error('Failed to delete user: ' + sanitizeErrorMessage(err))
       throw err
     }
   }, [fetchUsers, users])
-
-  const activateUser = useCallback(async (id: string) => {
-    // Optimistic update
-    setUsers(prev => prev.map(user =>
-      user.id === id ? { ...user, status: 'Active' as UserStatus } : user
-    ))
-
-    try {
-      const { error } = await supabaseUpdate('profiles', id, { status: 'Active' })
-
-      if (error) throw error
-      toast.success('User activated')
-    } catch (err) {
-      fetchUsers()
-      toast.error('Failed to activate user: ' + sanitizeErrorMessage(err))
-      throw err
-    }
-  }, [fetchUsers])
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
@@ -243,8 +234,7 @@ export function useUsers(filters: UsersFilters = {}) {
     isLoading,
     error,
     updateUser,
-    deactivateUser,
-    activateUser,
+    deleteUser,
     refetch: fetchUsers,
   }
 }
