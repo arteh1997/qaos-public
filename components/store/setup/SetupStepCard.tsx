@@ -34,40 +34,40 @@ export function SetupStepCard({
         <button
           type="button"
           onClick={onToggle}
-          className="w-full p-4 flex items-center gap-4 text-left hover:bg-muted/50 transition-colors rounded-t-2xl"
+          className="w-full p-3 sm:p-4 flex items-center gap-3 sm:gap-4 text-left hover:bg-muted/50 transition-colors rounded-t-2xl"
         >
           {/* Icon with completion status */}
           <div
             className={cn(
-              'flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center',
+              'flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center',
               step.isComplete
                 ? 'bg-green-500 text-white'
                 : 'bg-muted text-muted-foreground'
             )}
           >
             {step.isComplete ? (
-              <Check className="h-5 w-5" />
+              <Check className="h-4 w-4 sm:h-5 sm:w-5" />
             ) : (
-              <Icon className="h-5 w-5" />
+              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
             )}
           </div>
 
           {/* Title and description */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2">
               <h3 className="font-medium text-sm sm:text-base">{step.title}</h3>
               {step.isRequired && !step.isComplete && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 py-0">
                   Required
                 </Badge>
               )}
               {step.isComplete && (
-                <Badge variant="default" className="text-xs bg-green-500">
+                <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 py-0 bg-green-500">
                   Complete
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5 truncate">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-2">
               {step.description}
             </p>
           </div>
@@ -83,7 +83,7 @@ export function SetupStepCard({
 
         {/* Expanded content */}
         {isExpanded && children && (
-          <div className="px-4 pb-4 pt-2 border-t">
+          <div className="px-3 sm:px-4 pb-4 pt-2 border-t">
             {children}
           </div>
         )}

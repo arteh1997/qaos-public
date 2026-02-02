@@ -60,7 +60,7 @@ export function InventorySetupStep({ onComplete }: InventorySetupStepProps) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-xs sm:text-sm text-muted-foreground">
         Add your first inventory item to start tracking stock levels. You can add more items later.
       </p>
 

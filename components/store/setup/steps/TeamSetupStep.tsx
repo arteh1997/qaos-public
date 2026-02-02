@@ -78,7 +78,12 @@ export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
       }
 
       form.reset()
-      toast.success(`Invitation sent to ${data.email}!`)
+      // Show different message if user was added directly vs invited
+      if (result.addedToExisting) {
+        toast.success(result.message || `${data.email} has been added to the store!`)
+      } else {
+        toast.success(`Invitation sent to ${data.email}!`)
+      }
       onComplete()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to send invitation')

@@ -91,10 +91,101 @@ export async function POST(request: NextRequest) {
       u => u.email?.toLowerCase() === validatedData.email.toLowerCase()
     )
 
+    // If user exists, add them directly to the store (no invite needed)
     if (existingUser) {
-      return apiBadRequest(
-        'A user with this email already exists',
-        context.requestId
+      // Get their profile
+      const { data: existingProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('id', existingUser.id)
+        .single()
+
+      if (!existingProfile) {
+        return apiBadRequest(
+          'User account exists but profile not found. Please contact support.',
+          context.requestId
+        )
+      }
+
+      // Determine store IDs to add
+      const storeIdsToAdd = validatedData.storeIds || (validatedData.storeId ? [validatedData.storeId] : [])
+
+      if (storeIdsToAdd.length === 0) {
+        return apiBadRequest(
+          'No store specified for invitation',
+          context.requestId
+        )
+      }
+
+      // Check if user is already a member of any of these stores
+      const { data: existingMemberships } = await supabaseAdmin
+        .from('store_users')
+        .select('store_id')
+        .eq('user_id', existingUser.id)
+        .in('store_id', storeIdsToAdd)
+
+      const existingStoreIds = new Set(existingMemberships?.map(m => m.store_id) || [])
+      const newStoreIds = storeIdsToAdd.filter(id => !existingStoreIds.has(id))
+
+      if (newStoreIds.length === 0) {
+        return apiBadRequest(
+          'This user is already a member of this store',
+          context.requestId
+        )
+      }
+
+      // Add user to the new stores
+      const insertData = newStoreIds.map(storeId => ({
+        store_id: storeId,
+        user_id: existingUser.id,
+        role: validatedData.role,
+        invited_by: context.user.id,
+      }))
+
+      const { error: insertError } = await supabaseAdmin
+        .from('store_users')
+        .insert(insertData)
+
+      if (insertError) {
+        console.error('Error adding user to store:', insertError)
+        return apiError('Failed to add user to store')
+      }
+
+      // Get store name for response
+      let storeName: string | undefined
+      if (validatedData.storeId) {
+        const { data: store } = await supabaseAdmin
+          .from('stores')
+          .select('name')
+          .eq('id', validatedData.storeId)
+          .single()
+        storeName = store?.name
+      }
+
+      // Audit log
+      await auditLog(supabaseAdmin, {
+        userId: context.user.id,
+        userEmail: context.user.email,
+        action: 'user.add_to_store',
+        storeId: validatedData.storeId || null,
+        resourceType: 'store_users',
+        details: {
+          addedUserId: existingUser.id,
+          addedEmail: validatedData.email,
+          role: validatedData.role,
+          storeName,
+          storeIds: newStoreIds,
+        },
+        request,
+      })
+
+      return apiSuccess(
+        {
+          message: `${validatedData.email} has been added to the store as ${validatedData.role}`,
+          email: validatedData.email,
+          addedToExisting: true,
+        },
+        { requestId: context.requestId, status: 201 }
       )
     }
 
