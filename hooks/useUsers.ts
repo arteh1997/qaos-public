@@ -201,24 +201,26 @@ export function useUsers(filters: UsersFilters = {}) {
     setUsers(prev => prev.filter(user => user.id !== id))
 
     try {
-      // Delete the store_users entry for this user at this store
-      const { data: storeUserEntry } = await supabaseFetch<{ id: string }>('store_users', {
-        select: 'id',
-        filter: {
-          user_id: `eq.${id}`,
-          store_id: `eq.${storeId}`,
-        },
+      // Use API endpoint to remove user - handles active shifts and audit logging
+      const response = await fetch(`/api/stores/${storeId}/users/${id}`, {
+        method: 'DELETE',
       })
 
-      if (storeUserEntry && storeUserEntry.length > 0) {
-        const { error } = await supabaseDelete('store_users', storeUserEntry[0].id)
-        if (error) throw error
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to remove user')
       }
 
-      toast.success('User removed from store')
+      // Show success message with shift info if applicable
+      if (result.data?.activeShiftsEnded > 0) {
+        toast.success(`User removed from store. ${result.data.activeShiftsEnded} active shift(s) were ended.`)
+      } else {
+        toast.success('User removed from store')
+      }
     } catch (err) {
       fetchUsers()
-      toast.error('Failed to delete user: ' + sanitizeErrorMessage(err))
+      toast.error('Failed to remove user: ' + sanitizeErrorMessage(err))
       throw err
     }
   }, [fetchUsers, users])

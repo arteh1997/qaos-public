@@ -36,9 +36,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
-import { Plus, MoreHorizontal, Pencil, Trash2, Clock, Calendar, ArrowUp, ArrowDown, CalendarDays } from 'lucide-react'
+import { Plus, MoreHorizontal, Pencil, Trash2, Clock, Calendar, ArrowUp, ArrowDown, CalendarDays, ClockArrowUp } from 'lucide-react'
 import Link from 'next/link'
 import { EmptyState } from '@/components/ui/empty-state'
+import { EditClockTimesDialog } from '@/components/forms/EditClockTimesDialog'
 import { format, isSameDay, parseISO } from 'date-fns'
 import { Shift } from '@/types'
 import { ShiftFormData } from '@/lib/validations/shift'
@@ -125,6 +126,7 @@ function ShiftsPageContent() {
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
+  const [editingClockTimesShift, setEditingClockTimesShift] = useState<Shift | null>(null)
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -135,7 +137,7 @@ function ShiftsPageContent() {
   const { users, isLoading: usersLoading } = useUsers({ status: 'Active', storeId: currentStoreId || 'all' })
 
   // Fetch shifts for current store only
-  const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift } = useShifts(currentStoreId || null)
+  const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift, refetch: refetchShifts } = useShifts(currentStoreId || null)
 
   const isLoading = storesLoading || usersLoading || shiftsLoading
 
@@ -359,7 +361,18 @@ function ShiftsPageContent() {
                                 }}
                               >
                                 <Pencil className="mr-2 h-4 w-4" />
-                                Edit
+                                Edit Schedule
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  if (document.activeElement instanceof HTMLElement) {
+                                    document.activeElement.blur()
+                                  }
+                                  setTimeout(() => setEditingClockTimesShift(shift), 150)
+                                }}
+                              >
+                                <ClockArrowUp className="mr-2 h-4 w-4" />
+                                Edit Clock Times
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={() => {
@@ -489,7 +502,18 @@ function ShiftsPageContent() {
                                   }}
                                 >
                                   <Pencil className="mr-2 h-4 w-4" />
-                                  Edit
+                                  Edit Schedule
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() => {
+                                    if (document.activeElement instanceof HTMLElement) {
+                                      document.activeElement.blur()
+                                    }
+                                    setTimeout(() => setEditingClockTimesShift(shift), 150)
+                                  }}
+                                >
+                                  <ClockArrowUp className="mr-2 h-4 w-4" />
+                                  Edit Clock Times
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onSelect={() => {
@@ -557,6 +581,13 @@ function ShiftsPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditClockTimesDialog
+        open={!!editingClockTimesShift}
+        onOpenChange={(open) => !open && setEditingClockTimesShift(null)}
+        shift={editingClockTimesShift}
+        onSuccess={refetchShifts}
+      />
     </div>
   )
 }

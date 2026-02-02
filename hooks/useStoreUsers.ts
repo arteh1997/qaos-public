@@ -158,28 +158,44 @@ export function useStoreUsers(filters: StoreUsersFilters) {
       return
     }
 
+    if (!storeUser?.user_id) {
+      toast.error('User not found')
+      return
+    }
+
     // Optimistic update
     setStoreUsers(prev => prev.filter(su => su.id !== id))
     setTotalCount(prev => prev - 1)
 
     try {
-      const { error } = await supabaseDelete('store_users', id)
+      // Use API endpoint to handle active shifts and audit logging
+      const response = await fetch(`/api/stores/${storeId}/users/${storeUser.user_id}`, {
+        method: 'DELETE',
+      })
 
-      if (error) throw error
-      toast.success('User removed from store successfully')
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to remove user')
+      }
+
+      if (result.data?.activeShiftsEnded > 0) {
+        toast.success(`User removed from store. ${result.data.activeShiftsEnded} active shift(s) were ended.`)
+      } else {
+        toast.success('User removed from store successfully')
+      }
     } catch (err) {
       fetchStoreUsers()
       toast.error('Failed to remove user from store: ' + sanitizeErrorMessage(err))
       throw err
     }
-  }, [fetchStoreUsers, storeUsers])
+  }, [fetchStoreUsers, storeUsers, storeId])
 
   /**
    * Transfer billing ownership to another user at this store
    */
-  const transferBillingOwnership = useCallback(async (newBillingOwnerId: string) => {
-    const currentBillingOwner = storeUsers.find(su => su.is_billing_owner)
-    const newBillingOwner = storeUsers.find(su => su.id === newBillingOwnerId)
+  const transferBillingOwnership = useCallback(async (newBillingOwnerUserId: string) => {
+    const newBillingOwner = storeUsers.find(su => su.user_id === newBillingOwnerUserId)
 
     if (!newBillingOwner) {
       toast.error('New billing owner not found')
@@ -192,18 +208,18 @@ export function useStoreUsers(filters: StoreUsersFilters) {
     }
 
     try {
-      // Update both users
-      if (currentBillingOwner) {
-        await supabaseUpdate('store_users', currentBillingOwner.id, {
-          is_billing_owner: false,
-          updated_at: new Date().toISOString(),
-        })
-      }
-
-      await supabaseUpdate('store_users', newBillingOwnerId, {
-        is_billing_owner: true,
-        updated_at: new Date().toISOString(),
+      // Use API endpoint for atomic transfer with proper safeguards
+      const response = await fetch(`/api/stores/${storeId}/billing-owner`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newBillingOwnerId: newBillingOwnerUserId }),
       })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to transfer billing ownership')
+      }
 
       toast.success('Billing ownership transferred successfully')
       fetchStoreUsers()
@@ -212,7 +228,7 @@ export function useStoreUsers(filters: StoreUsersFilters) {
       toast.error('Failed to transfer billing ownership: ' + sanitizeErrorMessage(err))
       throw err
     }
-  }, [fetchStoreUsers, storeUsers])
+  }, [fetchStoreUsers, storeUsers, storeId])
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 

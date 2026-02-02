@@ -26,5 +26,35 @@ export const clockInOutSchema = z.object({
   action: z.enum(['clock_in', 'clock_out']),
 })
 
+/**
+ * Schema for editing clock in/out times (manager/owner correction)
+ * Both times are optional to allow clearing or setting just one
+ */
+export const editClockTimesSchema = z.object({
+  clock_in_time: z.string().nullable().optional().refine((val) => {
+    if (!val) return true // null/undefined is allowed
+    const date = new Date(val)
+    return !isNaN(date.getTime())
+  }, { message: 'Invalid clock-in time' }),
+  clock_out_time: z.string().nullable().optional().refine((val) => {
+    if (!val) return true // null/undefined is allowed
+    const date = new Date(val)
+    return !isNaN(date.getTime())
+  }, { message: 'Invalid clock-out time' }),
+  notes: z.string().optional(),
+}).refine((data) => {
+  // If both times are provided, clock out must be after clock in
+  if (data.clock_in_time && data.clock_out_time) {
+    const clockIn = new Date(data.clock_in_time)
+    const clockOut = new Date(data.clock_out_time)
+    return clockOut > clockIn
+  }
+  return true
+}, {
+  message: 'Clock-out time must be after clock-in time',
+  path: ['clock_out_time'],
+})
+
 export type ShiftFormData = z.infer<typeof shiftSchema>
 export type ClockInOutFormData = z.infer<typeof clockInOutSchema>
+export type EditClockTimesData = z.infer<typeof editClockTimesSchema>

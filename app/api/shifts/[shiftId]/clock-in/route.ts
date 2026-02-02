@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Update shift with clock in time
+    // Update shift with clock in time - use WHERE clause to prevent race condition
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: updatedShift, error: updateError } = await (context.supabase as any)
       .from('shifts')
@@ -75,12 +75,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         updated_at: now.toISOString(),
       })
       .eq('id', shiftId)
+      .is('clock_in_time', null) // Prevents race condition - only update if not already clocked in
       .select(`
         *,
         store:stores(*),
         user:profiles(id, full_name, email)
       `)
       .single()
+
+    // If no row was updated, someone else clocked in first (race condition)
+    if (updateError?.code === 'PGRST116' || !updatedShift) {
+      return apiBadRequest('Already clocked in to this shift', context.requestId)
+    }
 
     if (updateError) throw updateError
 

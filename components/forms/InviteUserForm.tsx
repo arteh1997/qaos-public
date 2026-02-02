@@ -237,11 +237,12 @@ export function InviteUserForm({
                 type="button"
                 variant="outline"
                 onClick={() => handleOpenChange(false)}
+                disabled={isLoading || form.formState.isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isLoading || form.formState.isSubmitting}>
+                {(isLoading || form.formState.isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Send Invitation
               </Button>
             </div>

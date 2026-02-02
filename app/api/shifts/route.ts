@@ -109,17 +109,37 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data
 
-    // Check for overlapping shifts
+    // Prevent creating shifts in the past (allow a 5-minute grace period for timezone differences)
+    const shiftStart = new Date(data.start_time)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+    if (shiftStart < fiveMinutesAgo) {
+      return apiBadRequest(
+        'Cannot create shifts in the past',
+        context.requestId
+      )
+    }
+
+    // Check for overlapping shifts for this user
+    // Two shifts overlap if: new.start < existing.end AND new.end > existing.start
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existingShifts } = await (context.supabase as any)
+    const { data: existingShifts, error: overlapCheckError } = await (context.supabase as any)
       .from('shifts')
-      .select('id')
+      .select('id, start_time, end_time')
       .eq('user_id', data.user_id)
-      .or(`and(start_time.lte.${data.end_time},end_time.gte.${data.start_time})`)
+      .lt('start_time', data.end_time)
+      .gt('end_time', data.start_time)
+
+    if (overlapCheckError) {
+      console.error('Error checking for overlapping shifts:', overlapCheckError)
+      throw overlapCheckError
+    }
 
     if (existingShifts && existingShifts.length > 0) {
+      const overlapping = existingShifts[0]
+      const overlapStart = new Date(overlapping.start_time).toLocaleString()
+      const overlapEnd = new Date(overlapping.end_time).toLocaleString()
       return apiBadRequest(
-        'User already has a shift during this time',
+        `This user already has a shift scheduled from ${overlapStart} to ${overlapEnd}. Shifts cannot overlap.`,
         context.requestId
       )
     }

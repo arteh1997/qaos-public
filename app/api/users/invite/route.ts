@@ -43,6 +43,11 @@ export async function POST(request: NextRequest) {
 
     const validatedData = validationResult.data
 
+    // Prevent self-invitation
+    if (context.user.email?.toLowerCase() === validatedData.email.toLowerCase()) {
+      return apiBadRequest('You cannot invite yourself', context.requestId)
+    }
+
     // Get the inviter's role at the relevant store to check permissions
     const adminClient = createAdminClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

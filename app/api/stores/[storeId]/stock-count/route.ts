@@ -53,6 +53,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const { items, notes } = validationResult.data
 
+    // Verify all inventory items are still active (not deleted)
+    const itemIds = items.map(item => item.inventory_item_id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: activeItems } = await (context.supabase as any)
+      .from('inventory_items')
+      .select('id')
+      .in('id', itemIds)
+      .eq('is_active', true)
+
+    const activeItemIds = new Set((activeItems ?? []).map((item: { id: string }) => item.id))
+    const deletedItems = items.filter(item => !activeItemIds.has(item.inventory_item_id))
+
+    if (deletedItems.length > 0) {
+      return apiBadRequest(
+        `Some items have been deleted and cannot be counted. Please refresh the page to see the current inventory list.`,
+        context.requestId
+      )
+    }
+
     // Get current inventory levels
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: currentInventory } = await (context.supabase as any)
@@ -89,6 +108,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         notes: sanitizedNotes,
       }
     })
+
+    // Re-verify store access before writes (in case access was revoked mid-operation)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: currentAccess } = await (context.supabase as any)
+      .from('store_users')
+      .select('id')
+      .eq('store_id', storeId)
+      .eq('user_id', context.user.id)
+      .single()
+
+    if (!currentAccess) {
+      return apiForbidden('Your access to this store has been revoked', context.requestId)
+    }
 
     // Batch upsert store inventory
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
