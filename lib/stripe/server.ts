@@ -4,7 +4,11 @@
 
 import { stripe, BILLING_CONFIG } from './config'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { Enums } from '@/types/database'
 import Stripe from 'stripe'
+
+// Type alias for subscription status
+type SubscriptionStatus = Enums<'subscription_status'>
 
 /**
  * Get or create a Stripe customer for a user
@@ -241,7 +245,7 @@ export async function syncSubscriptionToDatabase(
     stripe_subscription_id: stripeSubscription.id,
     stripe_customer_id: stripeSubscription.customer as string,
     stripe_payment_method_id: stripeSubscription.default_payment_method as string | null,
-    status: stripeSubscription.status as string,
+    status: stripeSubscription.status as SubscriptionStatus,
     trial_start: stripeSubscription.trial_start
       ? new Date(stripeSubscription.trial_start * 1000).toISOString()
       : null,
@@ -267,7 +271,7 @@ export async function syncSubscriptionToDatabase(
   await supabaseAdmin
     .from('stores')
     .update({
-      subscription_status: stripeSubscription.status,
+      subscription_status: stripeSubscription.status as SubscriptionStatus,
       updated_at: now,
     })
     .eq('id', storeId)
