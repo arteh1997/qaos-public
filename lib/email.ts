@@ -146,6 +146,86 @@ export function getInviteEmailHtml(params: {
 `
 }
 
+export function getAddedToStoreEmailHtml(params: {
+  storeName: string
+  role: string
+  addedByName: string
+  loginUrl: string
+}): string {
+  const { storeName, role, addedByName, loginUrl } = params
+
+  const roleDisplay = role === 'Owner' ? 'Co-Owner' : role
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You've been added to ${storeName}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center; border-bottom: 1px solid #e4e4e7;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #18181b;">
+                ${APP_NAME}
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px;">
+              <h2 style="margin: 0 0 20px; font-size: 20px; font-weight: 600; color: #18181b;">
+                You've been added to a new store!
+              </h2>
+
+              <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+                <strong>${addedByName}</strong> has added you to <strong>${storeName}</strong> as a <strong>${roleDisplay}</strong>.
+              </p>
+
+              <p style="margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+                You can now access this store from your dashboard. Use the store selector to switch between your stores.
+              </p>
+
+              <!-- CTA Button -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="text-align: center;">
+                    <a href="${loginUrl}" style="display: inline-block; padding: 14px 32px; background-color: #18181b; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
+                      Go to Dashboard
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 40px 40px; border-top: 1px solid #e4e4e7;">
+              <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #a1a1aa; text-align: center;">
+                If you weren't expecting this, please contact your team admin.
+              </p>
+              <p style="margin: 10px 0 0; font-size: 12px; line-height: 1.6; color: #a1a1aa; text-align: center;">
+                © ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
+}
+
 export function getWelcomeEmailHtml(params: {
   firstName: string
   role: string

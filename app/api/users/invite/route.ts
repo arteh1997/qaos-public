@@ -4,7 +4,7 @@ import { inviteUserSchema } from '@/lib/validations/user'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth } from '@/lib/api/middleware'
 import { INVITABLE_ROLES_BY_ROLE } from '@/lib/constants'
-import { sendEmail, getInviteEmailHtml } from '@/lib/email'
+import { sendEmail, getInviteEmailHtml, getAddedToStoreEmailHtml } from '@/lib/email'
 import { auditLog } from '@/lib/audit'
 import { AppRole } from '@/types'
 import {
@@ -93,16 +93,24 @@ export async function POST(request: NextRequest) {
 
     // If user exists, add them directly to the store (no invite needed)
     if (existingUser) {
-      // Get their profile
+      // Get their profile with status
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, status')
         .eq('id', existingUser.id)
         .single()
 
       if (!existingProfile) {
         return apiBadRequest(
           'User account exists but profile not found. Please contact support.',
+          context.requestId
+        )
+      }
+
+      // If user hasn't completed onboarding (status='Invited'), they need to complete their existing invite first
+      if (existingProfile.status === 'Invited') {
+        return apiBadRequest(
+          'This user has a pending invitation. They need to complete their account setup first before being added to another store.',
           context.requestId
         )
       }
@@ -160,6 +168,31 @@ export async function POST(request: NextRequest) {
           .eq('id', validatedData.storeId)
           .single()
         storeName = store?.name
+      }
+
+      // Get inviter's name for the notification email
+      const { data: inviterProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', context.user.id)
+        .single()
+
+      const addedByName = inviterProfile?.full_name || inviterProfile?.email || 'A team member'
+
+      // Send notification email to the user being added
+      if (storeName) {
+        const emailHtml = getAddedToStoreEmailHtml({
+          storeName,
+          role: validatedData.role,
+          addedByName,
+          loginUrl: `${APP_URL}/login`,
+        })
+
+        await sendEmail({
+          to: validatedData.email,
+          subject: `You've been added to ${storeName}`,
+          html: emailHtml,
+        })
       }
 
       // Audit log

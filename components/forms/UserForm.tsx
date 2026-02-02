@@ -72,18 +72,20 @@ export function UserForm({
   // Reset form when user changes or dialog opens
   useEffect(() => {
     if (user && open) {
-      // Normalize legacy roles (Admin -> Owner)
-      const normalizedRole = normalizeRole(user.role as AppRole | LegacyAppRole) ?? undefined
+      // Get role from store_users for the current store context (preferred over deprecated profiles.role)
+      // When viewing users for a specific store, the query filters store_users by that store,
+      // so store_users[0] contains the role at the current store
+      const storeUserRole = user.store_users?.[0]?.role as AppRole | undefined
+      // Fall back to profiles.role (normalized) only for legacy data without store_users entries
+      const normalizedRole = storeUserRole ?? normalizeRole(user.role as AppRole | LegacyAppRole) ?? undefined
 
       // Get current store IDs for drivers from store_users
       const currentStoreIds = user.store_users
         ?.filter(su => su.role === 'Driver')
         .map(su => su.store_id) ?? []
 
-      // Get store_id from store_users based on role (not from deprecated profiles.store_id)
-      // For Owner/Manager/Staff, find their store_users entry matching their role
-      const storeUserEntry = user.store_users?.find(su => su.role === normalizedRole)
-      const currentStoreId = storeUserEntry?.store_id ?? user.store_id ?? undefined
+      // Get store_id from the store_users entry (not from deprecated profiles.store_id)
+      const currentStoreId = user.store_users?.[0]?.store_id ?? user.store_id ?? undefined
 
       form.reset({
         fullName: user.full_name ?? '',
