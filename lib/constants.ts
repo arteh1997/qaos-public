@@ -71,8 +71,12 @@ export const PERMISSIONS = {
   VIEW_DETAILED_REPORTS: ['Owner', 'Manager'] as AppRole[],
 
   // Billing permissions
-  MANAGE_BILLING: ['Owner'] as AppRole[],
-  VIEW_BILLING: ['Owner'] as AppRole[],
+  // NOTE: These role-based permissions are a fallback. Billing access should
+  // ALWAYS check is_billing_owner === true on the store_users entry, not just role.
+  // Only the billing owner (the person who pays) should access billing.
+  // Co-Owners (role='Owner' but is_billing_owner=false) should NOT have billing access.
+  MANAGE_BILLING: [] as AppRole[], // Must check is_billing_owner directly
+  VIEW_BILLING: [] as AppRole[], // Must check is_billing_owner directly
 } as const
 
 // Route configurations
@@ -103,7 +107,6 @@ export const INVITABLE_ROLES_BY_ROLE: Record<AppRole, AppRole[]> = {
 export const PROTECTED_ROUTES = [
   '/',
   '/inventory',
-  '/stores',
   '/users',
   '/reports',
   '/shifts',
@@ -117,7 +120,6 @@ export const ROLE_ROUTES: Record<AppRole, string[]> = {
   Owner: [
     '/',
     '/inventory',
-    '/stores',
     '/users',
     '/shifts',
     '/reports',
@@ -129,7 +131,6 @@ export const ROLE_ROUTES: Record<AppRole, string[]> = {
   Manager: [
     '/',
     '/inventory',
-    '/stores',
     '/users',
     '/shifts',
     '/reports',
@@ -139,7 +140,6 @@ export const ROLE_ROUTES: Record<AppRole, string[]> = {
   ],
   Driver: [
     '/',
-    '/stores',
     '/reports',
     '/reports/daily-summary',
     '/reports/low-stock',
@@ -147,7 +147,6 @@ export const ROLE_ROUTES: Record<AppRole, string[]> = {
   ],
   Staff: [
     '/',
-    '/stores',
     '/my-shifts',
   ],
 }

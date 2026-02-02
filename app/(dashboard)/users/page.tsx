@@ -36,12 +36,12 @@ const FILTER_DEFAULTS = {
   search: '',
   role: 'all',
   status: 'all',
-  storeId: 'all',
   page: 1,
 }
 
 function UsersPageContent() {
   const { currentStore, role: currentUserRole } = useAuth()
+  const currentStoreId = currentStore?.store_id
   const { stores, isLoading: storesLoading } = useStores()
   const { invites: pendingInvites, cancelInvite, resendInvite, refetch: refetchInvites } = usePendingInvites()
   const [pendingInvitesOpen, setPendingInvitesOpen] = useState(true)
@@ -67,12 +67,12 @@ function UsersPageContent() {
     return () => clearTimeout(timer)
   }, [searchInput, filters.search, setFilter])
 
-  // Build filters for the hook
+  // Build filters for the hook - always filter by current store
   const usersFilters: UsersFilters = {
     search: filters.search,
     role: filters.role as AppRole | 'all',
     status: filters.status as UserStatus | 'all',
-    storeId: filters.storeId as string | 'all',
+    storeId: currentStoreId || 'all',  // Always use current store
     page: filters.page,
   }
 
@@ -167,13 +167,27 @@ function UsersPageContent() {
     )
   }
 
+  // No store selected - prompt user to select one
+  if (!currentStore) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+          <p className="text-muted-foreground">
+            Please select a store from the sidebar to view its team members.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Team Members</h1>
           <p className="text-muted-foreground">
-            Manage user accounts and permissions
+            Manage team members at {currentStore.store?.name}
           </p>
         </div>
         <Button onClick={() => setInviteFormOpen(true)}>
@@ -222,22 +236,6 @@ function UsersPageContent() {
             <SelectItem value="Inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
-        <Select
-          value={filters.storeId}
-          onValueChange={(value) => setFilter('storeId', value)}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All Stores" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Stores</SelectItem>
-            {stores.filter(s => s.is_active).map((store) => (
-              <SelectItem key={store.id} value={store.id}>
-                {store.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Pending Invitations Section */}
@@ -267,7 +265,7 @@ function UsersPageContent() {
 
       <UsersTable
         users={users}
-        selectedStoreId={filters.storeId !== 'all' ? filters.storeId : undefined}
+        selectedStoreId={currentStoreId}
         onInvite={() => setInviteFormOpen(true)}
         onEdit={handleEdit}
         onDeactivate={handleDeactivate}

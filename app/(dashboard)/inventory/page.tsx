@@ -1,8 +1,8 @@
 'use client'
 
 import { Suspense, useState, useRef, useEffect, useCallback } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import { useInventory } from '@/hooks/useInventory'
-import { useStores } from '@/hooks/useStores'
 import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { InventoryTable } from '@/components/tables/InventoryTable'
 import { InventoryItemForm } from '@/components/forms/InventoryItemForm'
@@ -19,7 +19,7 @@ import {
 import { InventoryItem, StoreInventory } from '@/types'
 import { InventoryItemFormData } from '@/lib/validations/inventory'
 import { INVENTORY_CATEGORIES } from '@/lib/constants'
-import { Plus, Search, Upload, Download, Store } from 'lucide-react'
+import { Plus, Search, Upload, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
 import { supabaseFetch } from '@/lib/supabase/client'
@@ -27,12 +27,12 @@ import { supabaseFetch } from '@/lib/supabase/client'
 const FILTER_DEFAULTS = {
   search: '',
   category: '',
-  store: '',
 }
 
 function InventoryPageContent() {
+  const { currentStore } = useAuth()
+  const currentStoreId = currentStore?.store_id
   const { items, isLoading, error, createItem, updateItem, deleteItem } = useInventory()
-  const { stores, isLoading: storesLoading } = useStores({ status: 'active' })
 
   // URL-based filter state
   const { filters, setFilter } = useUrlFilters({ defaults: FILTER_DEFAULTS })
@@ -76,14 +76,14 @@ function InventoryPageContent() {
     }
   }, [])
 
-  // Fetch store inventory when store filter changes
+  // Fetch store inventory when current store changes
   useEffect(() => {
-    if (filters.store && filters.store !== 'all') {
-      fetchStoreInventory(filters.store)
+    if (currentStoreId) {
+      fetchStoreInventory(currentStoreId)
     } else {
       setStoreInventoryItems(new Set())
     }
-  }, [filters.store, fetchStoreInventory])
+  }, [currentStoreId, fetchStoreInventory])
 
   // Sync search input when URL changes
   useEffect(() => {
@@ -109,8 +109,8 @@ function InventoryPageContent() {
       ? item.category === filters.category
       : true
 
-    // Filter by store if a store is selected
-    const matchesStore = filters.store && filters.store !== 'all'
+    // Filter by current store if one is selected
+    const matchesStore = currentStoreId
       ? storeInventoryItems.has(item.id)
       : true
 
@@ -224,7 +224,7 @@ function InventoryPageContent() {
     )
   }
 
-  if (isLoading || storesLoading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <PageHeaderSkeleton />
@@ -233,13 +233,27 @@ function InventoryPageContent() {
     )
   }
 
+  // No store selected - prompt user to select one
+  if (!currentStore) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Inventory Items</h1>
+          <p className="text-muted-foreground">
+            Please select a store from the sidebar to view its inventory.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inventory Items</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
           <p className="text-muted-foreground">
-            Manage your master inventory list
+            Inventory items at {currentStore.store?.name}
           </p>
         </div>
         <div className="flex gap-2">
@@ -276,23 +290,6 @@ function InventoryPageContent() {
           />
         </div>
         <Select
-          value={filters.store || 'all'}
-          onValueChange={(value) => setFilter('store', value === 'all' ? '' : value)}
-        >
-          <SelectTrigger className="w-full sm:w-48">
-            <Store className="mr-2 h-4 w-4 text-muted-foreground" />
-            <SelectValue placeholder="All Stores" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Stores</SelectItem>
-            {stores.map((store) => (
-              <SelectItem key={store.id} value={store.id}>
-                {store.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
           value={filters.category || 'all'}
           onValueChange={(value) => setFilter('category', value === 'all' ? '' : value)}
         >
@@ -310,18 +307,12 @@ function InventoryPageContent() {
         </Select>
       </div>
 
-      {/* Show indicator when filtering by store */}
-      {filters.store && filters.store !== 'all' && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Store className="h-4 w-4" />
-          <span>
-            Showing {storeInventoryLoading ? '...' : filteredItems.length} items assigned to{' '}
-            <span className="font-medium text-foreground">
-              {stores.find(s => s.id === filters.store)?.name || 'selected store'}
-            </span>
-          </span>
-        </div>
-      )}
+      {/* Show indicator for store-scoped view */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span>
+          Showing {storeInventoryLoading ? '...' : filteredItems.length} items
+        </span>
+      </div>
 
       <InventoryTable
         items={filteredItems}

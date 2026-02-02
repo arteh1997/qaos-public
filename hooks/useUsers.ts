@@ -74,15 +74,21 @@ export function useUsers(filters: UsersFilters = {}) {
       const from = (page - 1) * PAGE_SIZE
       const to = from + PAGE_SIZE - 1
 
-      // Build the store_users filter for store-specific queries
+      // Build the store_users select for store-specific queries
       // Include store name for display purposes
       // Must specify the foreign key relationship explicitly since there are two FKs (user_id and invited_by)
-      const storeUsersFilter = storeId && storeId !== 'all'
-        ? `store_users!store_users_user_id_fkey!inner(store_id,role,is_billing_owner,store:stores(id,name))&store_users.store_id=eq.${storeId}`
+      // Use !inner join to only return profiles that have a store_users entry for the selected store
+      const storeUsersSelect = storeId && storeId !== 'all'
+        ? 'store_users!store_users_user_id_fkey!inner(store_id,role,is_billing_owner,store:stores(id,name))'
         : 'store_users!store_users_user_id_fkey(store_id,role,is_billing_owner,store:stores(id,name))'
 
+      // Add the store_id filter as a query parameter (not in select string)
+      if (storeId && storeId !== 'all') {
+        filter['store_users.store_id'] = `eq.${storeId}`
+      }
+
       const { data, error: fetchError, count } = await supabaseFetch<UserWithStoreInfo>('profiles', {
-        select: `*,store:stores!profiles_store_id_fkey(*),${storeUsersFilter}`,
+        select: `*,store:stores!profiles_store_id_fkey(*),${storeUsersSelect}`,
         order: 'full_name',
         filter,
         range: { from, to },
@@ -108,12 +114,24 @@ export function useUsers(filters: UsersFilters = {}) {
   }, [fetchUsers])
 
   const updateUser = useCallback(async ({ id, data }: { id: string; data: UpdateUserData }) => {
+    // Check if user is a billing owner - they cannot have role/status changed
+    const targetUser = users.find(u => u.id === id)
+    const isBillingOwner = targetUser?.store_users?.some(su => su.is_billing_owner) ?? false
+
+    if (isBillingOwner) {
+      // Billing owners can only have their name changed
+      if (data.role !== undefined || data.status !== undefined || data.store_id !== undefined) {
+        toast.error('Cannot change role, status, or store of billing owner')
+        return
+      }
+    }
+
     // Filter out undefined values for profile update
     const updateData: Record<string, unknown> = {}
     if (data.full_name !== undefined) updateData.full_name = data.full_name
-    if (data.role !== undefined) updateData.role = data.role
-    if (data.store_id !== undefined) updateData.store_id = data.store_id
-    if (data.status !== undefined) updateData.status = data.status
+    if (data.role !== undefined && !isBillingOwner) updateData.role = data.role
+    if (data.store_id !== undefined && !isBillingOwner) updateData.store_id = data.store_id
+    if (data.status !== undefined && !isBillingOwner) updateData.status = data.status
 
     // Optimistic update
     setUsers(prev => prev.map(user =>
@@ -167,9 +185,18 @@ export function useUsers(filters: UsersFilters = {}) {
       toast.error('Failed to update user: ' + sanitizeErrorMessage(err))
       throw err
     }
-  }, [fetchUsers])
+  }, [fetchUsers, users])
 
   const deactivateUser = useCallback(async (id: string) => {
+    // Check if user is a billing owner - they cannot be deactivated
+    const targetUser = users.find(u => u.id === id)
+    const isBillingOwner = targetUser?.store_users?.some(su => su.is_billing_owner) ?? false
+
+    if (isBillingOwner) {
+      toast.error('Cannot deactivate billing owner')
+      return
+    }
+
     // Optimistic update
     setUsers(prev => prev.map(user =>
       user.id === id ? { ...user, status: 'Inactive' as UserStatus } : user
@@ -185,7 +212,7 @@ export function useUsers(filters: UsersFilters = {}) {
       toast.error('Failed to deactivate user: ' + sanitizeErrorMessage(err))
       throw err
     }
-  }, [fetchUsers])
+  }, [fetchUsers, users])
 
   const activateUser = useCallback(async (id: string) => {
     // Optimistic update

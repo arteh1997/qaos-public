@@ -66,8 +66,8 @@ export function StoreForm({
       name: '',
       address: '',
       is_active: true,
-      opening_time: null,
-      closing_time: null,
+      opening_time: '09:00', // Default to 9am with :00 minutes for easier adjustment
+      closing_time: '22:00', // Default to 10pm with :00 minutes for easier adjustment
       weekly_hours: null,
     },
   })
@@ -83,8 +83,8 @@ export function StoreForm({
         name: store?.name ?? '',
         address: store?.address ?? '',
         is_active: store?.is_active ?? true,
-        opening_time: store?.opening_time ?? null,
-        closing_time: store?.closing_time ?? null,
+        opening_time: store?.opening_time ?? '09:00', // Default with :00 minutes
+        closing_time: store?.closing_time ?? '22:00', // Default with :00 minutes
         weekly_hours: store?.weekly_hours ?? null,
       })
     }

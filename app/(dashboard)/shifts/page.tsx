@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useState, useMemo } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import { useShifts } from '@/hooks/useShifts'
 import { useStores } from '@/hooks/useStores'
 import { useUsers } from '@/hooks/useUsers'
@@ -10,13 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ShiftsTableSkeleton, PageHeaderSkeleton } from '@/components/ui/skeletons'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -50,7 +44,6 @@ import { Shift } from '@/types'
 import { ShiftFormData } from '@/lib/validations/shift'
 
 const FILTER_DEFAULTS = {
-  store: '',
   date: '',
 }
 
@@ -124,7 +117,10 @@ function getShiftStatus(shift: Shift) {
 }
 
 function ShiftsPageContent() {
-  // URL-based filter state
+  const { currentStore } = useAuth()
+  const currentStoreId = currentStore?.store_id
+
+  // URL-based filter state (only date filter now)
   const { filters, setFilter } = useUrlFilters({ defaults: FILTER_DEFAULTS })
 
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -135,11 +131,11 @@ function ShiftsPageContent() {
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
 
   const { stores, isLoading: storesLoading } = useStores({ status: 'active' })
-  const { users, isLoading: usersLoading } = useUsers({ status: 'Active' })
+  // Filter users to current store
+  const { users, isLoading: usersLoading } = useUsers({ status: 'Active', storeId: currentStoreId || 'all' })
 
-  // Convert empty string to null for the hook
-  const selectedStoreId = filters.store || null
-  const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift } = useShifts(selectedStoreId)
+  // Fetch shifts for current store only
+  const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift } = useShifts(currentStoreId || null)
 
   const isLoading = storesLoading || usersLoading || shiftsLoading
 
@@ -237,13 +233,27 @@ function ShiftsPageContent() {
     setDeleteShiftId(null)
   }
 
+  // No store selected - prompt user to select one
+  if (!currentStore) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Shifts Management</h1>
+          <p className="text-sm text-muted-foreground">
+            Please select a store from the sidebar to view its shifts.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Shifts Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Shifts</h1>
           <p className="text-sm text-muted-foreground">
-            Schedule and manage staff shifts across all stores
+            Manage staff shifts at {currentStore.store?.name}
           </p>
         </div>
         <div className="flex gap-2">
@@ -286,25 +296,6 @@ function ShiftsPageContent() {
                     Clear
                   </Button>
                 )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Store:</span>
-                <Select
-                  value={filters.store || 'all'}
-                  onValueChange={(value) => setFilter('store', value === 'all' ? '' : value)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="All stores" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All stores</SelectItem>
-                    {stores.map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
-                        {store.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>
@@ -533,6 +524,7 @@ function ShiftsPageContent() {
         users={users}
         onSubmit={handleCreateShift}
         isLoading={isCreating}
+        initialStoreId={currentStoreId}
       />
 
       <ShiftForm
@@ -543,6 +535,7 @@ function ShiftsPageContent() {
         users={users}
         onSubmit={handleUpdateShift}
         isLoading={isUpdating}
+        initialStoreId={currentStoreId}
       />
 
       <AlertDialog open={!!deleteShiftId} onOpenChange={(open) => !open && setDeleteShiftId(null)}>

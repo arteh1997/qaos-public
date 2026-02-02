@@ -78,12 +78,12 @@ export function DriverDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground mb-3">
-              Select a store to record a delivery
+              Click a store below to record a delivery
             </p>
-            <Link href="/stores">
-              <Button className="w-full">
+            <Link href="/reports">
+              <Button className="w-full" variant="outline">
                 <Truck className="mr-2 h-4 w-4" />
-                Record Delivery
+                View All Deliveries
               </Button>
             </Link>
           </CardContent>
@@ -131,12 +131,6 @@ export function DriverDashboard() {
             <CardTitle className="text-base">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Link href="/stores">
-              <Button variant="outline" className="w-full justify-between">
-                View All Stores
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
             <Link href="/reports">
               <Button variant="outline" className="w-full justify-between">
                 View Reports
@@ -149,22 +143,23 @@ export function DriverDashboard() {
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
+            <Link href="/reports/daily-summary">
+              <Button variant="outline" className="w-full justify-between">
+                Stock Summary
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">All Stores</h2>
-          <Link href="/stores">
-            <Button variant="ghost" size="sm">
-              View All
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+          <h2 className="text-lg font-semibold">Your Stores</h2>
+          <p className="text-sm text-muted-foreground">Click to switch store</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {activeStores.slice(0, 6).map((store) => (
+          {activeStores.map((store) => (
             <StoreCard key={store.id} store={store} />
           ))}
         </div>

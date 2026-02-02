@@ -55,8 +55,8 @@ export default function NewStorePage() {
       // Refresh auth context to get the new store
       await refreshProfile()
 
-      // Redirect to stores list or dashboard
-      router.push('/stores')
+      // Redirect to dashboard
+      router.push('/')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Something went wrong')
     } finally {
@@ -68,7 +68,7 @@ export default function NewStorePage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/stores">
+        <Link href="/">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>

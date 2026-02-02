@@ -9,6 +9,7 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { storeSchema } from '@/lib/validations/store'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Store } from '@/types'
 
 /**
@@ -123,8 +124,13 @@ export async function POST(request: NextRequest) {
       billing_user_id: context.user.id,
     }
 
+    // Use admin client to bypass RLS for this trusted server operation
+    // We've already verified the user's identity and permissions above
+    const adminClient = createAdminClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: store, error: storeError } = await (context.supabase as any)
+    const adminAny = adminClient as any
+
+    const { data: store, error: storeError } = await adminAny
       .from('stores')
       .insert(storeData)
       .select()
@@ -133,8 +139,7 @@ export async function POST(request: NextRequest) {
     if (storeError) throw storeError
 
     // Add the user as Owner of this store in store_users
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: membershipError } = await (context.supabase as any)
+    const { error: membershipError } = await adminAny
       .from('store_users')
       .insert({
         store_id: store.id,
@@ -145,15 +150,13 @@ export async function POST(request: NextRequest) {
 
     if (membershipError) {
       // Rollback: delete the store if we couldn't create the membership
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (context.supabase as any).from('stores').delete().eq('id', store.id)
+      await adminAny.from('stores').delete().eq('id', store.id)
       throw membershipError
     }
 
     // If this is onboarding (first store), update the profile's default_store_id
     if (isOnboarding) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (context.supabase as any)
+      await adminAny
         .from('profiles')
         .update({
           default_store_id: store.id,

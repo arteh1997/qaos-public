@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useLayoutEffect } from 'react'
 
 type KeyCombo = string // e.g., 'ctrl+k', 'meta+shift+p', 'escape', 'enter'
 type ShortcutHandler = (event: KeyboardEvent) => void
@@ -34,6 +34,16 @@ function parseKeyCombo(combo: KeyCombo) {
  * Check if a keyboard event matches a key combo
  */
 function matchesKeyCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
+  // Guard against undefined or invalid combo
+  if (!combo || typeof combo !== 'string') {
+    return false
+  }
+
+  // Guard against undefined event.key (can happen with some input methods)
+  if (!event.key) {
+    return false
+  }
+
   const { key, modifiers } = parseKeyCombo(combo)
 
   const eventKey = event.key.toLowerCase()
@@ -82,11 +92,18 @@ function isInputElement(target: EventTarget | null): boolean {
 export function useKeyboardShortcuts(shortcuts: ShortcutConfig[]) {
   // Use ref to avoid recreating listener on every render
   const shortcutsRef = useRef(shortcuts)
-  shortcutsRef.current = shortcuts
+
+  // Update ref in effect to avoid updating during render
+  useLayoutEffect(() => {
+    shortcutsRef.current = shortcuts
+  })
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       for (const shortcut of shortcutsRef.current) {
+        // Skip invalid shortcuts
+        if (!shortcut || !shortcut.key) continue
+
         if (matchesKeyCombo(event, shortcut.key)) {
           // Skip if in input and not allowed
           if (!shortcut.allowInInput && isInputElement(event.target)) {
@@ -117,7 +134,11 @@ export function useKeyboardShortcut(
   options: Omit<ShortcutConfig, 'key' | 'handler'> = {}
 ) {
   const handlerRef = useRef(handler)
-  handlerRef.current = handler
+
+  // Update ref in effect to avoid updating during render
+  useLayoutEffect(() => {
+    handlerRef.current = handler
+  })
 
   const stableHandler = useCallback((event: KeyboardEvent) => {
     handlerRef.current(event)

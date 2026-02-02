@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 // Landing page components
 import {
@@ -26,6 +26,16 @@ import { DriverDashboard } from '@/components/dashboard/DriverDashboard'
 import { StaffDashboard } from '@/components/dashboard/StaffDashboard'
 import { Skeleton } from '@/components/ui/skeleton'
 
+// Check if there's an auth cookie present (indicates user might be logged in)
+function hasAuthCookie(): boolean {
+  if (typeof document === 'undefined') return false
+  const cookies = document.cookie.split(';')
+  return cookies.some(cookie => {
+    const trimmed = cookie.trim()
+    return trimmed.startsWith('sb-') && trimmed.includes('auth-token')
+  })
+}
+
 /**
  * Smart Home Page
  *
@@ -40,6 +50,17 @@ export default function HomePage() {
   const router = useRouter()
   const { user, role, isLoading, stores } = useAuth()
 
+  // Track if we've detected an auth cookie - prevents flash of landing page after login
+  // Initialize with actual check to avoid flash on first render
+  const [hasCookie, setHasCookie] = useState(() => hasAuthCookie())
+
+  // Re-check cookie when auth state changes (handles logout clearing cookies)
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setHasCookie(hasAuthCookie())
+    }
+  }, [isLoading, user])
+
   // Redirect to onboarding if user has no stores
   useEffect(() => {
     if (!isLoading && user && stores && stores.length === 0) {
@@ -47,8 +68,10 @@ export default function HomePage() {
     }
   }, [isLoading, user, stores, router])
 
-  // Show loading state
-  if (isLoading) {
+  // Show loading state while auth is loading
+  // Also show loading if there's an auth cookie but user isn't loaded yet
+  // (prevents flash of landing page after login)
+  if (isLoading || (hasCookie && !user)) {
     return <LoadingSkeleton />
   }
 

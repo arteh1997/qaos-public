@@ -79,6 +79,13 @@ function getStoreRoleDisplay(su: StoreUserWithStore): string {
 }
 
 /**
+ * Check if user is the billing owner (cannot be deactivated or have role changed)
+ */
+function isBillingOwner(user: UserWithStore): boolean {
+  return user.store_users?.some(su => su.is_billing_owner) ?? false
+}
+
+/**
  * Get the stores display for a user
  * - If selectedStoreId is provided, show that store name
  * - If no selectedStoreId, show all store names
@@ -299,9 +306,9 @@ export const UsersTable = memo(function UsersTable({
     setSelectedIds(new Set())
   }, [])
 
-  // Count active/inactive in selection
-  const activeInSelection = selectedUsers.filter(u => u.status === 'Active').length
-  const inactiveInSelection = selectedUsers.filter(u => u.status === 'Inactive').length
+  // Count active/inactive in selection (exclude billing owners from deactivation count)
+  const activeInSelection = selectedUsers.filter(u => u.status === 'Active' && !isBillingOwner(u)).length
+  const inactiveInSelection = selectedUsers.filter(u => u.status === 'Inactive' && !isBillingOwner(u)).length
 
   const roleColors: Record<string, string> = {
     Owner: 'bg-amber-500',
@@ -407,7 +414,8 @@ export const UsersTable = memo(function UsersTable({
                           <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
                           Edit
                         </DropdownMenuItem>
-                        {user.status === 'Active' ? (
+                        {/* Hide Deactivate/Activate for billing owners */}
+                        {!isBillingOwner(user) && user.status === 'Active' && (
                           <DropdownMenuItem
                             onClick={() => {
                               setActionUser(user)
@@ -418,7 +426,8 @@ export const UsersTable = memo(function UsersTable({
                             <UserX className="mr-2 h-4 w-4" aria-hidden="true" />
                             Deactivate
                           </DropdownMenuItem>
-                        ) : user.status === 'Inactive' && (
+                        )}
+                        {!isBillingOwner(user) && user.status === 'Inactive' && (
                           <DropdownMenuItem
                             onClick={() => {
                               setActionUser(user)
@@ -564,7 +573,8 @@ export const UsersTable = memo(function UsersTable({
                           <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
                           Edit
                         </DropdownMenuItem>
-                        {user.status === 'Active' ? (
+                        {/* Hide Deactivate/Activate for billing owners */}
+                        {!isBillingOwner(user) && user.status === 'Active' && (
                           <DropdownMenuItem
                             onClick={() => {
                               setActionUser(user)
@@ -575,7 +585,8 @@ export const UsersTable = memo(function UsersTable({
                             <UserX className="mr-2 h-4 w-4" aria-hidden="true" />
                             Deactivate
                           </DropdownMenuItem>
-                        ) : user.status === 'Inactive' && (
+                        )}
+                        {!isBillingOwner(user) && user.status === 'Inactive' && (
                           <DropdownMenuItem
                             onClick={() => {
                               setActionUser(user)

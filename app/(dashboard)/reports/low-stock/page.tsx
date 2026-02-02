@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useState, useMemo, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { useStores } from '@/hooks/useStores'
+import { useAuth } from '@/hooks/useAuth'
+import { useStoreSetupStatus } from '@/hooks/useStoreSetupStatus'
 import { useLowStockReport } from '@/hooks/useReports'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -17,14 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { ArrowLeft, AlertTriangle, Download, ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Download, ArrowUp, ArrowDown, Package } from 'lucide-react'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
 import { toast } from 'sonner'
 import { LowStockItem } from '@/types'
@@ -215,25 +208,19 @@ function LowStockTable({ items, storeId }: LowStockTableProps) {
 }
 
 function LowStockPageContent() {
-  const searchParams = useSearchParams()
-  const storeParam = searchParams.get('store')
-  const [selectedStore, setSelectedStore] = useState<string>(storeParam || '')
-  const { stores, isLoading: storesLoading } = useStores()
+  const { currentStore } = useAuth()
+  const currentStoreId = currentStore?.store_id
+
+  // Check store setup status
+  const { status: setupStatus, isLoading: setupLoading } = useStoreSetupStatus(currentStoreId || null)
   const { data: lowStockItems, isLoading: reportLoading } = useLowStockReport()
 
-  // Update selected store when URL param changes
-  useEffect(() => {
-    if (storeParam) {
-      setSelectedStore(storeParam)
-    }
-  }, [storeParam])
+  const isLoading = reportLoading || setupLoading
 
-  const isLoading = storesLoading || reportLoading
-
-  // Filter by selected store
-  const filteredItems = selectedStore && selectedStore !== 'all'
-    ? (lowStockItems ?? []).filter(item => item.store_id === selectedStore)
-    : lowStockItems ?? []
+  // Filter by current store
+  const filteredItems = currentStoreId
+    ? (lowStockItems ?? []).filter(item => item.store_id === currentStoreId)
+    : []
 
   const handleExport = () => {
     if (filteredItems.length === 0) {
@@ -253,18 +240,6 @@ function LowStockPageContent() {
     toast.success(`Exported ${filteredItems.length} items`)
   }
 
-  // Group by store
-  const itemsByStore = filteredItems.reduce((acc, item) => {
-    if (!acc[item.store_id]) {
-      acc[item.store_id] = {
-        store_name: item.store_name,
-        items: [],
-      }
-    }
-    acc[item.store_id].items.push(item)
-    return acc
-  }, {} as Record<string, { store_name: string; items: typeof filteredItems }>)
-
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -274,6 +249,66 @@ function LowStockPageContent() {
         </div>
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-96" />
+      </div>
+    )
+  }
+
+  // No store selected - prompt user to select one
+  if (!currentStore) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <Link href="/reports">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Low Stock Report</h1>
+            <p className="text-sm text-muted-foreground">
+              Please select a store from the sidebar to view its low stock report.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Store hasn't completed setup - prompt to complete
+  if (!setupStatus.isSetupComplete) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <Link href="/reports">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Low Stock Report</h1>
+            <p className="text-sm text-muted-foreground">
+              Items below PAR level at {currentStore.store?.name}
+            </p>
+          </div>
+        </div>
+
+        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
+          <CardContent className="py-12 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
+              <Package className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Complete Store Setup</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              You need to add inventory items to your store before you can view reports.
+              Complete the store setup to start tracking stock.
+            </p>
+            <Link href="/">
+              <Button>
+                Go to Store Setup
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -289,28 +324,12 @@ function LowStockPageContent() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Low Stock Report</h1>
           <p className="text-sm text-muted-foreground">
-            Items below their PAR level
+            Items below PAR level at {currentStore.store?.name}
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-        <Select value={selectedStore} onValueChange={setSelectedStore}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="All Stores" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Stores</SelectItem>
-            {stores
-              .filter(s => s.is_active)
-              .map((store) => (
-                <SelectItem key={store.id} value={store.id}>
-                  {store.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-
         <Badge variant={filteredItems.length > 0 ? 'destructive' : 'secondary'}>
           {filteredItems.length} low stock items
         </Badge>
@@ -335,21 +354,11 @@ function LowStockPageContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {Object.entries(itemsByStore).map(([storeId, { store_name, items }]) => (
-            <Card key={storeId}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{store_name}</span>
-                  <Badge variant="destructive">{items.length} items</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LowStockTable items={items} storeId={storeId} />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <LowStockTable items={filteredItems} storeId={currentStoreId || ''} />
+          </CardContent>
+        </Card>
       )}
     </div>
   )

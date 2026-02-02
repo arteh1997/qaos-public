@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseInsert, supabaseUpdate, supabaseDelete } from '@/lib/supabase/client'
+import { supabaseFetch, supabaseUpdate, supabaseDelete } from '@/lib/supabase/client'
 import { Store } from '@/types'
 import { StoreFormData } from '@/lib/validations/store'
 import { sanitizeSearchInput, sanitizeErrorMessage } from '@/lib/utils'
@@ -98,9 +98,18 @@ export function useStores(filters: StoresFilters = {}) {
     setTotalCount(prev => prev + 1)
 
     try {
-      const { error } = await supabaseInsert('stores', formData)
+      // Use API route which properly sets billing_user_id and creates store_users entry
+      const response = await fetch('/api/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create store')
+      }
+
       toast.success('Store created successfully')
       fetchStores()
     } catch (err) {

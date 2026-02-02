@@ -32,13 +32,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Loader2 } from 'lucide-react'
-import { INVITE_ROLES, INVITE_ROLE_LABELS, INVITE_ROLE_DESCRIPTIONS, SINGLE_STORE_ROLES } from '@/lib/constants'
+import { INVITE_ROLES, INVITE_ROLE_LABELS, INVITE_ROLE_DESCRIPTIONS, SINGLE_STORE_ROLES, ROLE_LABELS } from '@/lib/constants'
 import { AppRole, LegacyAppRole } from '@/types'
 import { normalizeRole } from '@/lib/auth'
 
-// Extended profile type with store_users for getting current driver stores
+// Extended profile type with store_users for getting current driver stores and billing owner status
 type ProfileWithStoreUsers = Profile & {
-  store_users?: Pick<StoreUser, 'store_id' | 'role'>[]
+  store_users?: Pick<StoreUser, 'store_id' | 'role' | 'is_billing_owner'>[]
 }
 
 interface UserFormProps {
@@ -80,10 +80,15 @@ export function UserForm({
         ?.filter(su => su.role === 'Driver')
         .map(su => su.store_id) ?? []
 
+      // Get store_id from store_users based on role (not from deprecated profiles.store_id)
+      // For Owner/Manager/Staff, find their store_users entry matching their role
+      const storeUserEntry = user.store_users?.find(su => su.role === normalizedRole)
+      const currentStoreId = storeUserEntry?.store_id ?? user.store_id ?? undefined
+
       form.reset({
         fullName: user.full_name ?? '',
         role: normalizedRole,
-        storeId: user.store_id ?? undefined,
+        storeId: currentStoreId,
         storeIds: currentStoreIds,
         status: user.status,
       })
@@ -91,6 +96,9 @@ export function UserForm({
   }, [user, open, form])
 
   const selectedRole = form.watch('role')
+
+  // Check if user is a billing owner (cannot have their role changed)
+  const isBillingOwner = user?.store_users?.some(su => su.is_billing_owner) ?? false
 
   const handleOpenChange = (newOpen: boolean) => {
     onOpenChange(newOpen)
@@ -144,22 +152,42 @@ export function UserForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Role</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  {isBillingOwner ? (
+                    // For billing owner, show a disabled input with "Owner" text
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
+                      <Input
+                        value="Owner"
+                        disabled
+                        className="opacity-60"
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {INVITE_ROLES.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {INVITE_ROLE_LABELS[role]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  ) : (
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {INVITE_ROLES.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {INVITE_ROLE_LABELS[role]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormDescription>
-                    {selectedRole && INVITE_ROLE_DESCRIPTIONS[selectedRole as AppRole]}
+                    {isBillingOwner ? (
+                      <span className="text-amber-600 dark:text-amber-500">
+                        This user is the billing owner and their role cannot be changed.
+                      </span>
+                    ) : (
+                      selectedRole && INVITE_ROLE_DESCRIPTIONS[selectedRole as AppRole]
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -171,38 +199,62 @@ export function UserForm({
               <FormField
                 control={form.control}
                 name="storeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {selectedRole === 'Owner' ? 'Store to Co-Own' : 'Assigned Store'}
-                    </FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value || ''}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select store" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {stores
-                          .filter(s => s.is_active)
-                          .map((store) => (
-                            <SelectItem key={store.id} value={store.id}>
-                              {store.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      {selectedRole === 'Owner' && 'Co-owners have full access to the store but cannot remove the billing owner'}
-                      {selectedRole === 'Manager' && 'Managers are assigned to a specific store'}
-                      {selectedRole === 'Staff' && 'Staff members must be assigned to a specific store'}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  // Get the current store name for billing owner display
+                  const currentStoreName = stores.find(s => s.id === field.value)?.name || 'Unknown Store'
+
+                  return (
+                    <FormItem>
+                      <FormLabel>
+                        {isBillingOwner ? 'Owned Store' : (selectedRole === 'Owner' ? 'Store to Co-Own' : 'Assigned Store')}
+                      </FormLabel>
+                      {isBillingOwner ? (
+                        // For billing owner, show a disabled input with store name
+                        <FormControl>
+                          <Input
+                            value={currentStoreName}
+                            disabled
+                            className="opacity-60"
+                          />
+                        </FormControl>
+                      ) : (
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || ''}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select store" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {stores
+                              .filter(s => s.is_active)
+                              .map((store) => (
+                                <SelectItem key={store.id} value={store.id}>
+                                  {store.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <FormDescription>
+                        {isBillingOwner ? (
+                          <span className="text-amber-600 dark:text-amber-500">
+                            This is the store the billing owner pays for. It cannot be changed.
+                          </span>
+                        ) : (
+                          <>
+                            {selectedRole === 'Owner' && 'Co-owners have full access to the store but cannot remove the billing owner'}
+                            {selectedRole === 'Manager' && 'Managers are assigned to a specific store'}
+                            {selectedRole === 'Staff' && 'Staff members must be assigned to a specific store'}
+                          </>
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }}
               />
             )}
 
@@ -259,9 +311,13 @@ export function UserForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={isBillingOwner}
+                  >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className={isBillingOwner ? 'opacity-60' : ''}>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
@@ -271,6 +327,13 @@ export function UserForm({
                       <SelectItem value="Invited">Invited</SelectItem>
                     </SelectContent>
                   </Select>
+                  {isBillingOwner && (
+                    <FormDescription>
+                      <span className="text-amber-600 dark:text-amber-500">
+                        Billing owner status cannot be changed.
+                      </span>
+                    </FormDescription>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

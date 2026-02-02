@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 import { AppRole, LegacyAppRole } from '@/types'
 import {
   LayoutDashboard,
-  Store,
   Package,
   Users,
   FileText,
@@ -19,12 +18,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { normalizeRole } from '@/lib/auth'
 import { StoreSelector } from './StoreSelector'
+import { useAuth } from '@/hooks/useAuth'
 
 interface NavItem {
   title: string
   href: string
   icon: React.ComponentType<{ className?: string }>
   roles: AppRole[]
+  requiresBillingOwner?: boolean // For billing-only items
 }
 
 // Navigation items with new role system
@@ -37,12 +38,6 @@ const navItems: NavItem[] = [
     title: 'Dashboard',
     href: '/',
     icon: LayoutDashboard,
-    roles: ['Owner', 'Manager', 'Driver', 'Staff'],
-  },
-  {
-    title: 'Stores',
-    href: '/stores',
-    icon: Store,
     roles: ['Owner', 'Manager', 'Driver', 'Staff'],
   },
   {
@@ -80,6 +75,7 @@ const navItems: NavItem[] = [
     href: '/billing',
     icon: CreditCard,
     roles: ['Owner'],
+    requiresBillingOwner: true, // Only the billing owner can access, not co-owners
   },
 ]
 
@@ -90,13 +86,25 @@ interface SidebarProps {
 export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const { currentStore } = useAuth()
 
   // Normalize legacy roles (Admin -> Owner)
   const normalizedRole = normalizeRole(role)
 
-  const filteredItems = navItems.filter(item =>
-    normalizedRole && item.roles.includes(normalizedRole)
-  )
+  // Check if current user is the billing owner of the current store
+  const isBillingOwner = currentStore?.is_billing_owner === true
+
+  const filteredItems = navItems.filter(item => {
+    // First check role access
+    if (!normalizedRole || !item.roles.includes(normalizedRole)) {
+      return false
+    }
+    // For billing items, also check if user is the billing owner
+    if (item.requiresBillingOwner && !isBillingOwner) {
+      return false
+    }
+    return true
+  })
 
   return (
     <aside

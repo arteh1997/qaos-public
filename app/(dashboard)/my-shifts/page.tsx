@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Clock, LogIn, LogOut, Calendar, List } from 'lucide-react'
-import { format, isToday, isFuture, isPast } from 'date-fns'
+import { format, isFuture, isPast } from 'date-fns'
 
 type ViewMode = 'calendar' | 'list'
 
@@ -20,7 +20,6 @@ export default function MyShiftsPage() {
   const { user } = useAuth()
   const {
     shifts,
-    currentShift,
     todayShifts,
     clockIn,
     clockOut,

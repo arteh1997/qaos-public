@@ -7,8 +7,8 @@ import { useUsers } from '@/hooks/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { Shift } from '@/types'
 import { TimelineView } from '@/components/timetable/TimelineView'
-import { QuickShiftModal } from '@/components/timetable/QuickShiftModal'
 import { ShiftForm } from '@/components/forms/ShiftForm'
+import { ShiftFormData } from '@/lib/validations/shift'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,7 +30,7 @@ interface QuickAddState {
 
 export default function ShiftTimetablePage() {
   const { role, canManageCurrentStore } = useAuth()
-  const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift } = useShifts()
+  const { shifts, isLoading: shiftsLoading, createShift, updateShift } = useShifts()
   const { stores, isLoading: storesLoading } = useStores()
   const { users, isLoading: usersLoading } = useUsers()
 
@@ -52,35 +52,27 @@ export default function ShiftTimetablePage() {
     setQuickAddOpen(true)
   }, [])
 
-  // Handle edit shift
-  const handleEditShift = useCallback((shift: Shift) => {
+  // Handle shift edit - unused for now but ready for TimelineView integration
+  // TODO: Wire up to TimelineView when edit-on-click is implemented
+  const _handleEditShift = useCallback((shift: Shift) => {
     setEditShift(shift)
     setEditFormOpen(true)
   }, [])
 
   // Handle quick add submit
-  const handleQuickAddSubmit = async (data: {
-    store_id: string
-    user_id: string
-    start_time: string
-    end_time: string
-  }) => {
+  const handleQuickAddSubmit = async (data: ShiftFormData) => {
     await createShift({
       store_id: data.store_id,
       user_id: data.user_id,
       start_time: data.start_time,
       end_time: data.end_time,
+      notes: data.notes,
     })
+    setQuickAddOpen(false)
   }
 
   // Handle edit submit
-  const handleEditSubmit = async (data: {
-    store_id: string
-    user_id: string
-    start_time: string
-    end_time: string
-    notes?: string
-  }) => {
+  const handleEditSubmit = async (data: ShiftFormData) => {
     if (!editShift) return
     await updateShift({
       id: editShift.id,
@@ -241,19 +233,17 @@ export default function ShiftTimetablePage() {
         </Card>
       </div>
 
-      {/* Quick Add Modal */}
-      {quickAddState && (
-        <QuickShiftModal
-          open={quickAddOpen}
-          onOpenChange={setQuickAddOpen}
-          date={quickAddState.date}
-          stores={stores}
-          staff={staffMembers}
-          preselectedStoreId={quickAddState.storeId}
-          preselectedStaffId={quickAddState.staffId}
-          onSubmit={handleQuickAddSubmit}
-        />
-      )}
+      {/* Add Shift Form */}
+      <ShiftForm
+        open={quickAddOpen}
+        onOpenChange={setQuickAddOpen}
+        stores={stores}
+        users={staffMembers}
+        onSubmit={handleQuickAddSubmit}
+        initialStoreId={quickAddState?.storeId}
+        initialDate={quickAddState?.date}
+        singleShiftMode={true}
+      />
 
       {/* Edit Form */}
       <ShiftForm

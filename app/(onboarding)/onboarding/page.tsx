@@ -19,7 +19,7 @@ const features = [
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { user, profile, stores, refreshProfile } = useAuth()
+  const { user, stores, refreshProfile } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [storeName, setStoreName] = useState('')
   const [storeAddress, setStoreAddress] = useState('')

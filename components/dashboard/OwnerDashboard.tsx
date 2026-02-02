@@ -1,12 +1,17 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState } from 'react'
 import Link from 'next/link'
-import { useStores } from '@/hooks/useStores'
+import { useAuth } from '@/hooks/useAuth'
 import { useUsers } from '@/hooks/useUsers'
 import { useMissingCounts, useLowStockReport, useStockHistory } from '@/hooks/useReports'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { useStoreSetupStatus } from '@/hooks/useStoreSetupStatus'
+import { supabaseUpdate } from '@/lib/supabase/client'
+import { canDoStockReception, canManageStores } from '@/lib/auth'
 import { StatsCard } from '@/components/cards/StatsCard'
+import { StoreForm } from '@/components/forms/StoreForm'
+import { StoreSetupWizard } from '@/components/store/setup'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,7 +23,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
-  Store,
   Users,
   AlertTriangle,
   Package,
@@ -26,29 +30,60 @@ import {
   History,
   Clock,
   RefreshCw,
+  CheckCircle,
+  Truck,
+  Edit,
 } from 'lucide-react'
+import { Store } from '@/types'
+import { StoreFormData } from '@/lib/validations/store'
 import { format, formatDistanceToNow } from 'date-fns'
+import { toast } from 'sonner'
 
 export function OwnerDashboard() {
-  const { stores, isLoading: storesLoading, error: storesError, refetch: refetchStores } = useStores()
-  const { users, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useUsers()
-  const { data: missingCounts, isLoading: missingLoading, error: missingError, refetch: refetchMissing } = useMissingCounts()
-  const { data: lowStockItems, isLoading: lowStockLoading, error: lowStockError, refetch: refetchLowStock } = useLowStockReport()
+  // Get current store from auth context
+  const { currentStore, role, refreshProfile } = useAuth()
+  const currentStoreId = currentStore?.store_id
 
-  // Get today's date for recent activity
+  // Store setup status - determines if wizard or dashboard is shown
+  const {
+    status: setupStatus,
+    store: setupStore,
+    isLoading: setupLoading,
+    refetch: refetchSetupStatus,
+  } = useStoreSetupStatus(currentStoreId || null)
+
+  // Edit store state
+  const [editFormOpen, setEditFormOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Permission checks
+  const canManage = canManageStores(role)
+  const canReceive = canDoStockReception(role)
+
+  // Fetch users for current store only
+  const { users, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useUsers({
+    storeId: currentStoreId || 'all'
+  })
+
+  // Fetch missing counts (we'll filter to current store)
+  const { data: allMissingCounts, isLoading: missingLoading, error: missingError, refetch: refetchMissing } = useMissingCounts()
+
+  // Fetch low stock items (we'll filter to current store)
+  const { data: allLowStockItems, isLoading: lowStockLoading, error: lowStockError, refetch: refetchLowStock } = useLowStockReport()
+
+  // Get today's date for recent activity - filter to current store
   const today = new Date().toISOString().split('T')[0]
-  const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useStockHistory(null, today)
+  const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useStockHistory(currentStoreId || null, today)
 
-  const isLoading = storesLoading || usersLoading || missingLoading || lowStockLoading || activityLoading
+  const isLoading = usersLoading || missingLoading || lowStockLoading || activityLoading || setupLoading
 
   // Combine all refetch functions
   const refreshAll = useCallback(() => {
-    refetchStores()
     refetchUsers()
     refetchMissing()
     refetchLowStock()
     refetchActivity()
-  }, [refetchStores, refetchUsers, refetchMissing, refetchLowStock, refetchActivity])
+  }, [refetchUsers, refetchMissing, refetchLowStock, refetchActivity])
 
   // Auto-refresh every 60 seconds
   const { lastRefreshed, isRefreshing, refresh, isAutoRefreshEnabled, toggleAutoRefresh } = useAutoRefresh({
@@ -57,34 +92,48 @@ export function OwnerDashboard() {
     onRefresh: refreshAll,
   })
 
+  // Filter data to current store only
+  const missingCounts = useMemo(() => {
+    if (!currentStoreId) return allMissingCounts ?? []
+    return (allMissingCounts ?? []).filter(s => s.id === currentStoreId)
+  }, [allMissingCounts, currentStoreId])
+
+  const lowStockItems = useMemo(() => {
+    if (!currentStoreId) return allLowStockItems ?? []
+    return (allLowStockItems ?? []).filter(item => item.store_id === currentStoreId)
+  }, [allLowStockItems, currentStoreId])
+
   // Memoize computed values - must be before any conditional returns
-  const activeStores = useMemo(() => stores.filter(s => s.is_active).length, [stores])
   const activeUsers = useMemo(() => users.filter(u => u.status === 'Active').length, [users])
-  const missingCount = missingCounts?.length ?? 0
-  const lowStockCount = lowStockItems?.length ?? 0
+  const isMissingCount = missingCounts.length > 0
+  const lowStockCount = lowStockItems.length
+  const needsDelivery = lowStockCount > 0 // Show delivery needed if there's low stock
 
-  // Memoize low stock grouping - expensive reduce operation
-  const lowStockStores = useMemo(() => {
-    const byStore = (lowStockItems ?? []).reduce((acc, item) => {
-      if (!acc[item.store_id]) {
-        acc[item.store_id] = {
-          store_id: item.store_id,
-          store_name: item.store_name,
-          count: 0,
-        }
-      }
-      acc[item.store_id].count++
-      return acc
-    }, {} as Record<string, { store_id: string; store_name: string; count: number }>)
+  // Handle edit store submit
+  const handleEditSubmit = async (data: StoreFormData) => {
+    if (!currentStore?.store) return
+    setIsSubmitting(true)
+    try {
+      const { error: updateError } = await supabaseUpdate('stores', currentStore.store.id, data)
+      if (updateError) throw updateError
 
-    return Object.values(byStore).sort((a, b) => b.count - a.count)
-  }, [lowStockItems])
+      setEditFormOpen(false)
+      toast.success('Store updated successfully')
+      // Refetch profile to update the store selector and dashboard
+      refreshProfile()
+      refreshAll()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update store')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   // Memoize recent activity slice
   const recentActivityItems = useMemo(() => recentActivity?.slice(0, 8) ?? [], [recentActivity])
 
   // Show error if any query failed - after all hooks
-  const hasError = storesError || usersError || missingError || lowStockError
+  const hasError = usersError || missingError || lowStockError
   if (hasError) {
     return (
       <div className="space-y-6">
@@ -115,17 +164,48 @@ export function OwnerDashboard() {
     )
   }
 
+  // No store selected - prompt user to select one
+  if (!currentStore) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Please select a store from the sidebar to view its dashboard.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show setup wizard if store setup is not complete
+  if (!setupStatus.isSetupComplete && setupStore) {
+    return (
+      <StoreSetupWizard
+        store={setupStore}
+        status={setupStatus}
+        onRefresh={refetchSetupStatus}
+      />
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{currentStore.store?.name}</h1>
           <p className="text-muted-foreground">
             Overview for {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {canManage && (
+            <Button variant="outline" size="sm" onClick={() => setEditFormOpen(true)}>
+              <Edit className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Edit Store</span>
+            </Button>
+          )}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -161,34 +241,45 @@ export function OwnerDashboard() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Link href="/stores">
+        {canReceive ? (
+          <Link href={`/stores/${currentStoreId}/stock-reception`}>
+            <StatsCard
+              title="Reception"
+              value={needsDelivery ? '!' : '✓'}
+              description={needsDelivery ? 'Delivery needed' : 'Record deliveries'}
+              icon={<Truck className="h-4 w-4 text-muted-foreground" />}
+              variant={needsDelivery ? 'warning' : 'default'}
+              className="hover:border-primary/50 transition-colors cursor-pointer"
+            />
+          </Link>
+        ) : (
           <StatsCard
-            title="Active Stores"
-            value={activeStores}
-            description={stores.length - activeStores > 0 ? `${stores.length - activeStores} inactive` : 'All stores active'}
-            icon={<Store className="h-4 w-4 text-muted-foreground" />}
-            className="hover:border-primary/50 transition-colors cursor-pointer"
+            title="Reception"
+            value="-"
+            description="No access"
+            icon={<Truck className="h-4 w-4 text-muted-foreground" />}
+            className="opacity-40"
           />
-        </Link>
+        )}
         <Link href="/users">
           <StatsCard
-            title="Active Users"
+            title="Team Members"
             value={activeUsers}
-            description={users.length - activeUsers > 0 ? `${users.length - activeUsers} inactive/invited` : 'All users active'}
+            description={users.length - activeUsers > 0 ? `${users.length - activeUsers} inactive/invited` : 'All members active'}
             icon={<Users className="h-4 w-4 text-muted-foreground" />}
             className="hover:border-primary/50 transition-colors cursor-pointer"
           />
         </Link>
-        <Link href="/reports/daily-summary">
+        <Link href={`/stores/${currentStoreId}/stock-count`}>
           <StatsCard
-            title="Missing Counts"
-            value={missingCount}
-            description={missingCount === 0
-              ? 'All stores counted today'
-              : missingCounts?.slice(0, 2).map(s => s.name).join(', ') + (missingCount > 2 ? ` +${missingCount - 2} more` : '')
+            title="Today's Count"
+            value={isMissingCount ? 'Pending' : 'Done'}
+            description={isMissingCount ? 'Stock count not submitted yet' : 'Stock count submitted'}
+            icon={isMissingCount
+              ? <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              : <CheckCircle className="h-4 w-4 text-muted-foreground" />
             }
-            icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
-            variant={missingCount > 0 ? 'warning' : 'success'}
+            variant={isMissingCount ? 'warning' : 'success'}
             className="hover:border-primary/50 transition-colors cursor-pointer"
           />
         </Link>
@@ -198,7 +289,7 @@ export function OwnerDashboard() {
             value={lowStockCount}
             description={lowStockCount === 0
               ? 'All items above PAR level'
-              : `${lowStockStores.length} store${lowStockStores.length !== 1 ? 's' : ''} affected`
+              : `${lowStockCount} item${lowStockCount !== 1 ? 's' : ''} need restocking`
             }
             icon={<Package className="h-4 w-4 text-muted-foreground" />}
             variant={lowStockCount > 0 ? 'danger' : 'success'}
@@ -208,39 +299,29 @@ export function OwnerDashboard() {
       </div>
 
       {/* Action Cards - Only show if there are issues needing attention */}
-      {(missingCount > 0 || lowStockCount > 0) && (
+      {(isMissingCount || lowStockCount > 0) && (
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Missing Counts - Quick Actions */}
-          {missingCount > 0 && (
+          {/* Missing Count - Quick Action */}
+          {isMissingCount && (
             <Card className="border-yellow-500/50 bg-yellow-500/5">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                    <CardTitle className="text-sm font-medium">Submit Count</CardTitle>
+                    <CardTitle className="text-sm font-medium">Submit Stock Count</CardTitle>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {missingCount} store{missingCount !== 1 ? 's haven\'t' : ' hasn\'t'} submitted today&apos;s count
+                  Today&apos;s stock count hasn&apos;t been submitted yet
                 </p>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="flex flex-wrap gap-2">
-                  {missingCounts?.slice(0, 4).map(store => (
-                    <Link key={store.id} href={`/stores/${store.id}/stock-count`}>
-                      <Button variant="outline" size="sm" className="h-7 text-xs border-yellow-500/50 hover:bg-yellow-500/10">
-                        {store.name}
-                      </Button>
-                    </Link>
-                  ))}
-                  {missingCount > 4 && (
-                    <Link href="/reports/daily-summary">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs">
-                        +{missingCount - 4} more
-                      </Button>
-                    </Link>
-                  )}
-                </div>
+                <Link href={`/stores/${currentStoreId}/stock-count`}>
+                  <Button variant="outline" size="sm" className="border-yellow-500/50 hover:bg-yellow-500/10">
+                    Submit Count Now
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           )}
@@ -256,25 +337,23 @@ export function OwnerDashboard() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {lowStockCount} item{lowStockCount !== 1 ? 's' : ''} below PAR level across {lowStockStores.length} store{lowStockStores.length !== 1 ? 's' : ''}
+                  {lowStockCount} item{lowStockCount !== 1 ? 's' : ''} below PAR level
                 </p>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="flex flex-wrap gap-2">
-                  {lowStockStores.slice(0, 4).map(store => (
-                    <Link key={store.store_id} href={`/reports/low-stock?store=${store.store_id}`}>
-                      <Button variant="outline" size="sm" className="h-7 text-xs border-red-500/50 hover:bg-red-500/10">
-                        {store.store_name}
-                        <Badge variant="destructive" className="ml-1.5 h-4 min-w-[1.25rem] px-1.5 text-[10px]">
-                          {store.count}
-                        </Badge>
-                      </Button>
-                    </Link>
+                <div className="space-y-2">
+                  {lowStockItems.slice(0, 3).map(item => (
+                    <div key={`${item.store_id}-${item.inventory_item_id}`} className="flex items-center justify-between text-sm">
+                      <span>{item.item_name}</span>
+                      <Badge variant="destructive" className="text-xs">
+                        {item.current_quantity} / {item.par_level}
+                      </Badge>
+                    </div>
                   ))}
-                  {lowStockStores.length > 4 && (
+                  {lowStockCount > 3 && (
                     <Link href="/reports/low-stock">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs">
-                        +{lowStockStores.length - 4} more
+                      <Button variant="ghost" size="sm" className="w-full text-xs">
+                        View all {lowStockCount} items
                       </Button>
                     </Link>
                   )}
@@ -329,7 +408,7 @@ export function OwnerDashboard() {
                         {activity.inventory_item?.name || 'Unknown Item'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {activity.store?.name || 'Unknown Store'}
+                        by {activity.performer?.full_name || 'Unknown'}
                       </p>
                     </div>
                   </div>
@@ -354,6 +433,17 @@ export function OwnerDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Store Form */}
+      {currentStore?.store && (
+        <StoreForm
+          open={editFormOpen}
+          onOpenChange={setEditFormOpen}
+          store={currentStore.store as Store}
+          onSubmit={handleEditSubmit}
+          isLoading={isSubmitting}
+        />
+      )}
     </div>
   )
 }

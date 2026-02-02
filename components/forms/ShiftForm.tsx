@@ -37,6 +37,12 @@ interface ShiftFormProps {
   users: (Profile & { store?: { id: string; name: string } | null })[]
   onSubmit: (data: ShiftFormData) => Promise<void>
   isLoading?: boolean
+  /** Pre-select a store when the form opens */
+  initialStoreId?: string
+  /** Pre-fill the first shift's date when the form opens */
+  initialDate?: Date
+  /** If true, user can only add one shift (no "Add Another Day" button) */
+  singleShiftMode?: boolean
 }
 
 interface ShiftEntry {
@@ -72,6 +78,9 @@ export function ShiftForm({
   users,
   onSubmit,
   isLoading,
+  initialStoreId,
+  initialDate,
+  singleShiftMode = false,
 }: ShiftFormProps) {
   const [selectedStore, setSelectedStore] = useState('')
   const [selectedStaff, setSelectedStaff] = useState('')
@@ -97,12 +106,12 @@ export function ShiftForm({
         }])
         setNotes(shift.notes ?? '')
       } else {
-        // Creating new shift
-        setSelectedStore('')
+        // Creating new shift - use initial values if provided
+        setSelectedStore(initialStoreId || '')
         setSelectedStaff('')
         setShifts([{
           id: '1',
-          date: '',
+          date: initialDate ? format(initialDate, 'yyyy-MM-dd') : '',
           mode: 'preset',
           pattern: 'opening',
           startTime: '09:00',
@@ -111,7 +120,7 @@ export function ShiftForm({
         setNotes('')
       }
     }
-  }, [open, shift])
+  }, [open, shift, initialStoreId, initialDate])
 
   // Get store object
   const store = stores.find(s => s.id === selectedStore)
@@ -134,9 +143,9 @@ export function ShiftForm({
     return { patterns, dayOfWeek, storeHours, shiftPatterns }
   }
 
-  // Filter users based on selected store
+  // Filter users - show all active users who belong to this store (any role can have a shift)
   const availableUsers = users.filter(
-    u => u.status === 'Active' && u.role === 'Staff' && u.store_id === selectedStore
+    u => u.status === 'Active'
   )
 
   // Add a new shift entry (for a new date)
@@ -222,51 +231,27 @@ export function ShiftForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>{shift ? 'Edit Shift' : 'Create Shifts'}</DialogTitle>
+          <DialogTitle>{shift ? 'Edit Shift' : 'Create A Shift'}</DialogTitle>
           <DialogDescription>
-            {shift ? 'Update shift details below.' : 'Schedule shifts for a staff member.'}
+            {shift ? 'Update shift details below.' : `Schedule a shift at ${store?.name || 'your store'}.`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Store Selection */}
+          {/* Team Member Selection */}
           <div className="space-y-2">
-            <Label>Store</Label>
-            <Select
-              value={selectedStore}
-              onValueChange={(value) => {
-                setSelectedStore(value)
-                setSelectedStaff('') // Reset staff when store changes
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select store" />
-              </SelectTrigger>
-              <SelectContent>
-                {stores.filter(s => s.is_active).map(s => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Staff Selection */}
-          <div className="space-y-2">
-            <Label>Staff Member</Label>
+            <Label>Team Member</Label>
             <Select
               value={selectedStaff}
               onValueChange={setSelectedStaff}
-              disabled={!selectedStore}
             >
               <SelectTrigger>
-                <SelectValue placeholder={selectedStore ? 'Select staff member' : 'Select a store first'} />
+                <SelectValue placeholder="Select team member" />
               </SelectTrigger>
               <SelectContent>
                 {availableUsers.length === 0 ? (
                   <div className="p-2 text-sm text-muted-foreground text-center">
-                    No staff assigned to this store
+                    No team members available
                   </div>
                 ) : (
                   availableUsers.map(u => (
@@ -437,7 +422,7 @@ export function ShiftForm({
             })}
 
             {/* Add another shift button */}
-            {!shift && (
+            {!shift && !singleShiftMode && (
               <Button
                 type="button"
                 variant="outline"
@@ -446,7 +431,7 @@ export function ShiftForm({
                 onClick={addShiftEntry}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Another Day
+                Add Another Shift
               </Button>
             )}
           </div>
@@ -467,7 +452,7 @@ export function ShiftForm({
               <div className="font-medium">Summary</div>
               <div className="text-muted-foreground mt-1 space-y-1">
                 <p>
-                  {availableUsers.find(u => u.id === selectedStaff)?.full_name || 'Staff'} at {store?.name}
+                  {availableUsers.find(u => u.id === selectedStaff)?.full_name || 'Team member'}
                 </p>
                 <div className="mt-2 space-y-1">
                   {shifts.map((entry, i) => {

@@ -259,16 +259,32 @@ export function useMissingCounts(date?: string) {
 
       const stores = storesData ?? []
 
+      // Get stores that have completed setup (have at least one inventory item)
+      // Only these stores should be included in "missing counts"
+      const { data: inventoryData, error: invError } = await supabaseFetch<{ store_id: string }>('store_inventory', {
+        select: 'store_id',
+      })
+
+      if (invError && !invError.message?.includes('does not exist')) {
+        throw invError
+      }
+
+      // Build set of store IDs that have completed setup
+      const setupCompleteStoreIds = new Set((inventoryData ?? []).map(i => i.store_id))
+
+      // Filter to only stores that have completed setup
+      const setupCompleteStores = stores.filter(store => setupCompleteStoreIds.has(store.id))
+
       // Get stores that submitted counts
       const { data: countsData, error: countsError } = await supabaseFetch<{ store_id: string }>('daily_counts', {
         select: 'store_id',
         filter: { count_date: `eq.${targetDate}` },
       })
 
-      // If daily_counts table doesn't exist, return all stores as missing
+      // If daily_counts table doesn't exist, return all setup-complete stores as missing
       if (countsError) {
         if (countsError.message?.includes('does not exist')) {
-          setData(stores)
+          setData(setupCompleteStores)
           return
         }
         throw countsError
@@ -277,8 +293,8 @@ export function useMissingCounts(date?: string) {
       const counts = countsData ?? []
       const countedStoreIds = new Set(counts.map(c => c.store_id))
 
-      // Filter stores that haven't submitted
-      setData(stores.filter(store => !countedStoreIds.has(store.id)))
+      // Filter stores that haven't submitted (only from setup-complete stores)
+      setData(setupCompleteStores.filter(store => !countedStoreIds.has(store.id)))
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch missing counts'))
     } finally {

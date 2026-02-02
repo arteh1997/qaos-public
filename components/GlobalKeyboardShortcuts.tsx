@@ -25,11 +25,6 @@ export function GlobalKeyboardShortcuts({ role }: GlobalKeyboardShortcutsProps) 
     },
     {
       key: 'alt+2',
-      handler: () => router.push('/stores'),
-      description: 'Go to Stores',
-    },
-    {
-      key: 'alt+3',
       handler: () => {
         if (canManageInventoryItems(role)) {
           router.push('/inventory')
@@ -38,7 +33,7 @@ export function GlobalKeyboardShortcuts({ role }: GlobalKeyboardShortcutsProps) 
       description: 'Go to Inventory',
     },
     {
-      key: 'alt+4',
+      key: 'alt+3',
       handler: () => {
         if (canManageUsers(role)) {
           router.push('/users')
@@ -47,7 +42,7 @@ export function GlobalKeyboardShortcuts({ role }: GlobalKeyboardShortcutsProps) 
       description: 'Go to Users',
     },
     {
-      key: 'alt+5',
+      key: 'alt+4',
       handler: () => {
         if (canViewReports(role)) {
           router.push('/reports')
@@ -56,7 +51,7 @@ export function GlobalKeyboardShortcuts({ role }: GlobalKeyboardShortcutsProps) 
       description: 'Go to Reports',
     },
     {
-      key: 'alt+6',
+      key: 'alt+5',
       handler: () => router.push('/shifts'),
       description: 'Go to Shifts',
     },
@@ -76,22 +71,21 @@ export function GlobalKeyboardShortcuts({ role }: GlobalKeyboardShortcutsProps) 
   // Build help groups based on role
   const navigationShortcuts = [
     { key: 'alt+1', description: 'Dashboard' },
-    { key: 'alt+2', description: 'Stores' },
   ]
 
   if (canManageInventoryItems(role)) {
-    navigationShortcuts.push({ key: 'alt+3', description: 'Inventory' })
+    navigationShortcuts.push({ key: 'alt+2', description: 'Inventory' })
   }
 
   if (canManageUsers(role)) {
-    navigationShortcuts.push({ key: 'alt+4', description: 'Users' })
+    navigationShortcuts.push({ key: 'alt+3', description: 'Users' })
   }
 
   if (canViewReports(role)) {
-    navigationShortcuts.push({ key: 'alt+5', description: 'Reports' })
+    navigationShortcuts.push({ key: 'alt+4', description: 'Reports' })
   }
 
-  navigationShortcuts.push({ key: 'alt+6', description: 'Shifts' })
+  navigationShortcuts.push({ key: 'alt+5', description: 'Shifts' })
 
   const helpGroups = [
     {

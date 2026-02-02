@@ -1,6 +1,7 @@
 'use client'
 
 import { memo } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { cn } from '@/lib/utils'
 import { Store, ChevronDown, Check } from 'lucide-react'
@@ -29,11 +30,18 @@ export const StoreSelector = memo(function StoreSelector({
   collapsed = false,
   className,
 }: StoreSelectorProps) {
+  const router = useRouter()
   const { stores, currentStore, setCurrentStore, isMultiStoreUser } = useAuth()
 
   // Don't render if user only has one store
   if (!isMultiStoreUser || stores.length <= 1) {
     return null
+  }
+
+  const handleStoreSelect = (storeId: string) => {
+    setCurrentStore(storeId)
+    // Navigate to dashboard (store context is handled there)
+    router.push('/')
   }
 
   return (
@@ -72,7 +80,7 @@ export const StoreSelector = memo(function StoreSelector({
           {stores.map((storeUser) => (
             <DropdownMenuItem
               key={storeUser.store_id}
-              onClick={() => setCurrentStore(storeUser.store_id)}
+              onClick={() => handleStoreSelect(storeUser.store_id)}
               className="flex items-center justify-between gap-2 cursor-pointer"
             >
               <div className="flex flex-col min-w-0 flex-1">

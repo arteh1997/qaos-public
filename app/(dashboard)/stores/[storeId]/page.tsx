@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabaseFetch, supabaseUpdate } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useStockHistory } from '@/hooks/useReports'
+import { useStoreSetupStatus } from '@/hooks/useStoreSetupStatus'
 import { canDoStockCount, canDoStockReception, canManageStores } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StoreForm } from '@/components/forms/StoreForm'
 import { StatsCard } from '@/components/cards/StatsCard'
+import { StoreSetupWizard } from '@/components/store/setup'
 import { Store, StoreInventory, InventoryItem } from '@/types'
 import { StoreFormData } from '@/lib/validations/store'
 import {
@@ -24,7 +26,6 @@ import {
   Edit,
   History,
   Clock,
-  CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -50,6 +51,14 @@ export default function StoreDetailPage({ params }: StoreDetailPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [editFormOpen, setEditFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Store setup status - determines if wizard or dashboard is shown
+  const {
+    status: setupStatus,
+    store: setupStore,
+    isLoading: setupLoading,
+    refetch: refetchSetupStatus,
+  } = useStoreSetupStatus(storeId)
 
   const canManage = canManageStores(role)
   const canCount = canDoStockCount(role)
@@ -171,7 +180,7 @@ export default function StoreDetailPage({ params }: StoreDetailPageProps) {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || setupLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -194,10 +203,10 @@ export default function StoreDetailPage({ params }: StoreDetailPageProps) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-destructive">{error}</p>
-        <Link href="/stores">
+        <Link href="/">
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Stores
+            Back to Dashboard
           </Button>
         </Link>
       </div>
@@ -208,13 +217,25 @@ export default function StoreDetailPage({ params }: StoreDetailPageProps) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-muted-foreground">Store not found</p>
-        <Link href="/stores">
+        <Link href="/">
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Stores
+            Back to Dashboard
           </Button>
         </Link>
       </div>
+    )
+  }
+
+  // Show setup wizard if store setup is not complete
+  // Use local `store` state for consistency (both are fetched from same storeId)
+  if (!setupStatus.isSetupComplete && store) {
+    return (
+      <StoreSetupWizard
+        store={store}
+        status={setupStatus}
+        onRefresh={refetchSetupStatus}
+      />
     )
   }
 
@@ -226,7 +247,7 @@ export default function StoreDetailPage({ params }: StoreDetailPageProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Link href="/stores">
+        <Link href="/">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>

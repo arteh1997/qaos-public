@@ -117,7 +117,7 @@ export function TimelineView({
 
     let startHour: number
     let endHour: number
-    let isContinuation = false
+    const isContinuation = false
 
     if (startsOnSelectedDay) {
       // Shift starts today

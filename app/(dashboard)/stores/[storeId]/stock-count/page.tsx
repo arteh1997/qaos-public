@@ -60,10 +60,10 @@ export default function StockCountPage({ params }: StockCountPageProps) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-muted-foreground">Store not found</p>
-        <Link href="/stores">
+        <Link href="/">
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Stores
+            Back to Dashboard
           </Button>
         </Link>
       </div>

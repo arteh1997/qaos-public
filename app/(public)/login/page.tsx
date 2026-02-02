@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { LoginForm } from '@/components/forms/LoginForm'
 import { SignupForm } from '@/components/forms/SignupForm'
@@ -29,14 +29,8 @@ function FormSkeleton() {
 function AuthContent() {
   const searchParams = useSearchParams()
   const signupParam = searchParams.get('signup')
+  // Initialize tab from URL param - use key prop on parent to reset when param changes
   const [activeTab, setActiveTab] = useState(signupParam === 'true' ? 'signup' : 'signin')
-
-  // Update tab when URL parameter changes
-  useEffect(() => {
-    if (signupParam === 'true') {
-      setActiveTab('signup')
-    }
-  }, [signupParam])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4 relative">
