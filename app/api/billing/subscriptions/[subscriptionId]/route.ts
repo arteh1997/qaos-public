@@ -29,6 +29,12 @@ interface SubscriptionRow {
   updated_at: string
 }
 
+// Type for store user query result
+interface StoreUserRow {
+  role: string
+  is_billing_owner: boolean
+}
+
 interface RouteParams {
   params: Promise<{ subscriptionId: string }>
 }
@@ -72,12 +78,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const subscription = subscriptionData as SubscriptionRow & { store: { id: string; name: string } | null }
 
     // Verify user has access (is billing owner or store owner)
-    const { data: storeUser } = await supabaseAdmin
+    const { data: storeUserData } = await supabaseAdmin
       .from('store_users')
       .select('role, is_billing_owner')
       .eq('store_id', subscription.store_id)
       .eq('user_id', context.user.id)
       .single()
+
+    const storeUser = storeUserData as StoreUserRow | null
 
     if (!storeUser || (storeUser.role !== 'Owner' && !storeUser.is_billing_owner)) {
       return apiForbidden('You do not have access to this subscription', context.requestId)
@@ -134,12 +142,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const dbSubscription = subscriptionResult as SubscriptionRow
 
     // Verify user is billing owner
-    const { data: storeUser } = await supabaseAdmin
+    const { data: storeUserData } = await supabaseAdmin
       .from('store_users')
       .select('is_billing_owner')
       .eq('store_id', dbSubscription.store_id)
       .eq('user_id', context.user.id)
       .single()
+
+    const storeUser = storeUserData as { is_billing_owner: boolean } | null
 
     if (!storeUser?.is_billing_owner) {
       return apiForbidden('Only the billing owner can manage the subscription', context.requestId)
