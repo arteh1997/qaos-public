@@ -4,7 +4,7 @@
 
 import { stripe, BILLING_CONFIG } from './config'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { Enums } from '@/types/database'
+import { Enums, Json } from '@/types/database'
 import Stripe from 'stripe'
 
 // Type alias for subscription status
@@ -290,7 +290,7 @@ export async function logBillingEvent(
     amountCents?: number
     currency?: string
     status?: string
-    metadata?: Record<string, unknown>
+    metadata?: Json
   }
 ): Promise<void> {
   const supabaseAdmin = createAdminClient()
@@ -306,6 +306,6 @@ export async function logBillingEvent(
       amount_cents: data.amountCents || null,
       currency: data.currency || 'gbp',
       status: data.status || null,
-      metadata: data.metadata || {},
+      metadata: data.metadata ?? {},
     })
 }
