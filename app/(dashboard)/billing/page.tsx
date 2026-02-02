@@ -205,19 +205,51 @@ export default function BillingPage() {
                 £{totalMonthlyAmount.toFixed(0)}
               </p>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Price per Store</p>
-              <p className="text-2xl font-bold">{monthlyPrice}</p>
-            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Stores Without Subscriptions */}
+      {(() => {
+        const subscribedStoreIds = new Set(subscriptions.map(s => s.store_id))
+        const unsubscribedStores = ownerStores.filter(s => !subscribedStoreIds.has(s.store_id))
+
+        if (unsubscribedStores.length === 0) return null
+
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Stores Needing Subscription</h2>
+            {unsubscribedStores.map(storeUser => (
+              <Card key={storeUser.store_id}>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <Store className="h-5 w-5 text-muted-foreground" />
+                      <h3 className="font-semibold">{storeUser.store?.name || 'Unknown Store'}</h3>
+                      <Badge variant="outline">No Subscription</Badge>
+                    </div>
+                    <Button asChild>
+                      <a href={`/billing/subscribe/${storeUser.store_id}`}>
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Subscribe - {monthlyPrice}/month
+                      </a>
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Start with a {BILLING_CONFIG.TRIAL_DAYS}-day free trial. No charge until trial ends.
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Subscriptions List */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Store Subscriptions</h2>
 
-        {subscriptions.length === 0 ? (
+        {subscriptions.length === 0 && ownerStores.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center">
               <Store className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -227,7 +259,7 @@ export default function BillingPage() {
               </p>
             </CardContent>
           </Card>
-        ) : (
+        ) : subscriptions.length === 0 ? null : (
           subscriptions.map(subscription => {
             const statusBadge = STATUS_BADGES[subscription.status] || STATUS_BADGES.active
             const trialDaysRemaining = getTrialDaysRemaining(subscription)

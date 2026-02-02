@@ -23,7 +23,8 @@ import {
   FormMessage,
   FormDescription,
 } from '@/components/ui/form'
-import { Loader2, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Loader2, Eye, EyeOff, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
 
 type InviteStatus = 'loading' | 'valid' | 'expired' | 'invalid' | 'used'
@@ -32,6 +33,16 @@ interface InviteDetails {
   email: string
   role: string
   storeName?: string
+  expiresAt?: string
+}
+
+// Returns minutes until expiry, or null if no expiry set
+function getMinutesUntilExpiry(expiresAt?: string): number | null {
+  if (!expiresAt) return null
+  const now = new Date()
+  const expiry = new Date(expiresAt)
+  const diffMs = expiry.getTime() - now.getTime()
+  return Math.max(0, Math.floor(diffMs / (1000 * 60)))
 }
 
 function OnboardContent() {
@@ -44,6 +55,7 @@ function OnboardContent() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [minutesRemaining, setMinutesRemaining] = useState<number | null>(null)
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
@@ -83,6 +95,10 @@ function OnboardContent() {
         setInviteDetails(result.data)
         setInviteStatus('valid')
         form.setValue('token', token)
+
+        // Calculate initial time remaining
+        const mins = getMinutesUntilExpiry(result.data.expiresAt)
+        setMinutesRemaining(mins)
       } catch {
         setInviteStatus('invalid')
       }
@@ -90,6 +106,23 @@ function OnboardContent() {
 
     validateToken()
   }, [token, form])
+
+  // Update countdown timer every minute
+  useEffect(() => {
+    if (!inviteDetails?.expiresAt || inviteStatus !== 'valid') return
+
+    const interval = setInterval(() => {
+      const mins = getMinutesUntilExpiry(inviteDetails.expiresAt)
+      setMinutesRemaining(mins)
+
+      // If expired, update status
+      if (mins !== null && mins <= 0) {
+        setInviteStatus('expired')
+      }
+    }, 60000) // Update every minute
+
+    return () => clearInterval(interval)
+  }, [inviteDetails?.expiresAt, inviteStatus])
 
   const onSubmit = async (data: OnboardingFormData) => {
     setIsSubmitting(true)
@@ -221,6 +254,16 @@ function OnboardContent() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Expiry warning - show when less than 15 minutes remaining */}
+          {minutesRemaining !== null && minutesRemaining <= 15 && minutesRemaining > 0 && (
+            <Alert className="mb-4 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-700 dark:text-amber-300">
+                This invitation expires in {minutesRemaining} minute{minutesRemaining !== 1 ? 's' : ''}. Please complete your registration soon.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {/* Email display */}
@@ -342,8 +385,8 @@ function OnboardContent() {
                 )}
               />
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" className="w-full" disabled={isSubmitting || form.formState.isSubmitting}>
+                {(isSubmitting || form.formState.isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account
               </Button>
             </form>

@@ -194,8 +194,8 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
           )}
         />
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type="submit" className="w-full" disabled={isLoading || form.formState.isSubmitting}>
+          {(isLoading || form.formState.isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Create Account
         </Button>
       </form>

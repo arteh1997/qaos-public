@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Check, ArrowRight, Loader2, Store, Package, Users, BarChart3 } from 'lucide-react'
+import { Check, ArrowRight, Loader2, Store, Package, Users, BarChart3, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 const features = [
@@ -17,12 +17,40 @@ const features = [
   { icon: BarChart3, text: 'Reports & analytics' },
 ]
 
+type AccountType = 'loading' | 'owner' | 'employee'
+
 export default function OnboardingPage() {
   const router = useRouter()
   const { user, stores, refreshProfile } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [storeName, setStoreName] = useState('')
   const [storeAddress, setStoreAddress] = useState('')
+  const [accountType, setAccountType] = useState<AccountType>('loading')
+
+  // Check if user was invited (employee) or signed up directly (can create stores)
+  useEffect(() => {
+    async function checkAccountType() {
+      if (!user) return
+
+      try {
+        // Check if user was ever invited via the invite system
+        const response = await fetch('/api/users/account-type')
+        if (response.ok) {
+          const data = await response.json()
+          setAccountType(data.data.canCreateStores ? 'owner' : 'employee')
+        } else {
+          // Default to allowing store creation if check fails
+          setAccountType('owner')
+        }
+      } catch {
+        setAccountType('owner')
+      }
+    }
+
+    if (user && stores && stores.length === 0) {
+      checkAccountType()
+    }
+  }, [user, stores])
 
   // Redirect if user already has stores
   if (stores && stores.length > 0) {
@@ -77,6 +105,48 @@ export default function OnboardingPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading state while checking account type
+  if (accountType === 'loading') {
+    return (
+      <div className="mx-auto max-w-md">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Loading...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Show message for employees who were removed from all stores
+  if (accountType === 'employee') {
+    return (
+      <div className="mx-auto max-w-md">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
+              <h2 className="text-xl font-semibold mb-2">No Store Access</h2>
+              <p className="text-muted-foreground mb-6">
+                Your account is not currently associated with any stores. This may happen if you were
+                removed from a store or your access was revoked.
+              </p>
+              <p className="text-sm text-muted-foreground mb-6">
+                Please contact your manager or store owner to request access to a store.
+              </p>
+              <Button variant="outline" onClick={() => router.push('/login')}>
+                Back to Login
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

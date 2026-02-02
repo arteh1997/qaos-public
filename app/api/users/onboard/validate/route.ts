@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
         email: invite.email,
         role: invite.role,
         storeName: invite.store?.name || undefined,
+        expiresAt: invite.expires_at,
       },
     })
   } catch (error) {

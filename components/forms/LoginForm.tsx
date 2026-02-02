@@ -147,8 +147,8 @@ export function LoginForm() {
           </Link>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading || retryAfter !== null}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type="submit" className="w-full" disabled={isLoading || form.formState.isSubmitting || retryAfter !== null}>
+          {(isLoading || form.formState.isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {retryAfter !== null ? `Try again in ${retryAfter}s` : 'Sign In'}
         </Button>
 
