@@ -167,8 +167,42 @@ interface DateFilters {
   end: string | null
 }
 
+// Type definitions for fetched data
+interface ShiftRecord {
+  start_time: string | null
+  end_time: string | null
+  clock_in_time: string | null
+  clock_out_time: string | null
+  notes: string | null
+  user?: { full_name: string | null; email: string | null } | null
+}
+
+interface StockHistoryRecord {
+  created_at: string | null
+  action_type: string
+  quantity_before: number | null
+  quantity_after: number | null
+  quantity_change: number | null
+  notes: string | null
+  inventory_item?: { name: string | null; category: string | null; unit_of_measure: string | null } | null
+  performer?: { full_name: string | null; email: string | null } | null
+}
+
+interface InventoryRecord {
+  quantity: number
+  par_level: number | null
+  last_updated_at: string | null
+  inventory_item?: { name: string | null; category: string | null; unit_of_measure: string | null; is_active: boolean } | null
+}
+
+interface StoreUserRecord {
+  role: string
+  created_at: string | null
+  user?: { full_name: string | null; email: string | null; phone: string | null; status: string | null } | null
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchShifts(supabase: any, storeId: string, filters: DateFilters) {
+async function fetchShifts(supabase: any, storeId: string, filters: DateFilters): Promise<ShiftRecord[]> {
   let query = supabase
     .from('shifts')
     .select(`
@@ -186,11 +220,11 @@ async function fetchShifts(supabase: any, storeId: string, filters: DateFilters)
   }
 
   const { data } = await query
-  return data || []
+  return (data || []) as ShiftRecord[]
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchStockHistory(supabase: any, storeId: string, filters: DateFilters) {
+async function fetchStockHistory(supabase: any, storeId: string, filters: DateFilters): Promise<StockHistoryRecord[]> {
   let query = supabase
     .from('stock_history')
     .select(`
@@ -209,11 +243,11 @@ async function fetchStockHistory(supabase: any, storeId: string, filters: DateFi
   }
 
   const { data } = await query
-  return data || []
+  return (data || []) as StockHistoryRecord[]
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchInventory(supabase: any, storeId: string) {
+async function fetchInventory(supabase: any, storeId: string): Promise<InventoryRecord[]> {
   const { data } = await supabase
     .from('store_inventory')
     .select(`
@@ -223,11 +257,11 @@ async function fetchInventory(supabase: any, storeId: string) {
     .eq('store_id', storeId)
     .order('inventory_item(name)', { ascending: true })
 
-  return data || []
+  return (data || []) as InventoryRecord[]
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchUsers(supabase: any, storeId: string) {
+async function fetchUsers(supabase: any, storeId: string): Promise<StoreUserRecord[]> {
   const { data } = await supabase
     .from('store_users')
     .select(`
@@ -237,5 +271,5 @@ async function fetchUsers(supabase: any, storeId: string) {
     .eq('store_id', storeId)
     .order('created_at', { ascending: true })
 
-  return data || []
+  return (data || []) as StoreUserRecord[]
 }
