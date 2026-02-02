@@ -9,8 +9,25 @@ import {
   syncSubscriptionToDatabase,
   logBillingEvent,
 } from '@/lib/stripe/server'
-import { stripe } from '@/lib/stripe/config'
 import { z } from 'zod'
+
+// Type for subscription row from database
+interface SubscriptionRow {
+  id: string
+  store_id: string
+  billing_user_id: string
+  stripe_subscription_id: string | null
+  stripe_customer_id: string | null
+  stripe_payment_method_id: string | null
+  status: string
+  trial_start: string | null
+  trial_end: string | null
+  current_period_start: string | null
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+  created_at: string
+  updated_at: string
+}
 
 interface RouteParams {
   params: Promise<{ subscriptionId: string }>
@@ -39,7 +56,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabaseAdmin = createAdminClient()
 
     // Get subscription
-    const { data: subscription, error } = await supabaseAdmin
+    const { data: subscriptionData, error } = await supabaseAdmin
       .from('subscriptions')
       .select(`
         *,
@@ -48,9 +65,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .eq('id', subscriptionId)
       .single()
 
-    if (error || !subscription) {
+    if (error || !subscriptionData) {
       return apiNotFound('Subscription', context.requestId)
     }
+
+    const subscription = subscriptionData as SubscriptionRow & { store: { id: string; name: string } | null }
 
     // Verify user has access (is billing owner or store owner)
     const { data: storeUser } = await supabaseAdmin
@@ -102,15 +121,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const supabaseAdmin = createAdminClient()
 
     // Get subscription
-    const { data: dbSubscription, error: fetchError } = await supabaseAdmin
+    const { data: subscriptionResult, error: fetchError } = await supabaseAdmin
       .from('subscriptions')
       .select('*')
       .eq('id', subscriptionId)
       .single()
 
-    if (fetchError || !dbSubscription) {
+    if (fetchError || !subscriptionResult) {
       return apiNotFound('Subscription', context.requestId)
     }
+
+    const dbSubscription = subscriptionResult as SubscriptionRow
 
     // Verify user is billing owner
     const { data: storeUser } = await supabaseAdmin
