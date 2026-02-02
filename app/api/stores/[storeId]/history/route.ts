@@ -50,7 +50,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Filter by action type
     if (actionType && ['Count', 'Reception', 'Adjustment'].includes(actionType)) {
-      query = query.eq('action_type', actionType)
+      query = query.eq('action_type', actionType as 'Count' | 'Reception' | 'Adjustment')
     }
 
     // Filter by date range
