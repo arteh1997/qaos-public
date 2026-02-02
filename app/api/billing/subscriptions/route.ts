@@ -11,6 +11,20 @@ import {
 } from '@/lib/stripe/server'
 import { z } from 'zod'
 
+// Types for Supabase admin client query results
+interface StoreUserRow {
+  role: string
+  is_billing_owner: boolean
+  store_id?: string
+}
+
+interface SubscriptionRow {
+  id: string
+  status: string
+  store_id: string
+  billing_user_id: string
+}
+
 const createSubscriptionSchema = z.object({
   store_id: z.string().uuid('Invalid store ID'),
   payment_method_id: z.string().min(1, 'Payment method is required'),
@@ -46,12 +60,14 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createAdminClient()
 
     // Verify user is the billing owner of this store
-    const { data: storeUser } = await supabaseAdmin
+    const { data: storeUserData } = await supabaseAdmin
       .from('store_users')
       .select('role, is_billing_owner')
       .eq('store_id', store_id)
       .eq('user_id', context.user.id)
       .single()
+
+    const storeUser = storeUserData as StoreUserRow | null
 
     if (!storeUser?.is_billing_owner) {
       return apiBadRequest(
@@ -61,11 +77,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if store already has an active subscription
-    const { data: existingSubscription } = await supabaseAdmin
+    const { data: existingSubData } = await supabaseAdmin
       .from('subscriptions')
       .select('id, status')
       .eq('store_id', store_id)
       .single()
+
+    const existingSubscription = existingSubData as SubscriptionRow | null
 
     if (existingSubscription && ['active', 'trialing'].includes(existingSubscription.status)) {
       return apiBadRequest(
@@ -77,8 +95,7 @@ export async function POST(request: NextRequest) {
     // Get or create Stripe customer
     const customerId = await getOrCreateCustomer(
       context.user.id,
-      context.user.email || '',
-      context.profile?.full_name
+      context.user.email || ''
     )
 
     // Create subscription with trial
@@ -144,13 +161,14 @@ export async function GET(request: NextRequest) {
       query = query.eq('store_id', storeId)
     } else {
       // Get subscriptions for stores user owns
-      const { data: userStores } = await supabaseAdmin
+      const { data: userStoresData } = await supabaseAdmin
         .from('store_users')
         .select('store_id')
         .eq('user_id', context.user.id)
         .eq('role', 'Owner')
 
-      const storeIds = userStores?.map(s => s.store_id) || []
+      const userStores = (userStoresData || []) as { store_id: string }[]
+      const storeIds = userStores.map(s => s.store_id)
       if (storeIds.length === 0) {
         return apiSuccess([], { requestId: context.requestId })
       }

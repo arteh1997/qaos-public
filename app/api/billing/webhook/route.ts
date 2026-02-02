@@ -4,6 +4,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { syncSubscriptionToDatabase, logBillingEvent } from '@/lib/stripe/server'
 import Stripe from 'stripe'
 
+// Type for subscription query result
+interface DbSubscriptionRow {
+  store_id: string
+  billing_user_id: string
+}
+
 /**
  * POST /api/billing/webhook
  * Handle Stripe webhook events
@@ -87,11 +93,13 @@ export async function POST(request: NextRequest) {
         const subscriptionId = invoice.subscription as string
 
         if (subscriptionId) {
-          const { data: dbSubscription } = await supabaseAdmin
+          const { data: dbSubData } = await supabaseAdmin
             .from('subscriptions')
             .select('store_id, billing_user_id')
             .eq('stripe_subscription_id', subscriptionId)
             .single()
+
+          const dbSubscription = dbSubData as DbSubscriptionRow | null
 
           if (dbSubscription) {
             await logBillingEvent('invoice.paid', dbSubscription.store_id, dbSubscription.billing_user_id, {
@@ -114,11 +122,13 @@ export async function POST(request: NextRequest) {
         const subscriptionId = invoice.subscription as string
 
         if (subscriptionId) {
-          const { data: dbSubscription } = await supabaseAdmin
+          const { data: dbSubData } = await supabaseAdmin
             .from('subscriptions')
             .select('store_id, billing_user_id')
             .eq('stripe_subscription_id', subscriptionId)
             .single()
+
+          const dbSubscription = dbSubData as DbSubscriptionRow | null
 
           if (dbSubscription) {
             // Update subscription status
