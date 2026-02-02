@@ -73,6 +73,7 @@ export interface Profile {
   store_id: string | null; // Deprecated - use store_users for multi-store access
   is_platform_admin: boolean; // Super-admin access for platform support
   default_store_id: string | null; // User's preferred store for quick access
+  stripe_customer_id: string | null; // Stripe customer ID for billing
   status: UserStatus;
   created_at: string;
   updated_at: string;

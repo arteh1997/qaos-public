@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Check, Calendar, CreditCard, Shield } from 'lucide-react'
-import { BILLING_CONFIG, getMonthlyPriceDisplay } from '@/lib/stripe/config'
+import { BILLING_CONFIG, getMonthlyPriceDisplay } from '@/lib/stripe/billing-config'
 
 interface BillingInfoCardProps {
   showTrial?: boolean

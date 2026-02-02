@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format, formatDistanceToNow } from 'date-fns'
-import { getMonthlyPriceDisplay, BILLING_CONFIG } from '@/lib/stripe/config'
+import { getMonthlyPriceDisplay, BILLING_CONFIG } from '@/lib/stripe/billing-config'
 import { Subscription } from '@/types/billing'
 
 interface SubscriptionWithStore extends Subscription {

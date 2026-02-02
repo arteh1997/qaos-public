@@ -2,7 +2,7 @@
  * Billing Types
  */
 
-import { SubscriptionStatus } from '@/lib/stripe/config'
+import { SubscriptionStatus } from '@/lib/stripe/billing-config'
 
 export interface Subscription {
   id: string
