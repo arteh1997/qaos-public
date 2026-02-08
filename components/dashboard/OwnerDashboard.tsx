@@ -1,14 +1,13 @@
 'use client'
 
-import { useMemo, useCallback, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import { useUsers } from '@/hooks/useUsers'
 import { useMissingCounts, useLowStockReport, useStockHistory } from '@/hooks/useReports'
-import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import { useStoreSetupStatus } from '@/hooks/useStoreSetupStatus'
-import { supabaseUpdate } from '@/lib/supabase/client'
-import { canDoStockReception, canManageStores } from '@/lib/auth'
+import { supabaseFetch, supabaseUpdate } from '@/lib/supabase/client'
+import { canDoStockCount, canDoStockReception, canManageStores } from '@/lib/auth'
 import { StatsCard } from '@/components/cards/StatsCard'
 import { StoreForm } from '@/components/forms/StoreForm'
 import { StoreSetupWizard } from '@/components/store/setup'
@@ -17,24 +16,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import {
-  Users,
   AlertTriangle,
   Package,
   ArrowRight,
-  History,
   Clock,
-  RefreshCw,
   CheckCircle,
   Truck,
   Edit,
+  ClipboardList,
+  XCircle,
+  TrendingUp,
+  Activity,
 } from 'lucide-react'
-import { Store } from '@/types'
+import { Store, StoreInventory } from '@/types'
 import { StoreFormData } from '@/lib/validations/store'
 import { format, formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
@@ -58,39 +52,53 @@ export function OwnerDashboard() {
 
   // Permission checks
   const canManage = canManageStores(role)
+  const canCount = canDoStockCount(role)
   const canReceive = canDoStockReception(role)
 
   // Fetch users for current store only
-  const { users, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useUsers({
+  const { users, isLoading: usersLoading } = useUsers({
     storeId: currentStoreId || 'all'
   })
 
   // Fetch missing counts (we'll filter to current store)
-  const { data: allMissingCounts, isLoading: missingLoading, error: missingError, refetch: refetchMissing } = useMissingCounts()
+  const { data: allMissingCounts, isLoading: missingLoading } = useMissingCounts()
 
   // Fetch low stock items (we'll filter to current store)
-  const { data: allLowStockItems, isLoading: lowStockLoading, error: lowStockError, refetch: refetchLowStock } = useLowStockReport()
+  const { data: allLowStockItems, isLoading: lowStockLoading } = useLowStockReport()
+
+  // Fetch store inventory to calculate out of stock
+  const [storeInventory, setStoreInventory] = useState<StoreInventory[]>([])
+  const [inventoryLoading, setInventoryLoading] = useState(false)
 
   // Get today's date for recent activity - filter to current store
   const today = new Date().toISOString().split('T')[0]
-  const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useStockHistory(currentStoreId || null, today)
+  const { data: recentActivity, isLoading: activityLoading } = useStockHistory(currentStoreId || null, today)
 
-  const isLoading = usersLoading || missingLoading || lowStockLoading || activityLoading || setupLoading
+  // Fetch store inventory for out of stock calculation
+  useEffect(() => {
+    async function fetchStoreInventory() {
+      if (!currentStoreId) return
 
-  // Combine all refetch functions
-  const refreshAll = useCallback(() => {
-    refetchUsers()
-    refetchMissing()
-    refetchLowStock()
-    refetchActivity()
-  }, [refetchUsers, refetchMissing, refetchLowStock, refetchActivity])
+      setInventoryLoading(true)
+      try {
+        const { data, error } = await supabaseFetch<StoreInventory>('store_inventory', {
+          select: '*,inventory_item:inventory_items(*)',
+          filter: { store_id: `eq.${currentStoreId}` },
+        })
 
-  // Auto-refresh every 60 seconds
-  const { lastRefreshed, isRefreshing, refresh, isAutoRefreshEnabled, toggleAutoRefresh } = useAutoRefresh({
-    interval: 60000, // 1 minute
-    enabled: true,
-    onRefresh: refreshAll,
-  })
+        if (error) throw error
+        setStoreInventory(data || [])
+      } catch (err) {
+        console.error('Failed to fetch store inventory:', err)
+      } finally {
+        setInventoryLoading(false)
+      }
+    }
+
+    fetchStoreInventory()
+  }, [currentStoreId])
+
+  const isLoading = usersLoading || missingLoading || lowStockLoading || activityLoading || setupLoading || inventoryLoading
 
   // Filter data to current store only
   const missingCounts = useMemo(() => {
@@ -103,11 +111,49 @@ export function OwnerDashboard() {
     return (allLowStockItems ?? []).filter(item => item.store_id === currentStoreId)
   }, [allLowStockItems, currentStoreId])
 
-  // Memoize computed values - must be before any conditional returns
-  const activeUsers = useMemo(() => users.filter(u => u.status === 'Active').length, [users])
+  // Calculate inventory metrics
+  const inventoryMetrics = useMemo(() => {
+    const total = storeInventory.length
+    const outOfStock = storeInventory.filter(item => item.quantity === 0).length
+    const low = lowStockItems.length - outOfStock // Low but not out
+    const healthy = total - low - outOfStock
+    const healthPercentage = total > 0 ? Math.round((healthy / total) * 100) : 0
+
+    return {
+      total,
+      outOfStock,
+      low,
+      healthy,
+      healthPercentage,
+    }
+  }, [storeInventory, lowStockItems])
+
+  // Get out of stock items for urgent alerts
+  const outOfStockItems = useMemo(() => {
+    return storeInventory
+      .filter(item => item.quantity === 0)
+      .slice(0, 5)
+      .map(item => item.inventory_item?.name || 'Unknown item')
+  }, [storeInventory])
+
+  // Check if stock count was done
   const isMissingCount = missingCounts.length > 0
-  const lowStockCount = lowStockItems.length
-  const needsDelivery = lowStockCount > 0 // Show delivery needed if there's low stock
+
+  // Get last delivery info from recent activity
+  const lastDelivery = useMemo(() => {
+    if (!recentActivity) return null
+    const deliveries = recentActivity.filter(a => a.action_type === 'Reception')
+    if (deliveries.length === 0) return null
+
+    const latest = deliveries[0]
+    return {
+      time: latest.created_at,
+      itemCount: deliveries.length,
+    }
+  }, [recentActivity])
+
+  // Memoize computed values
+  const activeUsers = useMemo(() => users.filter(u => u.status === 'Active').length, [users])
 
   // Handle edit store submit
   const handleEditSubmit = async (data: StoreFormData) => {
@@ -119,9 +165,7 @@ export function OwnerDashboard() {
 
       setEditFormOpen(false)
       toast.success('Store updated successfully')
-      // Refetch profile to update the store selector and dashboard
       refreshProfile()
-      refreshAll()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update store')
     } finally {
@@ -130,22 +174,7 @@ export function OwnerDashboard() {
   }
 
   // Memoize recent activity slice
-  const recentActivityItems = useMemo(() => recentActivity?.slice(0, 8) ?? [], [recentActivity])
-
-  // Show error if any query failed - after all hooks
-  const hasError = usersError || missingError || lowStockError
-  if (hasError) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-red-500">
-            Error loading dashboard data. Please try refreshing the page.
-          </p>
-        </div>
-      </div>
-    )
-  }
+  const recentActivityItems = useMemo(() => recentActivity?.slice(0, 6) ?? [], [recentActivity])
 
   if (isLoading) {
     return (
@@ -154,12 +183,17 @@ export function OwnerDashboard() {
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-4 w-64 mt-2" />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          {[...Array(2)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
-        <Skeleton className="h-64" />
+        <Skeleton className="h-48" />
       </div>
     )
   }
@@ -189,230 +223,294 @@ export function OwnerDashboard() {
     )
   }
 
+  const hasUrgentIssues = inventoryMetrics.outOfStock > 0 || isMissingCount
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto px-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{currentStore.store?.name}</h1>
-          <p className="text-muted-foreground">
-            Overview for {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          <h1 className="text-2xl font-semibold tracking-tight">{currentStore.store?.name}</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {canManage && (
-            <Button variant="outline" size="sm" onClick={() => setEditFormOpen(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Edit Store</span>
-            </Button>
-          )}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={refresh}
-                  disabled={isRefreshing}
-                  className="gap-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Last updated {formatDistanceToNow(lastRefreshed, { addSuffix: true })}</p>
-                <p className="text-xs text-muted-foreground">
-                  Auto-refresh: {isAutoRefreshEnabled ? 'On (every 60s)' : 'Off'}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <Button
-            variant={isAutoRefreshEnabled ? 'default' : 'ghost'}
-            size="sm"
-            onClick={toggleAutoRefresh}
-            className="hidden sm:flex"
-          >
-            {isAutoRefreshEnabled ? 'Auto' : 'Manual'}
+        {canManage && (
+          <Button variant="outline" size="sm" onClick={() => setEditFormOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Edit Store</span>
           </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {canReceive ? (
-          <Link href={`/stores/${currentStoreId}/stock-reception`}>
-            <StatsCard
-              title="Reception"
-              value={needsDelivery ? '!' : '✓'}
-              description={needsDelivery ? 'Delivery needed' : 'Record deliveries'}
-              icon={<Truck className="h-4 w-4 text-muted-foreground" />}
-              variant={needsDelivery ? 'warning' : 'default'}
-              className="hover:border-primary/50 transition-colors cursor-pointer"
-            />
-          </Link>
-        ) : (
-          <StatsCard
-            title="Reception"
-            value="-"
-            description="No access"
-            icon={<Truck className="h-4 w-4 text-muted-foreground" />}
-            className="opacity-40"
-          />
         )}
-        <Link href="/users">
-          <StatsCard
-            title="Team Members"
-            value={activeUsers}
-            description={users.length - activeUsers > 0 ? `${users.length - activeUsers} inactive/invited` : 'All members active'}
-            icon={<Users className="h-4 w-4 text-muted-foreground" />}
-            className="hover:border-primary/50 transition-colors cursor-pointer"
-          />
-        </Link>
-        <Link href={`/stores/${currentStoreId}/stock-count`}>
-          <StatsCard
-            title="Today's Count"
-            value={isMissingCount ? 'Pending' : 'Done'}
-            description={isMissingCount ? 'Stock count not submitted yet' : 'Stock count submitted'}
-            icon={isMissingCount
-              ? <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              : <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            }
-            variant={isMissingCount ? 'warning' : 'success'}
-            className="hover:border-primary/50 transition-colors cursor-pointer"
-          />
-        </Link>
-        <Link href="/reports/low-stock">
-          <StatsCard
-            title="Low Stock Alerts"
-            value={lowStockCount}
-            description={lowStockCount === 0
-              ? 'All items above PAR level'
-              : `${lowStockCount} item${lowStockCount !== 1 ? 's' : ''} need restocking`
-            }
-            icon={<Package className="h-4 w-4 text-muted-foreground" />}
-            variant={lowStockCount > 0 ? 'danger' : 'success'}
-            className="hover:border-primary/50 transition-colors cursor-pointer"
-          />
-        </Link>
       </div>
 
-      {/* Action Cards - Only show if there are issues needing attention */}
-      {(isMissingCount || lowStockCount > 0) && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Missing Count - Quick Action */}
-          {isMissingCount && (
-            <Card className="border-yellow-500/50 bg-yellow-500/5">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                    <CardTitle className="text-sm font-medium">Submit Stock Count</CardTitle>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Today&apos;s stock count hasn&apos;t been submitted yet
-                </p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Link href={`/stores/${currentStoreId}/stock-count`}>
-                  <Button variant="outline" size="sm" className="border-yellow-500/50 hover:bg-yellow-500/10">
-                    Submit Count Now
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          )}
+      {/* URGENT ATTENTION SECTION - Only shows if there are issues */}
+      {hasUrgentIssues && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+            <h2 className="text-lg font-semibold">Needs Attention</h2>
+          </div>
 
-          {/* Low Stock - Quick View */}
-          {lowStockCount > 0 && (
-            <Card className="border-red-500/50 bg-red-500/5">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Out of Stock Alert */}
+            {inventoryMetrics.outOfStock > 0 && (
+              <Card className="border-red-500 bg-red-50/50">
+                <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-red-600" />
-                    <CardTitle className="text-sm font-medium">Restock Needed</CardTitle>
+                    <XCircle className="h-5 w-5 text-red-600" />
+                    <CardTitle className="text-base font-semibold text-red-900">
+                      {inventoryMetrics.outOfStock} Item{inventoryMetrics.outOfStock !== 1 ? 's' : ''} Out of Stock
+                    </CardTitle>
                   </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {lowStockCount} item{lowStockCount !== 1 ? 's' : ''} below PAR level
-                </p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-2">
-                  {lowStockItems.slice(0, 3).map(item => (
-                    <div key={`${item.store_id}-${item.inventory_item_id}`} className="flex items-center justify-between text-sm">
-                      <span>{item.item_name}</span>
-                      <Badge variant="destructive" className="text-xs">
-                        {item.current_quantity} / {item.par_level}
-                      </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm text-red-800">
+                      {outOfStockItems.slice(0, 3).map((name, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="h-1.5 w-1.5 rounded-full bg-red-600" />
+                          <span>{name}</span>
+                        </div>
+                      ))}
+                      {inventoryMetrics.outOfStock > 3 && (
+                        <div className="text-xs text-red-700 mt-1">
+                          +{inventoryMetrics.outOfStock - 3} more items
+                        </div>
+                      )}
                     </div>
-                  ))}
-                  {lowStockCount > 3 && (
-                    <Link href="/reports/low-stock">
-                      <Button variant="ghost" size="sm" className="w-full text-xs">
-                        View all {lowStockCount} items
+                    <Link href="/inventory?category=all">
+                      <Button size="sm" variant="destructive" className="w-full mt-2">
+                        View & Order Now
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Missing Stock Count Alert */}
+            {isMissingCount && (
+              <Card className="border-yellow-500 bg-yellow-50/50">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5 text-yellow-700" />
+                    <CardTitle className="text-base font-semibold text-yellow-900">
+                      Stock Count Pending
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-yellow-800 mb-3">
+                    Today&apos;s stock count hasn&apos;t been completed yet. Complete it to ensure accurate inventory tracking.
+                  </p>
+                  {canCount && (
+                    <Link href={`/stores/${currentStoreId}/stock-count`}>
+                      <Button size="sm" className="w-full bg-yellow-600 hover:bg-yellow-700">
+                        Do Stock Count Now
+                        <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </Link>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Recent Activity */}
-      <Card>
+      {/* INVENTORY STATUS - 4 Cards */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Inventory Status</h2>
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <Link href="/inventory">
+            <StatsCard
+              title="Total Items"
+              value={inventoryMetrics.total}
+              description="Being tracked"
+              icon={<Package className="h-4 w-4" />}
+              className="hover:border-primary/50 transition-colors cursor-pointer bg-white"
+            />
+          </Link>
+
+          <Link href="/inventory?category=all">
+            <StatsCard
+              title="Low Stock"
+              value={inventoryMetrics.low}
+              description={inventoryMetrics.low > 0 ? 'Below PAR level' : 'All items stocked'}
+              icon={<AlertTriangle className="h-4 w-4" />}
+              variant={inventoryMetrics.low > 0 ? 'warning' : 'default'}
+              className="hover:border-primary/50 transition-colors cursor-pointer bg-white"
+            />
+          </Link>
+
+          <Link href="/inventory?category=all">
+            <StatsCard
+              title="Out of Stock"
+              value={inventoryMetrics.outOfStock}
+              description={inventoryMetrics.outOfStock > 0 ? 'Need immediate restock' : 'No items empty'}
+              icon={<XCircle className="h-4 w-4" />}
+              variant={inventoryMetrics.outOfStock > 0 ? 'danger' : 'default'}
+              className="hover:border-primary/50 transition-colors cursor-pointer bg-white"
+            />
+          </Link>
+
+          <Link href="/inventory">
+            <StatsCard
+              title="Healthy Stock"
+              value={inventoryMetrics.healthy}
+              description={`${inventoryMetrics.healthPercentage}% inventory health`}
+              icon={<CheckCircle className="h-4 w-4" />}
+              variant={inventoryMetrics.healthPercentage >= 80 ? 'success' : 'default'}
+              className="hover:border-primary/50 transition-colors cursor-pointer bg-white"
+            />
+          </Link>
+        </div>
+      </div>
+
+      {/* TODAY'S STATUS */}
+      <Card className="bg-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Today&apos;s Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {/* Stock Count Status */}
+            <div className="flex items-center justify-between py-2 border-b">
+              <div className="flex items-center gap-3">
+                <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Stock Count</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {isMissingCount ? (
+                  <>
+                    <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                      Not done yet
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-muted-foreground">Completed</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Last Delivery */}
+            <div className="flex items-center justify-between py-2 border-b">
+              <div className="flex items-center gap-3">
+                <Truck className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Last Delivery</span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {lastDelivery
+                  ? `${formatDistanceToNow(new Date(lastDelivery.time), { addSuffix: true })} (${lastDelivery.itemCount} items)`
+                  : 'None today'
+                }
+              </span>
+            </div>
+
+            {/* Inventory Health */}
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Inventory Health</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">{inventoryMetrics.healthPercentage}%</span>
+                <Badge
+                  variant={inventoryMetrics.healthPercentage >= 80 ? 'default' : inventoryMetrics.healthPercentage >= 60 ? 'secondary' : 'destructive'}
+                  className="text-xs"
+                >
+                  {inventoryMetrics.healthPercentage >= 80 ? 'Excellent' : inventoryMetrics.healthPercentage >= 60 ? 'Good' : 'Needs Work'}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* QUICK ACTIONS */}
+      <Card className="bg-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {canCount && (
+              <Link href={`/stores/${currentStoreId}/stock-count`}>
+                <Button
+                  variant={isMissingCount ? "default" : "outline"}
+                  className="w-full"
+                  size="lg"
+                >
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  {isMissingCount ? 'Do Stock Count' : 'Update Stock Count'}
+                </Button>
+              </Link>
+            )}
+            {canReceive && (
+              <Link href={`/stores/${currentStoreId}/stock-reception`}>
+                <Button variant="outline" className="w-full" size="lg">
+                  <Truck className="h-4 w-4 mr-2" />
+                  Record Delivery
+                </Button>
+              </Link>
+            )}
+            <Link href="/inventory">
+              <Button variant="outline" className="w-full" size="lg">
+                <Package className="h-4 w-4 mr-2" />
+                View Inventory
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* RECENT ACTIVITY - Compact */}
+      <Card className="bg-white">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <History className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Today&apos;s Activity</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Recent Activity</CardTitle>
             </div>
             <Link href="/reports/daily-summary">
-              <Button variant="ghost" size="sm" className="gap-1">
+              <Button variant="ghost" size="sm" className="h-8 text-xs">
                 View All
-                <ArrowRight className="h-3 w-3" />
+                <ArrowRight className="h-3 w-3 ml-1" />
               </Button>
             </Link>
           </div>
         </CardHeader>
         <CardContent>
           {recentActivityItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Clock className="h-8 w-8 text-muted-foreground/50 mb-2" />
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <Clock className="h-6 w-6 text-muted-foreground/50 mb-2" />
               <p className="text-sm text-muted-foreground">No activity recorded today</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Stock counts and receptions will appear here
-              </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {recentActivityItems.map((activity) => (
                 <div
                   key={activity.id}
                   className="flex items-center justify-between py-2 border-b last:border-0"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <Badge
                       variant={activity.action_type === 'Reception' ? 'secondary' : 'default'}
-                      className="w-20 justify-center text-xs"
+                      className="w-16 justify-center text-xs shrink-0"
                     >
-                      {activity.action_type}
+                      {activity.action_type === 'Reception' ? 'In' : 'Count'}
                     </Badge>
-                    <div>
-                      <p className="text-sm font-medium">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
                         {activity.inventory_item?.name || 'Unknown Item'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        by {activity.performer?.full_name || 'Unknown'}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className={`text-sm font-mono font-medium ${
                       activity.quantity_change && activity.quantity_change > 0
                         ? 'text-green-600'
