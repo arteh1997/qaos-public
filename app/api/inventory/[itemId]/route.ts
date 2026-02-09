@@ -56,6 +56,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const auth = await withApiAuth(request, {
       allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
+      requireCSRF: true,
     })
 
     if (!auth.success) return auth.response
@@ -124,6 +125,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const auth = await withApiAuth(request, {
       allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
+      requireCSRF: true,
     })
 
     if (!auth.success) return auth.response

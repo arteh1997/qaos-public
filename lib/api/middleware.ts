@@ -54,6 +54,8 @@ export interface ApiMiddlewareOptions {
   requirePlatformAdmin?: boolean
   /** Whether to require CSRF token validation for state-changing requests (default: false) */
   requireCSRF?: boolean
+  /** Whether to require an active subscription for the store (default: false) */
+  requireActiveSubscription?: boolean
 }
 
 /**
@@ -75,6 +77,7 @@ export async function withApiAuth(
     requireAuth = true,
     requirePlatformAdmin = false,
     requireCSRF = false,
+    requireActiveSubscription = false,
   } = options
 
   // Validate CSRF token for state-changing requests
@@ -189,6 +192,47 @@ export async function withApiAuth(
             success: false,
             response: apiForbidden(
               `This action requires one of the following roles at this store: ${requireRoleAtStore.join(', ')}`,
+              requestId
+            ),
+          }
+        }
+      }
+    }
+  }
+
+  // Check subscription status if required
+  if (requireActiveSubscription && !profile.is_platform_admin) {
+    // Try to get store_id from query params or request body
+    let targetStoreId = request.nextUrl.searchParams.get('store_id') || request.nextUrl.searchParams.get('storeId')
+
+    // If not in query params, try to parse from body for POST/PUT/PATCH
+    if (!targetStoreId) {
+      const method = request.method.toUpperCase()
+      if (['POST', 'PUT', 'PATCH'].includes(method)) {
+        try {
+          const bodyClone = request.clone()
+          const body = await bodyClone.json()
+          targetStoreId = body.store_id || body.storeId
+        } catch {
+          // Body parsing failed, continue without store_id
+        }
+      }
+    }
+
+    // If we have a store_id, check its subscription status
+    if (targetStoreId) {
+      const targetStore = stores.find(s => s.store_id === targetStoreId)
+
+      if (targetStore?.store) {
+        const subscriptionStatus = targetStore.store.subscription_status
+
+        // Allow access if subscription is active or in trial
+        const allowedStatuses = ['active', 'trialing']
+        if (subscriptionStatus && !allowedStatuses.includes(subscriptionStatus)) {
+          return {
+            success: false,
+            response: apiForbidden(
+              'This store\'s subscription has expired. Please renew to continue.',
               requestId
             ),
           }

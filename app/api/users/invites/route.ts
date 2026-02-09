@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { validateCSRFToken } from '@/lib/csrf'
 
 /**
  * GET /api/users/invites - Get pending invitations
@@ -101,6 +102,15 @@ export async function GET(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
+    // CSRF protection
+    const isValidCSRF = await validateCSRFToken(request)
+    if (!isValidCSRF) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid or missing CSRF token' },
+        { status: 403 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const inviteId = searchParams.get('id')
 
@@ -122,11 +132,59 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Delete the invite
+    // Fetch the invite first to check ownership
     const adminClient = createAdminClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const supabaseAdmin = adminClient as any
 
+    const { data: invite, error: fetchError } = await supabaseAdmin
+      .from('user_invites')
+      .select('invited_by, store_id')
+      .eq('id', inviteId)
+      .is('used_at', null)
+      .single()
+
+    if (fetchError || !invite) {
+      return NextResponse.json(
+        { success: false, message: 'Invitation not found or already used' },
+        { status: 404 }
+      )
+    }
+
+    // SECURITY: Verify user has permission to delete this invite
+    // User must be either: (1) the inviter, or (2) Owner at the invite's store, or (3) platform admin
+    const isInviter = invite.invited_by === user.id
+
+    // Check if user is Owner at the invite's store
+    let isStoreOwner = false
+    if (invite.store_id) {
+      const { data: storeUser } = await supabaseAdmin
+        .from('store_users')
+        .select('role')
+        .eq('store_id', invite.store_id)
+        .eq('user_id', user.id)
+        .single()
+
+      isStoreOwner = storeUser && storeUser.role === 'Owner'
+    }
+
+    // Check if platform admin
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('is_platform_admin')
+      .eq('id', user.id)
+      .single()
+
+    const isPlatformAdmin = profile?.is_platform_admin || false
+
+    if (!isInviter && !isStoreOwner && !isPlatformAdmin) {
+      return NextResponse.json(
+        { success: false, message: 'Not authorized to cancel this invitation' },
+        { status: 403 }
+      )
+    }
+
+    // Delete the invite
     const { error } = await supabaseAdmin
       .from('user_invites')
       .delete()

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, RATE_LIMITS, getRateLimitHeaders } from '@/lib/rate-limit'
 import { loginSchema } from '@/lib/validations/auth'
 import { auditLog } from '@/lib/audit'
+import { validateCSRFToken } from '@/lib/csrf'
 
 /**
  * POST /api/auth/login - Server-side login with rate limiting
@@ -33,6 +34,18 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 429,
+          headers: getRateLimitHeaders(rateLimitResult),
+        }
+      )
+    }
+
+    // CSRF protection
+    const isValidCSRF = await validateCSRFToken(request)
+    if (!isValidCSRF) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid or missing CSRF token' },
+        {
+          status: 403,
           headers: getRateLimitHeaders(rateLimitResult),
         }
       )

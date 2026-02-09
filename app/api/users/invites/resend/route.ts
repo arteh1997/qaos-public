@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail, getInviteEmailHtml } from '@/lib/email'
 import crypto from 'crypto'
+import { validateCSRFToken } from '@/lib/csrf'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Restaurant Inventory'
@@ -12,6 +13,15 @@ const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Restaurant Inventory'
  */
 export async function POST(request: NextRequest) {
   try {
+    // CSRF protection
+    const isValidCSRF = await validateCSRFToken(request)
+    if (!isValidCSRF) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid or missing CSRF token' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { inviteId } = body
 
@@ -49,6 +59,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, message: 'Invitation not found or already used' },
         { status: 404 }
+      )
+    }
+
+    // SECURITY: Verify user has permission to resend this invite
+    // User must be either: (1) the inviter, or (2) Owner/Manager at the invite's store
+    const isInviter = invite.invited_by === user.id
+
+    // Check if user is Owner/Manager at the invite's store
+    let isStoreManager = false
+    if (invite.store_id) {
+      const { data: storeUser } = await supabaseAdmin
+        .from('store_users')
+        .select('role')
+        .eq('store_id', invite.store_id)
+        .eq('user_id', user.id)
+        .single()
+
+      isStoreManager = storeUser && ['Owner', 'Manager'].includes(storeUser.role)
+    }
+
+    // Check if platform admin
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('is_platform_admin')
+      .eq('id', user.id)
+      .single()
+
+    const isPlatformAdmin = profile?.is_platform_admin || false
+
+    if (!isInviter && !isStoreManager && !isPlatformAdmin) {
+      return NextResponse.json(
+        { success: false, message: 'Not authorized to resend this invitation' },
+        { status: 403 }
       )
     }
 

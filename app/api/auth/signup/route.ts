@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { validateCSRFToken } from '@/lib/csrf'
 
 const signupSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -29,6 +30,15 @@ export async function POST(request: NextRequest) {
           retryAfter,
         },
         { status: 429 }
+      )
+    }
+
+    // CSRF protection
+    const isValidCSRF = await validateCSRFToken(request)
+    if (!isValidCSRF) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid or missing CSRF token' },
+        { status: 403 }
       )
     }
 

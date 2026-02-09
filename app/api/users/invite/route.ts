@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
     const auth = await withApiAuth(request, {
       allowedRoles: ['Owner', 'Manager'],
       rateLimit: { key: 'createUser', config: RATE_LIMITS.createUser },
+      requireCSRF: true,
     })
 
     if (!auth.success) return auth.response

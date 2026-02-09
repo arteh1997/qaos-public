@@ -24,6 +24,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const auth = await withApiAuth(request, {
       allowedRoles: ['Owner', 'Manager', 'Driver'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
+      requireCSRF: true,
     })
 
     if (!auth.success) return auth.response

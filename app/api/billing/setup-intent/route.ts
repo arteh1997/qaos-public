@@ -7,16 +7,31 @@ import { getOrCreateCustomer, createSetupIntent } from '@/lib/stripe/server'
 /**
  * POST /api/billing/setup-intent
  * Create a Setup Intent for collecting payment method
+ *
+ * SECURITY: Only billing owners can set up payment methods
  */
 export async function POST(request: NextRequest) {
   try {
     const auth = await withApiAuth(request, {
+      allowedRoles: ['Owner'], // Only Owners can set up billing
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
     })
 
     if (!auth.success) return auth.response
 
     const { context } = auth
+
+    // SECURITY: Verify user is a billing owner for at least one store
+    // Billing setup should only be available to users who pay for stores
+    const isBillingOwner = context.stores.some(s => s.is_billing_owner)
+
+    if (!isBillingOwner && !context.profile?.is_platform_admin) {
+      return apiError(
+        'Only billing owners can set up payment methods',
+        403,
+        context.requestId
+      )
+    }
 
     // Get or create Stripe customer
     const customerId = await getOrCreateCustomer(

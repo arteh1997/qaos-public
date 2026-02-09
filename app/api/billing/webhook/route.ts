@@ -41,6 +41,19 @@ export async function POST(request: NextRequest) {
   const supabaseAdmin = createAdminClient()
 
   try {
+    // SECURITY: Check if this event has already been processed
+    // Stripe may retry webhooks on timeout, so we deduplicate by event ID
+    const { data: existingEvent } = await supabaseAdmin
+      .from('billing_events')
+      .select('id')
+      .eq('stripe_event_id', event.id)
+      .single()
+
+    if (existingEvent) {
+      console.log(`[Webhook] Event ${event.id} already processed, skipping`)
+      return NextResponse.json({ received: true, duplicate: true }, { status: 200 })
+    }
+
     switch (event.type) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {

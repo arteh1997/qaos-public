@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
     const auth = await withApiAuth(request, {
       // Don't restrict roles - we'll check manually for onboarding flow
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
+      requireCSRF: true,
     })
 
     if (!auth.success) return auth.response

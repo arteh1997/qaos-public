@@ -35,6 +35,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const auth = await withApiAuth(request, {
       allowedRoles: ['Owner'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
+      requireCSRF: true,
     })
 
     if (!auth.success) return auth.response

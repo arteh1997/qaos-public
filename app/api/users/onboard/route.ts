@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { onboardingSchema } from '@/lib/validations/user'
 import { sendEmail, getWelcomeEmailHtml } from '@/lib/email'
+import { validateCSRFToken } from '@/lib/csrf'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 export async function POST(request: NextRequest) {
   try {
+    // CSRF protection
+    const isValidCSRF = await validateCSRFToken(request)
+    if (!isValidCSRF) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid or missing CSRF token' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     // Validate the request body
