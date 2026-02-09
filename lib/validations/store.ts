@@ -44,7 +44,8 @@ const weeklyHoursSchema = z.object({
   sunday: dayHoursSchema,
 }).nullable().optional()
 
-export const storeSchema = z.object({
+// Base store schema without refinements (for partial updates)
+export const storeSchemaBase = z.object({
   name: z.string().min(2, 'Store name must be at least 2 characters'),
   address: z.string().optional(),
   is_active: z.boolean(),
@@ -52,7 +53,10 @@ export const storeSchema = z.object({
   closing_time: z.string().regex(timeRegex, 'Invalid time format (HH:MM)').optional().nullable(),
   weekly_hours: weeklyHoursSchema,
   billing_user_id: z.string().uuid().optional().nullable(),
-}).refine((data) => {
+})
+
+// Full store schema with refinements (for creation)
+export const storeSchema = storeSchemaBase.refine((data) => {
   // If default times are set, both should be set
   if ((data.opening_time && !data.closing_time) || (!data.opening_time && data.closing_time)) {
     return false
@@ -62,6 +66,9 @@ export const storeSchema = z.object({
   message: 'Both default opening and closing times must be set, or leave both empty',
   path: ['closing_time'],
 })
+
+// Partial schema for updates (uses base without refinements)
+export const storeUpdateSchema = storeSchemaBase.partial()
 
 export type StoreFormData = z.infer<typeof storeSchema>
 

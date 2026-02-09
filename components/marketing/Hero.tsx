@@ -37,13 +37,13 @@ export function Hero() {
 
           {/* CTA Buttons */}
           <div className="mb-20 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-5">
-            <Button asChild size="lg" className="text-base sm:text-lg px-8 py-6 h-auto shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300">
+            <Button asChild size="lg" className="w-full sm:w-auto text-base sm:text-lg px-8 py-6 h-auto shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300">
               <Link href="/login?signup=true">
-                Start 14-Day Free Trial
+                Start 1-Month Free Trial
                 <ArrowRight className="ml-2.5 h-5 w-5" />
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="text-base sm:text-lg px-8 py-6 h-auto hover:bg-accent/50 transition-all duration-300">
+            <Button asChild variant="outline" size="lg" className="w-full sm:w-auto text-base sm:text-lg px-8 py-6 h-auto hover:bg-accent/50 transition-all duration-300">
               <a href="#features">See How It Works</a>
             </Button>
           </div>
@@ -52,7 +52,7 @@ export function Hero() {
           <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-2.5">
               <CheckCircle2 className="h-5 w-5 text-primary/80" />
-              <span>14-day free trial</span>
+              <span>1-month free trial</span>
             </div>
             <div className="flex items-center gap-2.5">
               <CheckCircle2 className="h-5 w-5 text-primary/80" />

@@ -143,6 +143,24 @@ export function useUsers(filters: UsersFilters = {}) {
       const { error } = await supabaseUpdate('profiles', id, updateData)
       if (error) throw error
 
+      // Update store_users role if role is being changed and we have a storeId filter
+      if (data.role !== undefined && !isBillingOwner && storeId && storeId !== 'all') {
+        // Find the store_users entry for this user at this store
+        const { data: storeUsersData } = await supabaseFetch<{ id: string }>('store_users', {
+          select: 'id',
+          filter: {
+            user_id: `eq.${id}`,
+            store_id: `eq.${storeId}`,
+          },
+        })
+
+        if (storeUsersData && storeUsersData.length > 0) {
+          // Update the role in store_users
+          const storeUserId = storeUsersData[0].id
+          await supabaseUpdate('store_users', storeUserId, { role: data.role })
+        }
+      }
+
       // Handle store_users for Driver role
       if (data.role === 'Driver' && data.store_ids !== undefined) {
         // Get current store_users for this user with Driver role

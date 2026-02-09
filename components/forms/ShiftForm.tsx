@@ -373,7 +373,7 @@ export function ShiftForm({
 
                       {/* Preset not available message */}
                       {entry.mode === 'preset' && !hasPatterns && (
-                        <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/50 p-2 rounded">
+                        <p className="text-xs text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 p-2 rounded font-medium">
                           No shift patterns configured for {dayOfWeek ? DAY_NAMES[dayOfWeek] : 'this day'}. Use custom time or configure patterns in store settings.
                         </p>
                       )}

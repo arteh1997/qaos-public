@@ -1,8 +1,8 @@
 'use client'
 
-import { memo, useState } from 'react'
-import Link from 'next/link'
+import { memo } from 'react'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { AppRole, LegacyAppRole } from '@/types'
 import {
@@ -11,11 +11,8 @@ import {
   Users,
   FileText,
   Clock,
-  ChevronLeft,
-  ChevronRight,
   CreditCard,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { normalizeRole } from '@/lib/auth'
 import { StoreSelector } from './StoreSelector'
 import { useAuth } from '@/hooks/useAuth'
@@ -47,7 +44,7 @@ const navItems: NavItem[] = [
     roles: ['Owner', 'Manager'],
   },
   {
-    title: 'Users',
+    title: 'Team',
     href: '/users',
     icon: Users,
     roles: ['Owner', 'Manager'],
@@ -85,7 +82,6 @@ interface SidebarProps {
 
 export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(false)
   const { currentStore } = useAuth()
 
   // Normalize legacy roles (Admin -> Owner)
@@ -108,42 +104,14 @@ export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
 
   return (
     <aside
-      className={cn(
-        'hidden md:flex flex-col bg-card/50 dark:bg-card/30 border-r backdrop-blur-sm transition-all duration-300',
-        collapsed ? 'w-16' : 'w-64'
-      )}
+      className="hidden md:flex flex-col w-60 bg-sidebar border-r border-sidebar-border"
       role="navigation"
       aria-label="Main navigation"
     >
-      <div className={cn(
-        'flex items-center h-16 border-b px-4',
-        collapsed ? 'justify-center' : 'justify-between'
-      )}>
-        {!collapsed && (
-          <Link href="/" className="font-semibold text-lg hover:text-primary transition-colors">
-            Inventory
-          </Link>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8"
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-expanded={!collapsed}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-
       {/* Store selector for multi-store users */}
-      <StoreSelector collapsed={collapsed} className="py-2 border-b" />
+      <StoreSelector className="py-2 border-b border-sidebar-border" />
 
-      <nav className="flex-1 p-2 space-y-1" aria-label="Primary">
+      <nav className="flex-1 p-2 space-y-0.5" aria-label="Primary">
         {filteredItems.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href))
@@ -153,17 +121,15 @@ export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-md'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:translate-x-1',
-                collapsed && 'justify-center px-2 hover:translate-x-0'
+                  ? 'bg-white text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:text-sidebar-hover hover:bg-white/50'
               )}
-              title={collapsed ? item.title : undefined}
               aria-current={isActive ? 'page' : undefined}
             >
               <item.icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-              {!collapsed ? <span>{item.title}</span> : <span className="sr-only">{item.title}</span>}
+              <span>{item.title}</span>
             </Link>
           )
         })}

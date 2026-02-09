@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { inviteUserSchema, updateUserSchema } from '@/lib/validations/user'
+import { inviteUserSchema, legacyInviteUserSchema, updateUserSchema, onboardingSchema } from '@/lib/validations/user'
 
 describe('User Validation Schemas', () => {
   describe('inviteUserSchema', () => {
     describe('Valid Inputs', () => {
-      it('should accept valid Owner invite without storeId', () => {
+      it('should accept valid Owner invite with storeId', () => {
         const result = inviteUserSchema.safeParse({
           email: 'owner@example.com',
-          fullName: 'Owner User',
           role: 'Owner',
+          storeId: 'store-123',
         })
         expect(result.success).toBe(true)
       })
@@ -16,18 +16,16 @@ describe('User Validation Schemas', () => {
       it('should accept valid Driver invite without storeId', () => {
         const result = inviteUserSchema.safeParse({
           email: 'driver@example.com',
-          fullName: 'Driver User',
           role: 'Driver',
         })
         expect(result.success).toBe(true)
       })
 
-      it('should accept Owner with optional storeId', () => {
+      it('should accept Driver with storeIds array', () => {
         const result = inviteUserSchema.safeParse({
-          email: 'owner@example.com',
-          fullName: 'Owner User',
-          role: 'Owner',
-          storeId: 'store-123',
+          email: 'driver@example.com',
+          role: 'Driver',
+          storeIds: ['store-1', 'store-2'],
         })
         expect(result.success).toBe(true)
       })
@@ -35,7 +33,6 @@ describe('User Validation Schemas', () => {
       it('should accept Staff with storeId', () => {
         const result = inviteUserSchema.safeParse({
           email: 'staff@example.com',
-          fullName: 'Staff User',
           role: 'Staff',
           storeId: 'store-456',
         })
@@ -45,18 +42,8 @@ describe('User Validation Schemas', () => {
       it('should accept Manager with storeId', () => {
         const result = inviteUserSchema.safeParse({
           email: 'manager@example.com',
-          fullName: 'Manager User',
           role: 'Manager',
           storeId: 'store-789',
-        })
-        expect(result.success).toBe(true)
-      })
-
-      it('should accept minimum length fullName (2 characters)', () => {
-        const result = inviteUserSchema.safeParse({
-          email: 'user@example.com',
-          fullName: 'Jo',
-          role: 'Owner',
         })
         expect(result.success).toBe(true)
       })
@@ -64,7 +51,6 @@ describe('User Validation Schemas', () => {
       it('should accept complex email addresses', () => {
         const result = inviteUserSchema.safeParse({
           email: 'user.name+tag@company.co.uk',
-          fullName: 'Test User',
           role: 'Driver',
         })
         expect(result.success).toBe(true)
@@ -72,10 +58,23 @@ describe('User Validation Schemas', () => {
     })
 
     describe('Invalid Inputs', () => {
+      it('should reject Owner without storeId', () => {
+        const result = inviteUserSchema.safeParse({
+          email: 'owner@example.com',
+          role: 'Owner',
+        })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          const storeError = result.error.issues.find(
+            (issue) => issue.path.includes('storeId')
+          )
+          expect(storeError?.message).toBe('Please select a store')
+        }
+      })
+
       it('should reject Staff without storeId', () => {
         const result = inviteUserSchema.safeParse({
           email: 'staff@example.com',
-          fullName: 'Staff User',
           role: 'Staff',
         })
         expect(result.success).toBe(false)
@@ -83,16 +82,13 @@ describe('User Validation Schemas', () => {
           const storeError = result.error.issues.find(
             (issue) => issue.path.includes('storeId')
           )
-          expect(storeError?.message).toBe(
-            'Staff and Manager must be assigned to a store'
-          )
+          expect(storeError?.message).toBe('Please select a store')
         }
       })
 
       it('should reject Manager without storeId', () => {
         const result = inviteUserSchema.safeParse({
           email: 'manager@example.com',
-          fullName: 'Manager User',
           role: 'Manager',
         })
         expect(result.success).toBe(false)
@@ -100,17 +96,14 @@ describe('User Validation Schemas', () => {
           const storeError = result.error.issues.find(
             (issue) => issue.path.includes('storeId')
           )
-          expect(storeError?.message).toBe(
-            'Staff and Manager must be assigned to a store'
-          )
+          expect(storeError?.message).toBe('Please select a store')
         }
       })
 
       it('should reject invalid email', () => {
         const result = inviteUserSchema.safeParse({
           email: 'not-an-email',
-          fullName: 'Test User',
-          role: 'Owner',
+          role: 'Driver',
         })
         expect(result.success).toBe(false)
         if (!result.success) {
@@ -123,30 +116,14 @@ describe('User Validation Schemas', () => {
       it('should reject empty email', () => {
         const result = inviteUserSchema.safeParse({
           email: '',
-          fullName: 'Test User',
-          role: 'Owner',
+          role: 'Driver',
         })
         expect(result.success).toBe(false)
-      })
-
-      it('should reject fullName shorter than 2 characters', () => {
-        const result = inviteUserSchema.safeParse({
-          email: 'user@example.com',
-          fullName: 'J',
-          role: 'Owner',
-        })
-        expect(result.success).toBe(false)
-        if (!result.success) {
-          expect(result.error.issues[0].message).toBe(
-            'Full name must be at least 2 characters'
-          )
-        }
       })
 
       it('should reject invalid role', () => {
         const result = inviteUserSchema.safeParse({
           email: 'user@example.com',
-          fullName: 'Test User',
           role: 'Admin', // Admin is now a legacy role, not valid for invites
         })
         expect(result.success).toBe(false)
@@ -157,18 +134,11 @@ describe('User Validation Schemas', () => {
         expect(
           inviteUserSchema.safeParse({ email: 'test@test.com' }).success
         ).toBe(false)
-        expect(
-          inviteUserSchema.safeParse({
-            email: 'test@test.com',
-            fullName: 'Test',
-          }).success
-        ).toBe(false)
       })
 
       it('should reject Staff with empty string storeId', () => {
         const result = inviteUserSchema.safeParse({
           email: 'staff@example.com',
-          fullName: 'Staff User',
           role: 'Staff',
           storeId: '',
         })
@@ -178,11 +148,11 @@ describe('User Validation Schemas', () => {
     })
 
     describe('Role Validation', () => {
-      it('should accept exactly Owner role', () => {
+      it('should accept exactly Owner role with store', () => {
         const result = inviteUserSchema.safeParse({
           email: 'test@example.com',
-          fullName: 'Test User',
           role: 'Owner',
+          storeId: 'store-id',
         })
         expect(result.success).toBe(true)
       })
@@ -190,7 +160,6 @@ describe('User Validation Schemas', () => {
       it('should accept exactly Manager role with store', () => {
         const result = inviteUserSchema.safeParse({
           email: 'test@example.com',
-          fullName: 'Test User',
           role: 'Manager',
           storeId: 'store-id',
         })
@@ -200,7 +169,6 @@ describe('User Validation Schemas', () => {
       it('should accept exactly Driver role', () => {
         const result = inviteUserSchema.safeParse({
           email: 'test@example.com',
-          fullName: 'Test User',
           role: 'Driver',
         })
         expect(result.success).toBe(true)
@@ -209,7 +177,6 @@ describe('User Validation Schemas', () => {
       it('should accept exactly Staff role with store', () => {
         const result = inviteUserSchema.safeParse({
           email: 'test@example.com',
-          fullName: 'Test User',
           role: 'Staff',
           storeId: 'store-id',
         })
@@ -220,7 +187,6 @@ describe('User Validation Schemas', () => {
         expect(
           inviteUserSchema.safeParse({
             email: 'test@example.com',
-            fullName: 'Test User',
             role: 'owner', // lowercase
           }).success
         ).toBe(false)
@@ -228,11 +194,140 @@ describe('User Validation Schemas', () => {
         expect(
           inviteUserSchema.safeParse({
             email: 'test@example.com',
-            fullName: 'Test User',
             role: 'OWNER', // uppercase
           }).success
         ).toBe(false)
       })
+    })
+  })
+
+  describe('legacyInviteUserSchema', () => {
+    it('should accept valid input with fullName', () => {
+      const result = legacyInviteUserSchema.safeParse({
+        email: 'owner@example.com',
+        fullName: 'Owner User',
+        role: 'Owner',
+        storeId: 'store-123',
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('should accept Driver without storeId', () => {
+      const result = legacyInviteUserSchema.safeParse({
+        email: 'driver@example.com',
+        fullName: 'Driver User',
+        role: 'Driver',
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('should reject fullName shorter than 2 characters', () => {
+      const result = legacyInviteUserSchema.safeParse({
+        email: 'user@example.com',
+        fullName: 'J',
+        role: 'Driver',
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues[0].message).toBe(
+          'Full name must be at least 2 characters'
+        )
+      }
+    })
+
+    it('should reject Owner without storeId', () => {
+      const result = legacyInviteUserSchema.safeParse({
+        email: 'owner@example.com',
+        fullName: 'Owner User',
+        role: 'Owner',
+      })
+      expect(result.success).toBe(false)
+    })
+  })
+
+  describe('onboardingSchema', () => {
+    it('should accept valid onboarding data', () => {
+      const result = onboardingSchema.safeParse({
+        token: 'valid-token-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'Password1',
+        confirmPassword: 'Password1',
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('should accept onboarding data with phone', () => {
+      const result = onboardingSchema.safeParse({
+        token: 'valid-token-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        phone: '+1234567890',
+        password: 'Password1',
+        confirmPassword: 'Password1',
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('should reject mismatched passwords', () => {
+      const result = onboardingSchema.safeParse({
+        token: 'valid-token-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'Password1',
+        confirmPassword: 'Password2',
+      })
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        const passwordError = result.error.issues.find(
+          (issue) => issue.path.includes('confirmPassword')
+        )
+        expect(passwordError?.message).toBe('Passwords do not match')
+      }
+    })
+
+    it('should reject password without uppercase', () => {
+      const result = onboardingSchema.safeParse({
+        token: 'valid-token-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'password1',
+        confirmPassword: 'password1',
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject password without lowercase', () => {
+      const result = onboardingSchema.safeParse({
+        token: 'valid-token-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'PASSWORD1',
+        confirmPassword: 'PASSWORD1',
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject password without number', () => {
+      const result = onboardingSchema.safeParse({
+        token: 'valid-token-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'Password',
+        confirmPassword: 'Password',
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('should reject password shorter than 8 characters', () => {
+      const result = onboardingSchema.safeParse({
+        token: 'valid-token-123',
+        firstName: 'John',
+        lastName: 'Doe',
+        password: 'Pass1',
+        confirmPassword: 'Pass1',
+      })
+      expect(result.success).toBe(false)
     })
   })
 
@@ -274,6 +369,13 @@ describe('User Validation Schemas', () => {
       it('should accept updating storeId to a value', () => {
         const result = updateUserSchema.safeParse({
           storeId: 'new-store-id',
+        })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept updating storeIds array', () => {
+        const result = updateUserSchema.safeParse({
+          storeIds: ['store-1', 'store-2'],
         })
         expect(result.success).toBe(true)
       })

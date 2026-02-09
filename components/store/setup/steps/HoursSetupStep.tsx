@@ -20,26 +20,41 @@ import {
 import { Loader2, Clock, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Time format validation - matches store validation (HH:MM or H:MM)
+const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
+
 const hoursSchema = z.object({
-  opening_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format'),
-  closing_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format'),
+  opening_time: z.string().regex(timeRegex, 'Invalid time format (HH:MM)'),
+  closing_time: z.string().regex(timeRegex, 'Invalid time format (HH:MM)'),
 })
 
 type HoursFormData = z.infer<typeof hoursSchema>
 
 interface HoursSetupStepProps {
   store: Store
+  isComplete: boolean
   onComplete: () => void
 }
 
-export function HoursSetupStep({ store, onComplete }: HoursSetupStepProps) {
+// Helper to normalize time format (strip seconds if present)
+function normalizeTime(time: string | null | undefined, defaultValue: string): string {
+  if (!time) return defaultValue
+  // Handle "HH:MM:SS" format by taking only "HH:MM"
+  const parts = time.split(':')
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, '0')}:${parts[1]}`
+  }
+  return defaultValue
+}
+
+export function HoursSetupStep({ store, isComplete, onComplete }: HoursSetupStepProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<HoursFormData>({
     resolver: zodResolver(hoursSchema),
     defaultValues: {
-      opening_time: store.opening_time ?? '09:00',
-      closing_time: store.closing_time ?? '22:00',
+      opening_time: normalizeTime(store.opening_time, '09:00'),
+      closing_time: normalizeTime(store.closing_time, '22:00'),
     },
   })
 
@@ -85,6 +100,7 @@ export function HoursSetupStep({ store, onComplete }: HoursSetupStepProps) {
                         type="time"
                         step="3600"
                         className="pl-10"
+                        disabled={isComplete}
                         {...field}
                       />
                     </div>
@@ -107,6 +123,7 @@ export function HoursSetupStep({ store, onComplete }: HoursSetupStepProps) {
                         type="time"
                         step="3600"
                         className="pl-10"
+                        disabled={isComplete}
                         {...field}
                       />
                     </div>
@@ -121,19 +138,21 @@ export function HoursSetupStep({ store, onComplete }: HoursSetupStepProps) {
             These are your default daily hours. You can customize hours for each day of the week in store settings.
           </FormDescription>
 
-          <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Save Hours
-              </>
-            )}
-          </Button>
+          {!isComplete && (
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Save Hours
+                </>
+              )}
+            </Button>
+          )}
         </form>
       </Form>
     </div>

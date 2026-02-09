@@ -12,12 +12,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { LogOut, User, Shield, Truck, UserCircle, Crown, Briefcase } from 'lucide-react'
 import { AppRole, LegacyAppRole } from '@/types'
 import { normalizeRole } from '@/lib/auth'
 
-export function UserNav() {
+interface UserNavProps {
+  variant?: 'default' | 'navbar'
+}
+
+export function UserNav({ variant = 'default' }: UserNavProps) {
   const { profile, role, signOut } = useAuth()
 
   const initials = profile?.full_name
@@ -65,9 +68,7 @@ export function UserNav() {
   const RoleIcon = currentRole?.icon
 
   return (
-    <div className="flex items-center gap-2">
-      <ThemeToggle />
-      <DropdownMenu>
+    <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -84,7 +85,9 @@ export function UserNav() {
             </Avatar>
             {normalizedRole && (
               <span
-                className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-background ${
+                className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 ${
+                  variant === 'navbar' ? 'border-black' : 'border-background'
+                } ${
                   normalizedRole === 'Owner' ? 'bg-amber-500' :
                   normalizedRole === 'Manager' ? 'bg-purple-500' :
                   normalizedRole === 'Driver' ? 'bg-blue-500' : 'bg-emerald-500'
@@ -133,14 +136,13 @@ export function UserNav() {
           <div className="p-1">
             <DropdownMenuItem
               onSelect={() => signOut()}
-              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50"
+              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
             >
               <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
               Log out
             </DropdownMenuItem>
           </div>
         </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    </DropdownMenu>
   )
 }

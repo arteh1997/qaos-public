@@ -1,7 +1,6 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import Link from 'next/link'
@@ -29,17 +28,16 @@ export function MarketingHeader() {
             >
               Features
             </a>
-            <a
-              href="#pricing"
+            <Link
+              href="/pricing"
               className="text-sm font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground"
             >
               Pricing
-            </a>
+            </Link>
           </div>
 
           {/* Desktop CTA */}
           <div className="hidden items-center gap-3 lg:flex">
-            <ThemeToggle />
             <Button variant="ghost" className="text-sm font-medium" asChild>
               <Link href="/login">Sign In</Link>
             </Button>
@@ -49,20 +47,17 @@ export function MarketingHeader() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex items-center gap-2 lg:hidden">
-            <ThemeToggle />
-            <button
-              className="p-2 -mr-2 rounded-lg hover:bg-accent transition-colors duration-200"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle menu"
-            >
+          <button
+            className="p-2 -mr-2 rounded-lg hover:bg-accent transition-colors duration-200 lg:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
             {mobileMenuOpen ? (
               <X className="h-6 w-6 text-foreground" />
             ) : (
               <Menu className="h-6 w-6 text-foreground" />
             )}
-            </button>
-          </div>
+          </button>
         </nav>
 
         {/* Mobile Navigation */}
@@ -76,13 +71,13 @@ export function MarketingHeader() {
               >
                 Features
               </a>
-              <a
-                href="#pricing"
+              <Link
+                href="/pricing"
                 className="text-base font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Pricing
-              </a>
+              </Link>
               <div className="flex flex-col gap-3 pt-4 border-t border-border/60">
                 <Button variant="outline" className="justify-center" asChild>
                   <Link href="/login">Sign In</Link>

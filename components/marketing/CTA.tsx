@@ -28,13 +28,13 @@ export function CTA() {
               className="text-base sm:text-lg px-10 py-7 h-auto shadow-xl hover:shadow-2xl transition-all duration-300"
             >
               <Link href="/login?signup=true">
-                Start 14-Day Free Trial
+                Start 1-Month Free Trial
                 <ArrowRight className="ml-2.5 h-5 w-5" />
               </Link>
             </Button>
           </div>
           <p className="mt-8 text-sm text-primary-foreground/60">
-            No credit card required. Setup in 5 minutes.
+            1-month free trial. Setup in 5 minutes.
           </p>
         </div>
       </div>

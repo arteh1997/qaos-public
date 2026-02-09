@@ -18,7 +18,6 @@ import { Badge } from '@/components/ui/badge'
 import { ROLE_LABELS } from '@/lib/constants'
 
 interface StoreSelectorProps {
-  collapsed?: boolean
   className?: string
 }
 
@@ -27,7 +26,6 @@ interface StoreSelectorProps {
  * Allows switching between stores the user has access to
  */
 export const StoreSelector = memo(function StoreSelector({
-  collapsed = false,
   className,
 }: StoreSelectorProps) {
   const router = useRouter()
@@ -49,29 +47,24 @@ export const StoreSelector = memo(function StoreSelector({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
-            className={cn(
-              'w-full justify-between gap-2 h-auto py-2',
-              collapsed && 'justify-center px-2'
-            )}
+            variant="ghost"
+            className="w-full justify-between gap-2 h-auto py-2 text-sidebar-foreground hover:text-sidebar-hover hover:bg-transparent"
             aria-label="Select store"
           >
             <div className="flex items-center gap-2 min-w-0">
               <Store className="h-4 w-4 flex-shrink-0" />
-              {!collapsed && (
-                <div className="flex flex-col items-start text-left min-w-0">
-                  <span className="text-sm font-medium truncate max-w-[140px]">
-                    {currentStore?.store?.name || 'Select Store'}
+              <div className="flex flex-col items-start text-left min-w-0">
+                <span className="text-sm font-medium truncate max-w-[140px]">
+                  {currentStore?.store?.name || 'Select Store'}
+                </span>
+                {currentStore && (
+                  <span className="text-xs text-sidebar-foreground/70">
+                    {ROLE_LABELS[currentStore.role]}
                   </span>
-                  {currentStore && (
-                    <span className="text-xs text-muted-foreground">
-                      {ROLE_LABELS[currentStore.role]}
-                    </span>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
-            {!collapsed && <ChevronDown className="h-4 w-4 flex-shrink-0 opacity-50" />}
+            <ChevronDown className="h-4 w-4 flex-shrink-0 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64">

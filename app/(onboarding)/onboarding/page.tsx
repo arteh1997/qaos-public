@@ -21,11 +21,28 @@ type AccountType = 'loading' | 'owner' | 'employee'
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const { user, stores, refreshProfile } = useAuth()
+  const { user, stores, refreshProfile, isLoading: authLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [storeName, setStoreName] = useState('')
   const [storeAddress, setStoreAddress] = useState('')
   const [accountType, setAccountType] = useState<AccountType>('loading')
+
+  // Handle redirects in useEffect to avoid setState during render
+  useEffect(() => {
+    if (authLoading) return
+
+    // Redirect if user already has stores
+    if (stores && stores.length > 0) {
+      router.push('/')
+      return
+    }
+
+    // Redirect if not logged in
+    if (!user) {
+      router.push('/login')
+      return
+    }
+  }, [authLoading, user, stores, router])
 
   // Check if user was invited (employee) or signed up directly (can create stores)
   useEffect(() => {
@@ -52,16 +69,20 @@ export default function OnboardingPage() {
     }
   }, [user, stores])
 
-  // Redirect if user already has stores
-  if (stores && stores.length > 0) {
-    router.push('/')
-    return null
-  }
-
-  // Redirect if not logged in
-  if (!user) {
-    router.push('/login')
-    return null
+  // Show loading while auth is initializing or redirecting
+  if (authLoading || !user || (stores && stores.length > 0)) {
+    return (
+      <div className="mx-auto max-w-md">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Loading...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -237,7 +258,7 @@ export default function OnboardingPage() {
             <div className="mt-6 pt-6 border-t border-border">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Check className="h-4 w-4 text-primary" />
-                <span>14-day free trial</span>
+                <span>1-month free trial</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                 <Check className="h-4 w-4 text-primary" />

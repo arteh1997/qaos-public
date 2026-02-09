@@ -1,0 +1,1 @@
+When you build the actual billing page in the future, you should also check currentStore?.is_billing_owner === true in the page component to prevent direct URL access.

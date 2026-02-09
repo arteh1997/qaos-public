@@ -35,8 +35,10 @@ export function parseUserCSV(csvContent: string): {
   const users: BulkUserRow[] = []
   const errors: { row: number; message: string }[] = []
 
-  // Skip header row if present
-  const startRow = lines[0]?.toLowerCase().includes('email') ? 1 : 0
+  // Skip header row if present (check if first column is exactly "email")
+  const firstLine = lines[0] || ''
+  const firstColumn = parseCSVLine(firstLine)[0]?.trim().toLowerCase()
+  const startRow = firstColumn === 'email' ? 1 : 0
 
   for (let i = startRow; i < lines.length; i++) {
     const line = lines[i].trim()

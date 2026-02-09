@@ -4,6 +4,7 @@ import {
   apiSuccess,
   apiError,
   apiBadRequest,
+  apiForbidden,
   createPaginationMeta,
   sanitizeSearchQuery,
 } from '@/lib/api/response'
@@ -104,11 +105,17 @@ export async function POST(request: NextRequest) {
 
     // Only allow if onboarding or if user is already an Owner
     if (!isOnboarding && !isOwner) {
-      return apiBadRequest('Only Owners can create new stores', context.requestId)
+      return apiForbidden('Only Owners can create new stores', context.requestId)
+    }
+
+    // Set defaults for new stores
+    const storeInput = {
+      is_active: true, // New stores are active by default
+      ...body,
     }
 
     // Validate input
-    const validationResult = storeSchema.safeParse(body)
+    const validationResult = storeSchema.safeParse(storeInput)
     if (!validationResult.success) {
       return apiBadRequest(
         validationResult.error.issues.map(e => e.message).join(', '),

@@ -49,7 +49,7 @@ const navItems: NavItem[] = [
     roles: ['Owner', 'Manager'],
   },
   {
-    title: 'Users',
+    title: 'Team',
     href: '/users',
     icon: Users,
     roles: ['Owner', 'Manager'],
@@ -83,9 +83,10 @@ const navItems: NavItem[] = [
 
 interface MobileNavProps {
   role: AppRole | LegacyAppRole | null
+  variant?: 'default' | 'navbar'
 }
 
-export function MobileNav({ role }: MobileNavProps) {
+export function MobileNav({ role, variant = 'default' }: MobileNavProps) {
   const [open, setOpen] = useState(false)
   const [storesExpanded, setStoresExpanded] = useState(false)
   const pathname = usePathname()
@@ -125,39 +126,46 @@ export function MobileNav({ role }: MobileNavProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'md:hidden',
+            variant === 'navbar' && 'text-white hover:bg-white/10'
+          )}
+        >
           <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0 flex flex-col">
-        <div className="flex h-16 items-center border-b px-6">
-          <SheetTitle className="font-semibold text-lg">Restaurant Inventory</SheetTitle>
+      <SheetContent side="left" className="w-72 p-0 flex flex-col bg-sidebar text-sidebar-foreground border-sidebar-border">
+        <div className="flex h-16 items-center border-b border-sidebar-border px-6">
+          <SheetTitle className="font-semibold text-lg text-sidebar-foreground">Restaurant Inventory</SheetTitle>
         </div>
 
         {/* Store Selector for multi-store users */}
         {isMultiStoreUser && stores.length > 1 && (
-          <div className="border-b">
+          <div className="border-b border-sidebar-border">
             <button
               onClick={() => setStoresExpanded(!storesExpanded)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-sidebar-accent/50 transition-colors"
               aria-expanded={storesExpanded}
             >
               <div className="flex items-center gap-3">
-                <Store className="h-5 w-5 text-muted-foreground" />
+                <Store className="h-5 w-5 text-sidebar-foreground/70" />
                 <div className="text-left">
-                  <p className="text-sm font-medium truncate max-w-[160px]">
+                  <p className="text-sm font-medium truncate max-w-[160px] text-sidebar-foreground">
                     {currentStore?.store?.name || 'Select Store'}
                   </p>
                   {currentStore && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-sidebar-foreground/60">
                       {ROLE_LABELS[currentStore.role]}
                     </p>
                   )}
                 </div>
               </div>
               <ChevronRight className={cn(
-                'h-4 w-4 text-muted-foreground transition-transform',
+                'h-4 w-4 text-sidebar-foreground/70 transition-transform',
                 storesExpanded && 'rotate-90'
               )} />
             </button>
@@ -172,8 +180,8 @@ export function MobileNav({ role }: MobileNavProps) {
                     className={cn(
                       'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md text-sm transition-colors',
                       currentStore?.store_id === storeUser.store_id
-                        ? 'bg-primary/10 text-primary'
-                        : 'hover:bg-accent'
+                        ? 'bg-sidebar-accent text-sidebar-foreground'
+                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                     )}
                   >
                     <div className="flex flex-col items-start min-w-0 flex-1">
@@ -181,7 +189,7 @@ export function MobileNav({ role }: MobileNavProps) {
                         {storeUser.store?.name}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-sidebar-foreground/60">
                           {ROLE_LABELS[storeUser.role]}
                         </span>
                         {storeUser.is_billing_owner && (
@@ -192,7 +200,7 @@ export function MobileNav({ role }: MobileNavProps) {
                       </div>
                     </div>
                     {currentStore?.store_id === storeUser.store_id && (
-                      <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                      <Check className="h-4 w-4 text-sidebar-foreground flex-shrink-0" />
                     )}
                   </button>
                 ))}
@@ -203,14 +211,14 @@ export function MobileNav({ role }: MobileNavProps) {
 
         {/* Single store indicator */}
         {!isMultiStoreUser && currentStore && (
-          <div className="border-b px-4 py-3">
+          <div className="border-b border-sidebar-border px-4 py-3">
             <div className="flex items-center gap-3">
-              <Store className="h-5 w-5 text-muted-foreground" />
+              <Store className="h-5 w-5 text-sidebar-foreground/70" />
               <div>
-                <p className="text-sm font-medium truncate max-w-[180px]">
+                <p className="text-sm font-medium truncate max-w-[180px] text-sidebar-foreground">
                   {currentStore.store?.name}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-sidebar-foreground/60">
                   {ROLE_LABELS[currentStore.role]}
                 </p>
               </div>
@@ -229,10 +237,10 @@ export function MobileNav({ role }: MobileNavProps) {
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'bg-white text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground hover:bg-white/50 hover:text-sidebar-hover'
                 )}
                 aria-current={isActive ? 'page' : undefined}
               >
@@ -242,10 +250,10 @@ export function MobileNav({ role }: MobileNavProps) {
             )
           })}
         </nav>
-        <div className="border-t p-4 mt-auto">
+        <div className="border-t border-sidebar-border p-4 mt-auto">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors w-full text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors w-full text-red-400 hover:bg-red-500/10"
             aria-label="Log out of your account"
           >
             <LogOut className="h-5 w-5" aria-hidden="true" />

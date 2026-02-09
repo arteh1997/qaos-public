@@ -111,8 +111,9 @@ export function WeeklyTimetable({
   }, [weekShifts, weekDates, viewMode, staff, stores, selectedStoreId])
 
   // Get rows to display
+  // Note: staff prop should already be filtered to Staff role in parent component
   const rows = viewMode === 'staff'
-    ? staff.filter(s => s.role === 'Staff' && (!selectedStoreId || s.store_id === selectedStoreId))
+    ? staff.filter(s => (!selectedStoreId || s.store_id === selectedStoreId))
     : stores.filter(s => s.is_active && (!selectedStoreId || s.id === selectedStoreId))
 
   const weekLabel = useMemo(() => {

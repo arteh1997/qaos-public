@@ -1,10 +1,11 @@
 import { z } from 'zod'
 
 export const inventoryItemSchema = z.object({
+  store_id: z.string().uuid('Invalid store ID'), // Required for multi-tenant isolation
   name: z.string().min(2, 'Item name must be at least 2 characters'),
   category: z.string().optional(),
   unit_of_measure: z.string().min(1, 'Unit of measure is required'),
-  is_active: z.boolean(),
+  is_active: z.boolean().default(true),
 })
 
 export const storeInventorySchema = z.object({

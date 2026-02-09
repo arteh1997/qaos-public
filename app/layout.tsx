@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { QueryProvider } from '@/components/providers/QueryProvider'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -15,10 +15,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f9fafb' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
-  ],
+  themeColor: '#f6f6f7',
 }
 
 export const metadata: Metadata = {
@@ -41,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en">
       <head>
         <link rel="apple-touch-icon" href="/icon.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -49,40 +46,22 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              (function() {
-                try {
-                  var theme = localStorage.getItem('theme') || 'dark';
-                  if (theme === 'system') {
-                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  }
-                  document.documentElement.classList.remove('light', 'dark');
-                  document.documentElement.classList.add(theme);
-                } catch (e) {}
-              })();
-              // Register service worker
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').catch(function() {
-                    // ServiceWorker registration failed silently
-                  });
+                  navigator.serviceWorker.register('/sw.js').catch(function() {});
                 });
               }
             `,
           }}
         />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
+      <body className={`${inter.variable} font-sans antialiased`}>
+        <QueryProvider>
           <AuthProvider>
             {children}
             <Toaster position="top-right" richColors />
           </AuthProvider>
-        </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   )

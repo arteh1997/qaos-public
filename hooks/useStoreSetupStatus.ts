@@ -65,15 +65,21 @@ export function useStoreSetupStatus(storeId: string | null) {
   })
   const [store, setStore] = useState<Store | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const fetchSetupStatus = useCallback(async () => {
+  const fetchSetupStatus = useCallback(async (isRefetch = false) => {
     if (!storeId) {
       setIsLoading(false)
       return
     }
 
-    setIsLoading(true)
+    // Only show full loading on initial fetch, not refetches
+    if (isRefetch) {
+      setIsRefreshing(true)
+    } else {
+      setIsLoading(true)
+    }
     setError(null)
 
     try {
@@ -149,18 +155,25 @@ export function useStoreSetupStatus(storeId: string | null) {
       setError(err instanceof Error ? err : new Error('Failed to fetch setup status'))
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
   }, [storeId, user?.id])
 
   useEffect(() => {
-    fetchSetupStatus()
+    fetchSetupStatus(false)
+  }, [fetchSetupStatus])
+
+  // Refetch function that doesn't show loading state
+  const refetch = useCallback(() => {
+    fetchSetupStatus(true)
   }, [fetchSetupStatus])
 
   return {
     status,
     store,
     isLoading,
+    isRefreshing,
     error,
-    refetch: fetchSetupStatus,
+    refetch,
   }
 }

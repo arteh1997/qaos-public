@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseInsert, supabaseUpdate } from '@/lib/supabase/client'
+import { supabaseFetch, supabaseInsert, supabaseUpdate, supabaseDelete } from '@/lib/supabase/client'
 import { InventoryItem } from '@/types'
 import { sanitizeErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -101,20 +101,18 @@ export function useInventory() {
   }, [fetchInventory])
 
   const deleteItem = useCallback(async (id: string) => {
-    // Optimistic update (soft delete)
-    setItems(prev => prev.map(item =>
-      item.id === id ? { ...item, is_active: false } : item
-    ))
+    // Optimistic update - remove from list
+    setItems(prev => prev.filter(item => item.id !== id))
 
     try {
-      const { error } = await supabaseUpdate('inventory_items', id, { is_active: false })
+      const { error } = await supabaseDelete('inventory_items', id)
 
       if (error) throw error
-      toast.success('Inventory item deactivated')
+      toast.success('Inventory item deleted')
     } catch (err) {
       // Refetch to restore correct state
       fetchInventory()
-      toast.error('Failed to deactivate item: ' + sanitizeErrorMessage(err))
+      toast.error('Failed to delete item: ' + sanitizeErrorMessage(err))
       throw err
     }
   }, [fetchInventory])

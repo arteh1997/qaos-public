@@ -30,8 +30,21 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Loader2 } from 'lucide-react'
-import { INVENTORY_CATEGORIES, UNITS_OF_MEASURE } from '@/lib/constants'
+import { UNITS_OF_MEASURE } from '@/lib/constants'
 import { useMemo } from 'react'
+
+// Common category suggestions
+const SUGGESTED_CATEGORIES = [
+  'Proteins',
+  'Produce',
+  'Dairy',
+  'Beverages',
+  'Dry Goods',
+  'Frozen',
+  'Sauces & Condiments',
+  'Supplies',
+  'Packaging',
+]
 
 interface InventoryItemFormProps {
   open: boolean
@@ -39,6 +52,7 @@ interface InventoryItemFormProps {
   item?: InventoryItem | null
   onSubmit: (data: InventoryItemFormData) => Promise<void>
   isLoading?: boolean
+  existingCategories?: string[]
 }
 
 export function InventoryItemForm({
@@ -47,6 +61,7 @@ export function InventoryItemForm({
   item,
   onSubmit,
   isLoading,
+  existingCategories = [],
 }: InventoryItemFormProps) {
   const form = useForm<InventoryItemFormData>({
     resolver: zodResolver(inventoryItemSchema),
@@ -70,20 +85,14 @@ export function InventoryItemForm({
     }
   }, [open, item, form])
 
-  // Include item's current values in options if not in the standard lists
+  // Combine existing and suggested categories
   const categoryOptions = useMemo(() => {
-    if (item?.category && !INVENTORY_CATEGORIES.includes(item.category)) {
-      return [item.category, ...INVENTORY_CATEGORIES]
-    }
-    return INVENTORY_CATEGORIES
-  }, [item?.category])
+    const combined = [...new Set([...existingCategories, ...SUGGESTED_CATEGORIES])]
+    return combined.sort()
+  }, [existingCategories])
 
-  const unitOptions = useMemo(() => {
-    if (item?.unit_of_measure && !UNITS_OF_MEASURE.includes(item.unit_of_measure)) {
-      return [item.unit_of_measure, ...UNITS_OF_MEASURE]
-    }
-    return UNITS_OF_MEASURE
-  }, [item?.unit_of_measure])
+  // Get existing units from items (if we want to add that later)
+  const unitOptions = UNITS_OF_MEASURE
 
   const handleOpenChange = (newOpen: boolean) => {
     onOpenChange(newOpen)
@@ -122,20 +131,18 @@ export function InventoryItemForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categoryOptions.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., Produce"
+                      list="category-options"
+                      {...field}
+                    />
+                  </FormControl>
+                  <datalist id="category-options">
+                    {categoryOptions.map((category) => (
+                      <option key={category} value={category} />
+                    ))}
+                  </datalist>
                   <FormMessage />
                 </FormItem>
               )}
@@ -147,20 +154,18 @@ export function InventoryItemForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Unit of Measure</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {unitOptions.map((unit) => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., kg, liters, pcs"
+                      list="unit-options"
+                      {...field}
+                    />
+                  </FormControl>
+                  <datalist id="unit-options">
+                    {unitOptions.map((unit) => (
+                      <option key={unit} value={unit} />
+                    ))}
+                  </datalist>
                   <FormMessage />
                 </FormItem>
               )}

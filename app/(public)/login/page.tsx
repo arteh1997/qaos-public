@@ -7,7 +7,6 @@ import { SignupForm } from '@/components/forms/SignupForm'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import Link from 'next/link'
 
 function FormSkeleton() {
@@ -33,12 +32,7 @@ function AuthContent() {
   const [activeTab, setActiveTab] = useState(signupParam === 'true' ? 'signup' : 'signin')
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4 relative">
-      {/* Theme Toggle - Top Right */}
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <Link href="/" className="flex items-center justify-center gap-2 mb-8">

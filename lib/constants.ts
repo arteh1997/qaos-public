@@ -158,21 +158,6 @@ export const LEGACY_ROLE_ROUTES: Record<LegacyAppRole, string[]> = {
   Staff: ROLE_ROUTES.Staff,
 }
 
-// Categories for inventory items (matching Mr Fries inventory)
-export const INVENTORY_CATEGORIES = [
-  'Fries',
-  'Proteins',
-  'Dairy',
-  'Sauces',
-  'Italian',
-  'Prepared',
-  'Produce',
-  'Supplies',
-  'Packaging',
-  'Drinks',
-  'Frozen',
-]
-
 // Units of measure
 export const UNITS_OF_MEASURE = [
   'each',

@@ -5,20 +5,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { useShifts } from '@/hooks/useShifts'
 import { useStores } from '@/hooks/useStores'
 import { useUsers } from '@/hooks/useUsers'
-import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { ShiftForm } from '@/components/forms/ShiftForm'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ShiftsTableSkeleton, PageHeaderSkeleton } from '@/components/ui/skeletons'
 import { Badge } from '@/components/ui/badge'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,67 +26,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Input } from '@/components/ui/input'
-import { Plus, MoreHorizontal, Pencil, Trash2, Clock, Calendar, ArrowUp, ArrowDown, CalendarDays, ClockArrowUp } from 'lucide-react'
+import { Plus, MoreHorizontal, Pencil, Trash2, Clock, Calendar, CalendarDays, ClockArrowUp, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { EmptyState } from '@/components/ui/empty-state'
 import { EditClockTimesDialog } from '@/components/forms/EditClockTimesDialog'
-import { format, isSameDay, parseISO } from 'date-fns'
+import { format, isSameDay, isToday, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, parseISO, isWithinInterval } from 'date-fns'
 import { Shift } from '@/types'
 import { ShiftFormData } from '@/lib/validations/shift'
 
-const FILTER_DEFAULTS = {
-  date: '',
-}
-
-// Sort configuration
-type SortKey = 'staff' | 'store' | 'date' | 'time' | 'status'
-type SortDirection = 'asc' | 'desc'
-
-interface SortConfig {
-  key: SortKey
-  direction: SortDirection
-}
-
-interface SortableHeaderProps {
-  label: string
-  sortKey: SortKey
-  currentSort: SortConfig | null
-  onSort: (key: SortKey) => void
-  className?: string
-}
-
-function SortableHeader({ label, sortKey, currentSort, onSort, className = '' }: SortableHeaderProps) {
-  const isActive = currentSort?.key === sortKey
-  const direction = isActive ? currentSort.direction : null
-
-  return (
-    <TableHead
-      className={`cursor-pointer select-none hover:bg-muted/50 transition-colors ${className}`}
-      onClick={() => onSort(sortKey)}
-    >
-      <div className={`flex items-center gap-1 ${className.includes('text-right') ? 'justify-end' : ''}`}>
-        <span>{label}</span>
-        <span className={`transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`}>
-          {direction === 'asc' ? (
-            <ArrowUp className="h-3.5 w-3.5" />
-          ) : (
-            <ArrowDown className="h-3.5 w-3.5" />
-          )}
-        </span>
-      </div>
-    </TableHead>
-  )
-}
-
-// Status priority for sorting (lower = shows first in ascending order)
-const STATUS_PRIORITY: Record<string, number> = {
-  'Upcoming': 1,
-  'Active': 2,
-  'In Progress': 3,
-  'Completed': 4,
-  'Missed': 5,
-}
+type QuickFilter = 'today' | 'week' | 'next-week' | null
 
 function getShiftStatus(shift: Shift) {
   const now = new Date()
@@ -103,110 +42,101 @@ function getShiftStatus(shift: Shift) {
   const end = new Date(shift.end_time)
 
   if (shift.clock_out_time) {
-    return { label: 'Completed', variant: 'secondary' as const }
+    return { label: 'Completed', variant: 'secondary' as const, isActive: false }
   }
   if (shift.clock_in_time && !shift.clock_out_time) {
-    return { label: 'In Progress', variant: 'default' as const }
+    return { label: 'Active Now', variant: 'default' as const, isActive: true }
+  }
+  if (now >= start && now <= end && !shift.clock_in_time) {
+    return { label: 'Not Clocked In', variant: 'destructive' as const, isActive: true }
   }
   if (now < start) {
-    return { label: 'Upcoming', variant: 'outline' as const }
+    return { label: 'Scheduled', variant: 'outline' as const, isActive: false }
   }
-  if (now >= start && now <= end) {
-    return { label: 'Active', variant: 'default' as const }
-  }
-  return { label: 'Missed', variant: 'destructive' as const }
+  return { label: 'Missed', variant: 'destructive' as const, isActive: false }
 }
 
 function ShiftsPageContent() {
   const { currentStore } = useAuth()
   const currentStoreId = currentStore?.store_id
 
-  // URL-based filter state (only date filter now)
-  const { filters, setFilter } = useUrlFilters({ defaults: FILTER_DEFAULTS })
-
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('today')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [editingClockTimesShift, setEditingClockTimesShift] = useState<Shift | null>(null)
   const [deleteShiftId, setDeleteShiftId] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
 
   const { stores, isLoading: storesLoading } = useStores({ status: 'active' })
-  // Filter users to current store
   const { users, isLoading: usersLoading } = useUsers({ status: 'Active', storeId: currentStoreId || 'all' })
-
-  // Fetch shifts for current store only
   const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift, refetch: refetchShifts } = useShifts(currentStoreId || null)
 
   const isLoading = storesLoading || usersLoading || shiftsLoading
 
-  const handleSort = (key: SortKey) => {
-    setSortConfig(current => {
-      if (current?.key === key) {
-        return {
-          key,
-          direction: current.direction === 'asc' ? 'desc' : 'asc'
-        }
-      }
-      return { key, direction: 'asc' }
-    })
-  }
+  // Get active shifts (happening right now)
+  const activeShifts = useMemo(() => {
+    const now = new Date()
+    return shifts.filter(shift => {
+      const start = new Date(shift.start_time)
+      const end = new Date(shift.end_time)
+      return now >= start && now <= end
+    }).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+  }, [shifts])
 
-  // Filter shifts by date if selected
+  // Filter shifts based on quick filter
   const filteredShifts = useMemo(() => {
-    if (!filters.date) return shifts
-    const selectedDate = parseISO(filters.date)
-    return shifts.filter(shift => isSameDay(new Date(shift.start_time), selectedDate))
-  }, [shifts, filters.date])
+    if (!quickFilter) return shifts
 
-  const sortedShifts = useMemo(() => {
-    if (!sortConfig) return filteredShifts
+    const now = new Date()
+    let startDate: Date
+    let endDate: Date
 
-    return [...filteredShifts].sort((a, b) => {
-      let aVal: string | number
-      let bVal: string | number
-      const multiplier = sortConfig.direction === 'asc' ? 1 : -1
+    switch (quickFilter) {
+      case 'today':
+        startDate = startOfDay(now)
+        endDate = endOfDay(now)
+        break
+      case 'week':
+        startDate = startOfWeek(now, { weekStartsOn: 1 }) // Monday
+        endDate = endOfWeek(now, { weekStartsOn: 1 })
+        break
+      case 'next-week':
+        const nextWeek = addWeeks(now, 1)
+        startDate = startOfWeek(nextWeek, { weekStartsOn: 1 })
+        endDate = endOfWeek(nextWeek, { weekStartsOn: 1 })
+        break
+      default:
+        return shifts
+    }
 
-      switch (sortConfig.key) {
-        case 'staff':
-          aVal = (a.user?.full_name || a.user?.email || '').toLowerCase()
-          bVal = (b.user?.full_name || b.user?.email || '').toLowerCase()
-          break
-        case 'store':
-          aVal = (a.store?.name || '').toLowerCase()
-          bVal = (b.store?.name || '').toLowerCase()
-          break
-        case 'date':
-          aVal = new Date(a.start_time).getTime()
-          bVal = new Date(b.start_time).getTime()
-          break
-        case 'time':
-          // Sort by time of day (ignore date)
-          const aDate = new Date(a.start_time)
-          const bDate = new Date(b.start_time)
-          aVal = aDate.getHours() * 60 + aDate.getMinutes()
-          bVal = bDate.getHours() * 60 + bDate.getMinutes()
-          break
-        case 'status':
-          const aStatus = getShiftStatus(a).label
-          const bStatus = getShiftStatus(b).label
-          aVal = STATUS_PRIORITY[aStatus] ?? 99
-          bVal = STATUS_PRIORITY[bStatus] ?? 99
-          break
-        default:
-          return 0
-      }
-
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal) * multiplier
-      }
-
-      if (aVal < bVal) return -1 * multiplier
-      if (aVal > bVal) return 1 * multiplier
-      return 0
+    return shifts.filter(shift => {
+      const shiftStart = new Date(shift.start_time)
+      return isWithinInterval(shiftStart, { start: startDate, end: endDate })
     })
-  }, [filteredShifts, sortConfig])
+  }, [shifts, quickFilter])
+
+  // Group shifts by date
+  const groupedShifts = useMemo(() => {
+    const groups = new Map<string, Shift[]>()
+
+    filteredShifts.forEach(shift => {
+      const dateKey = format(new Date(shift.start_time), 'yyyy-MM-dd')
+      if (!groups.has(dateKey)) {
+        groups.set(dateKey, [])
+      }
+      groups.get(dateKey)!.push(shift)
+    })
+
+    // Sort shifts within each day by start time
+    groups.forEach(dayShifts => {
+      dayShifts.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    })
+
+    // Convert to array and sort by date
+    return Array.from(groups.entries())
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+  }, [filteredShifts])
 
   const handleCreateShift = async (data: ShiftFormData) => {
     setIsCreating(true)
@@ -235,10 +165,9 @@ function ShiftsPageContent() {
     setDeleteShiftId(null)
   }
 
-  // No store selected - prompt user to select one
   if (!currentStore) {
     return (
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto px-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Shifts Management</h1>
           <p className="text-sm text-muted-foreground">
@@ -250,23 +179,24 @@ function ShiftsPageContent() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto px-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Shifts</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight">Shifts</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Manage staff shifts at {currentStore.store?.name}
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/shifts/timetable" className="flex-1 sm:flex-initial">
-            <Button variant="outline" className="w-full sm:w-auto">
+          <Link href="/shifts/timetable">
+            <Button variant="outline" className="bg-white">
               <CalendarDays className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Timetable View</span>
-              <span className="sm:hidden">Timetable</span>
+              <span className="hidden sm:inline">Calendar View</span>
+              <span className="sm:hidden">Calendar</span>
             </Button>
           </Link>
-          <Button onClick={() => setIsFormOpen(true)} className="flex-1 sm:flex-initial">
+          <Button onClick={() => setIsFormOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Create Shift</span>
             <span className="sm:hidden">Create</span>
@@ -274,254 +204,211 @@ function ShiftsPageContent() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <CardTitle className="text-base">Filters</CardTitle>
-            <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Date:</span>
-                <Input
-                  type="date"
-                  value={filters.date || ''}
-                  onChange={(e) => setFilter('date', e.target.value)}
-                  className="w-40"
-                  aria-label="Filter by date"
-                />
-                {filters.date && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFilter('date', '')}
-                    className="h-8 px-2 text-xs"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
+      {/* Active Shifts - Right Now */}
+      {activeShifts.length > 0 && (
+        <Card className="border-blue-500 bg-white">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-base font-semibold text-blue-900">
+                Active Now ({activeShifts.length} shift{activeShifts.length !== 1 ? 's' : ''})
+              </CardTitle>
             </div>
-          </div>
-          {filters.date && (
-            <p className="text-sm text-muted-foreground mt-2">
-              Showing shifts for {format(parseISO(filters.date), 'EEEE, MMMM d, yyyy')}
-            </p>
-          )}
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <ShiftsTableSkeleton rows={5} />
-          ) : filteredShifts.length === 0 ? (
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {activeShifts.map(shift => {
+                const status = getShiftStatus(shift)
+                return (
+                  <div key={shift.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-blue-900">
+                          {shift.user?.full_name || shift.user?.email || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          {format(new Date(shift.start_time), 'h:mm a')} - {format(new Date(shift.end_time), 'h:mm a')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {shift.clock_in_time ? (
+                        <Badge variant="default" className="bg-green-600 text-xs">
+                          ✓ Clocked In
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="text-xs">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Not Clocked In
+                        </Badge>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditingShift(shift)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit Schedule
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEditingClockTimesShift(shift)}>
+                            <ClockArrowUp className="mr-2 h-4 w-4" />
+                            Edit Clock Times
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quick Filters */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={quickFilter === 'today' ? 'default' : 'outline'}
+          onClick={() => setQuickFilter('today')}
+          size="sm"
+          className={quickFilter !== 'today' ? 'bg-white' : ''}
+        >
+          Today
+        </Button>
+        <Button
+          variant={quickFilter === 'week' ? 'default' : 'outline'}
+          onClick={() => setQuickFilter('week')}
+          size="sm"
+          className={quickFilter !== 'week' ? 'bg-white' : ''}
+        >
+          This Week
+        </Button>
+        <Button
+          variant={quickFilter === 'next-week' ? 'default' : 'outline'}
+          onClick={() => setQuickFilter('next-week')}
+          size="sm"
+          className={quickFilter !== 'next-week' ? 'bg-white' : ''}
+        >
+          Next Week
+        </Button>
+        {quickFilter && (
+          <Button
+            variant="ghost"
+            onClick={() => setQuickFilter(null)}
+            size="sm"
+            className="text-muted-foreground bg-white"
+          >
+            View All
+          </Button>
+        )}
+      </div>
+
+      {/* Shifts Grouped by Day */}
+      {isLoading ? (
+        <ShiftsTableSkeleton rows={5} />
+      ) : groupedShifts.length === 0 ? (
+        <Card className="bg-white">
+          <CardContent className="py-16">
             <EmptyState
               icon={Calendar}
-              title={filters.date ? "No shifts for this date" : "No shifts scheduled"}
-              description={filters.date
-                ? `No shifts are scheduled for ${format(parseISO(filters.date), 'MMMM d, yyyy')}.`
-                : "Create shifts to schedule your team members across stores."
+              title="No shifts scheduled"
+              description={quickFilter === 'today'
+                ? "No shifts scheduled for today."
+                : quickFilter === 'week'
+                ? "No shifts scheduled for this week."
+                : quickFilter === 'next-week'
+                ? "No shifts scheduled for next week."
+                : "Create shifts to schedule your team members."
               }
-              action={filters.date ? undefined : {
+              action={{
                 label: "Create Shift",
                 onClick: () => setIsFormOpen(true),
                 icon: Plus,
               }}
             />
-          ) : (
-            <>
-              {/* Mobile card view */}
-              <div className="sm:hidden space-y-3">
-                {sortedShifts.map((shift) => {
-                  const status = getShiftStatus(shift)
-                  return (
-                    <div key={shift.id} className="border rounded-lg p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">
-                            {shift.user?.full_name || shift.user?.email || 'Unknown'}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {shift.store?.name || 'Unknown'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={status.variant} className="text-xs">
-                            {status.label}
-                          </Badge>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  if (document.activeElement instanceof HTMLElement) {
-                                    document.activeElement.blur()
-                                  }
-                                  setTimeout(() => setEditingShift(shift), 150)
-                                }}
-                              >
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit Schedule
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  if (document.activeElement instanceof HTMLElement) {
-                                    document.activeElement.blur()
-                                  }
-                                  setTimeout(() => setEditingClockTimesShift(shift), 150)
-                                }}
-                              >
-                                <ClockArrowUp className="mr-2 h-4 w-4" />
-                                Edit Clock Times
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  if (document.activeElement instanceof HTMLElement) {
-                                    document.activeElement.blur()
-                                  }
-                                  setTimeout(() => setDeleteShiftId(shift.id), 150)
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3 mt-2 pt-2 border-t text-xs">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(shift.start_time), 'EEE, MMM d')}
-                        </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {format(new Date(shift.start_time), 'h:mm a')} - {format(new Date(shift.end_time), 'h:mm a')}
-                        </div>
-                      </div>
-                      {(shift.clock_in_time || shift.clock_out_time) && (
-                        <div className="flex gap-3 mt-2 text-xs">
-                          {shift.clock_in_time && (
-                            <span className="text-green-600">In: {format(new Date(shift.clock_in_time), 'h:mm a')}</span>
-                          )}
-                          {shift.clock_out_time && (
-                            <span className="text-muted-foreground">Out: {format(new Date(shift.clock_out_time), 'h:mm a')}</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {groupedShifts.map(([dateKey, dayShifts]) => {
+            const date = parseISO(dateKey)
+            const isNow = isToday(date)
 
-              {/* Desktop table view */}
-              <div className="hidden sm:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <SortableHeader
-                        label="Staff Member"
-                        sortKey="staff"
-                        currentSort={sortConfig}
-                        onSort={handleSort}
-                      />
-                      <SortableHeader
-                        label="Store"
-                        sortKey="store"
-                        currentSort={sortConfig}
-                        onSort={handleSort}
-                      />
-                      <SortableHeader
-                        label="Date"
-                        sortKey="date"
-                        currentSort={sortConfig}
-                        onSort={handleSort}
-                      />
-                      <SortableHeader
-                        label="Time"
-                        sortKey="time"
-                        currentSort={sortConfig}
-                        onSort={handleSort}
-                      />
-                      <SortableHeader
-                        label="Status"
-                        sortKey="status"
-                        currentSort={sortConfig}
-                        onSort={handleSort}
-                      />
-                      <TableHead>Clock In/Out</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedShifts.map((shift) => {
+            return (
+              <Card key={dateKey} className={isNow ? 'border-blue-500/50 bg-white' : 'bg-white'}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold">
+                      {format(date, 'EEEE, MMMM d, yyyy')}
+                      {isNow && (
+                        <Badge variant="default" className="ml-2 text-xs">
+                          Today
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <span className="text-sm text-muted-foreground">
+                      {dayShifts.length} shift{dayShifts.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {dayShifts.map(shift => {
                       const status = getShiftStatus(shift)
                       return (
-                        <TableRow key={shift.id}>
-                          <TableCell className="font-medium">
-                            {shift.user?.full_name || shift.user?.email || 'Unknown'}
-                          </TableCell>
-                          <TableCell>{shift.store?.name || 'Unknown'}</TableCell>
-                          <TableCell>
-                            {format(new Date(shift.start_time), 'EEE, MMM d, yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3 text-muted-foreground" />
-                              {format(new Date(shift.start_time), 'h:mm a')} -{' '}
-                              {format(new Date(shift.end_time), 'h:mm a')}
+                        <div
+                          key={shift.id}
+                          className="flex items-center justify-between py-3 border-b last:border-0"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground min-w-[140px]">
+                              <Clock className="h-4 w-4" />
+                              {format(new Date(shift.start_time), 'h:mm a')} - {format(new Date(shift.end_time), 'h:mm a')}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={status.variant}>{status.label}</Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {shift.clock_in_time && (
-                              <div>In: {format(new Date(shift.clock_in_time), 'h:mm a')}</div>
-                            )}
-                            {shift.clock_out_time && (
-                              <div>Out: {format(new Date(shift.clock_out_time), 'h:mm a')}</div>
-                            )}
-                            {!shift.clock_in_time && !shift.clock_out_time && '—'}
-                          </TableCell>
-                          <TableCell>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm">
+                                {shift.user?.full_name || shift.user?.email || 'Unknown'}
+                              </p>
+                              {(shift.clock_in_time || shift.clock_out_time) && (
+                                <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                                  {shift.clock_in_time && (
+                                    <span className="text-green-600">
+                                      In: {format(new Date(shift.clock_in_time), 'h:mm a')}
+                                    </span>
+                                  )}
+                                  {shift.clock_out_time && (
+                                    <span>
+                                      Out: {format(new Date(shift.clock_out_time), 'h:mm a')}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={status.variant} className="text-xs">
+                              {status.label}
+                            </Badge>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onSelect={() => {
-                                    if (document.activeElement instanceof HTMLElement) {
-                                      document.activeElement.blur()
-                                    }
-                                    setTimeout(() => setEditingShift(shift), 150)
-                                  }}
-                                >
+                                <DropdownMenuItem onClick={() => setEditingShift(shift)}>
                                   <Pencil className="mr-2 h-4 w-4" />
                                   Edit Schedule
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onSelect={() => {
-                                    if (document.activeElement instanceof HTMLElement) {
-                                      document.activeElement.blur()
-                                    }
-                                    setTimeout(() => setEditingClockTimesShift(shift), 150)
-                                  }}
-                                >
+                                <DropdownMenuItem onClick={() => setEditingClockTimesShift(shift)}>
                                   <ClockArrowUp className="mr-2 h-4 w-4" />
                                   Edit Clock Times
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onSelect={() => {
-                                    if (document.activeElement instanceof HTMLElement) {
-                                      document.activeElement.blur()
-                                    }
-                                    setTimeout(() => setDeleteShiftId(shift.id), 150)
-                                  }}
+                                  onClick={() => setDeleteShiftId(shift.id)}
                                   className="text-destructive"
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" />
@@ -529,17 +416,17 @@ function ShiftsPageContent() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                        </div>
                       )
                     })}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
 
       <ShiftForm
         open={isFormOpen}
@@ -595,7 +482,7 @@ function ShiftsPageContent() {
 export default function ShiftsPage() {
   return (
     <Suspense fallback={
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto px-4">
         <PageHeaderSkeleton />
         <Card>
           <CardHeader>

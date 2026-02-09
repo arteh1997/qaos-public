@@ -79,7 +79,7 @@ export function StoreSetupWizard({ store, status, onRefresh }: StoreSetupWizardP
               <InventorySetupStep onComplete={handleStepComplete} />
             )}
             {step.id === 'hours' && (
-              <HoursSetupStep store={store} onComplete={handleStepComplete} />
+              <HoursSetupStep store={store} isComplete={step.isComplete} onComplete={handleStepComplete} />
             )}
             {step.id === 'team' && (
               <TeamSetupStep store={store} onComplete={handleStepComplete} />

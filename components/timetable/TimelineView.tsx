@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef } from 'react'
 import { Shift, Store, Profile } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -51,6 +51,7 @@ export function TimelineView({
   onAddShift,
 }: TimelineViewProps) {
   const [selectedDay, setSelectedDay] = useState<Date>(new Date())
+  const dateInputRef = useRef<HTMLInputElement>(null)
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 })
   const weekDays = useMemo(() => {
@@ -91,8 +92,10 @@ export function TimelineView({
       })
     } else {
       const staffWithShifts = new Set(dayShifts.map(s => s.user_id))
+      // Note: staff prop should already be filtered to Staff role in parent component
+      // This is just for additional safety
       const relevantStaff = staff.filter(s =>
-        s.role === 'Staff' && (staffWithShifts.has(s.id) || !selectedStoreId || s.store_id === selectedStoreId)
+        (staffWithShifts.has(s.id) || !selectedStoreId || s.store_id === selectedStoreId)
       )
 
       relevantStaff.forEach(person => {
@@ -214,17 +217,17 @@ export function TimelineView({
     ? {
         headerBg: 'bg-blue-50 dark:bg-blue-950/30',
         headerBorder: 'border-blue-200 dark:border-blue-800',
-        headerText: 'text-blue-700 dark:text-blue-300',
+        headerText: 'text-foreground dark:text-blue-300',
         rowAccent: 'border-l-4 border-l-blue-400',
-        iconColor: 'text-blue-600',
+        iconColor: 'text-blue-800',
         labelBg: 'bg-blue-50/50 dark:bg-blue-950/20',
       }
     : {
         headerBg: 'bg-teal-50 dark:bg-teal-950/30',
         headerBorder: 'border-teal-200 dark:border-teal-800',
-        headerText: 'text-teal-700 dark:text-teal-300',
+        headerText: 'text-foreground dark:text-teal-300',
         rowAccent: 'border-l-4 border-l-teal-400',
-        iconColor: 'text-teal-600',
+        iconColor: 'text-teal-800',
         labelBg: 'bg-teal-50/50 dark:bg-teal-950/20',
       }
 
@@ -233,8 +236,22 @@ export function TimelineView({
     setSelectedDay(day)
   }
 
+  // Handle date picker click - open the hidden date input
+  const handleDateRangeClick = () => {
+    dateInputRef.current?.showPicker()
+  }
+
+  // Handle date selection from the picker
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedDate = new Date(e.target.value)
+    if (!isNaN(selectedDate.getTime())) {
+      setSelectedDay(selectedDate) // Select the specific day
+      onWeekChange(selectedDate)   // Navigate to the week containing that day
+    }
+  }
+
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden bg-white">
       <CardHeader className="pb-3 px-3 sm:px-6">
         {/* View Mode Indicator */}
         <div className={`-mx-3 sm:-mx-6 -mt-6 mb-4 px-3 sm:px-4 py-2 ${viewStyles.headerBg} border-b ${viewStyles.headerBorder}`}>
@@ -273,9 +290,21 @@ export function TimelineView({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-xs sm:text-sm font-medium min-w-[120px] sm:min-w-[140px] text-center">
-              {format(weekStart, 'MMM d')} - {format(endOfWeek(currentWeek, { weekStartsOn: 1 }), 'MMM d')}
-            </span>
+            <div className="relative">
+              <span
+                onClick={handleDateRangeClick}
+                className="text-xs sm:text-sm font-medium min-w-[120px] sm:min-w-[140px] text-center cursor-pointer hover:text-primary transition-colors inline-block"
+              >
+                {format(weekStart, 'MMM d')} - {format(endOfWeek(currentWeek, { weekStartsOn: 1 }), 'MMM d')}
+              </span>
+              <input
+                ref={dateInputRef}
+                type="date"
+                onChange={handleDateChange}
+                className="absolute opacity-0 pointer-events-none"
+                aria-hidden="true"
+              />
+            </div>
             <Button
               variant="outline"
               size="icon"

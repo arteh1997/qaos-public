@@ -10,7 +10,7 @@ import { TimelineView } from '@/components/timetable/TimelineView'
 import { ShiftForm } from '@/components/forms/ShiftForm'
 import { ShiftFormData } from '@/lib/validations/shift'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CalendarDays, Users, Store, Plus } from 'lucide-react'
+import { CalendarDays, Plus, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 interface QuickAddState {
   date: Date
@@ -29,13 +29,14 @@ interface QuickAddState {
 }
 
 export default function ShiftTimetablePage() {
-  const { role, canManageCurrentStore } = useAuth()
-  const { shifts, isLoading: shiftsLoading, createShift, updateShift } = useShifts()
-  const { stores, isLoading: storesLoading } = useStores()
-  const { users, isLoading: usersLoading } = useUsers()
+  const { role, canManageCurrentStore, currentStore } = useAuth()
+  const currentStoreId = currentStore?.store_id
 
-  const [viewMode, setViewMode] = useState<'store' | 'staff'>('store')
-  const [selectedStoreId, setSelectedStoreId] = useState<string>('all')
+  const { shifts, isLoading: shiftsLoading, createShift, updateShift } = useShifts(currentStoreId || null)
+  const { stores, isLoading: storesLoading } = useStores()
+  const { users, isLoading: usersLoading } = useUsers({ storeId: currentStoreId || 'all' })
+
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('all')
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [quickAddState, setQuickAddState] = useState<QuickAddState | null>(null)
@@ -43,7 +44,6 @@ export default function ShiftTimetablePage() {
   const [editFormOpen, setEditFormOpen] = useState(false)
 
   const isLoading = shiftsLoading || storesLoading || usersLoading
-  // Owner and Manager can manage shifts
   const canManage = canManageCurrentStore || role === 'Owner' || role === 'Manager'
 
   // Handle quick add from timetable cell click
@@ -52,8 +52,7 @@ export default function ShiftTimetablePage() {
     setQuickAddOpen(true)
   }, [])
 
-  // Handle shift edit - unused for now but ready for TimelineView integration
-  // TODO: Wire up to TimelineView when edit-on-click is implemented
+  // Handle shift edit
   const _handleEditShift = useCallback((shift: Shift) => {
     setEditShift(shift)
     setEditFormOpen(true)
@@ -82,15 +81,22 @@ export default function ShiftTimetablePage() {
     setEditShift(null)
   }
 
-  // Filter stores for dropdown
-  const activeStores = stores.filter(s => s.is_active)
+  // Get user's role at current store from store_users
+  const getUserRoleAtStore = (user: any): string | null => {
+    if (!currentStoreId || !user.store_users) return user.role
 
-  // Staff members
-  const staffMembers = users.filter(u => u.role === 'Staff' && u.status === 'Active')
+    const storeUserEntry = user.store_users.find((su: any) => su.store_id === currentStoreId)
+    return storeUserEntry ? storeUserEntry.role : user.role
+  }
+
+  // Staff members (filter to current store using store_users role)
+  const staffMembers = users.filter(u =>
+    getUserRoleAtStore(u) === 'Staff' && u.status === 'Active'
+  )
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between">
           <div>
             <Skeleton className="h-8 w-48" />
@@ -104,22 +110,43 @@ export default function ShiftTimetablePage() {
     )
   }
 
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+  if (!currentStore) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto px-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <CalendarDays className="h-6 w-6 sm:h-8 sm:w-8" />
-            Shift Timetable
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Shift Timetable</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Weekly view of all scheduled shifts
+            Please select a store from the sidebar to view its timetable.
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto px-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Link href="/shifts">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+                <CalendarDays className="h-6 w-6" />
+                Shift Calendar
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Weekly view for {currentStore.store?.name}
+              </p>
+            </div>
+          </div>
         </div>
         {canManage && (
           <Button
-            className="w-full sm:w-auto"
             onClick={() => {
               setQuickAddState({ date: new Date() })
               setQuickAddOpen(true)
@@ -131,54 +158,24 @@ export default function ShiftTimetablePage() {
         )}
       </div>
 
-      {/* Controls */}
-      <Card>
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-            {/* View Mode Toggle */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap">View by:</span>
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'store' | 'staff')} className="flex-1 sm:flex-initial">
-                <TabsList className="w-full sm:w-auto">
-                  <TabsTrigger value="store" className="gap-1.5 flex-1 sm:flex-initial text-xs sm:text-sm">
-                    <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    Store
-                  </TabsTrigger>
-                  <TabsTrigger value="staff" className="gap-1.5 flex-1 sm:flex-initial text-xs sm:text-sm">
-                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    Staff
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-
-            {/* Filter - changes based on view mode */}
-            <div className="flex items-center gap-2 sm:ml-auto">
-              <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Filter:</span>
-              <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-                <SelectTrigger className="flex-1 sm:w-48">
-                  <SelectValue placeholder={viewMode === 'store' ? 'All Stores' : 'All Staff'} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {viewMode === 'store' ? 'All Stores' : 'All Staff'}
+      {/* Filter */}
+      <Card className="bg-white">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium whitespace-nowrap">Filter by staff:</span>
+            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue placeholder="All Staff" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Staff</SelectItem>
+                {staffMembers.map(staff => (
+                  <SelectItem key={staff.id} value={staff.id}>
+                    {staff.full_name || staff.email}
                   </SelectItem>
-                  {viewMode === 'store' ? (
-                    activeStores.map(store => (
-                      <SelectItem key={store.id} value={store.id}>
-                        {store.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    staffMembers.map(staff => (
-                      <SelectItem key={staff.id} value={staff.id}>
-                        {staff.full_name || staff.email}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -188,50 +185,12 @@ export default function ShiftTimetablePage() {
         shifts={shifts}
         stores={stores}
         staff={staffMembers}
-        viewMode={viewMode}
-        selectedStoreId={selectedStoreId === 'all' ? undefined : selectedStoreId}
+        viewMode="staff"
+        selectedStoreId={selectedStaffId === 'all' ? undefined : selectedStaffId}
         currentWeek={currentWeek}
         onWeekChange={setCurrentWeek}
         onAddShift={canManage ? handleAddShift : undefined}
       />
-
-      {/* Stats Summary */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <Card>
-          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">
-              Shifts
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 p-3 sm:p-6">
-            <div className="text-xl sm:text-2xl font-bold">{shifts.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">
-              Staff
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 p-3 sm:p-6">
-            <div className="text-xl sm:text-2xl font-bold">
-              {new Set(shifts.map(s => s.user_id)).size}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">
-              Stores
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 p-3 sm:p-6">
-            <div className="text-xl sm:text-2xl font-bold">
-              {new Set(shifts.map(s => s.store_id)).size}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Add Shift Form */}
       <ShiftForm
@@ -240,7 +199,7 @@ export default function ShiftTimetablePage() {
         stores={stores}
         users={staffMembers}
         onSubmit={handleQuickAddSubmit}
-        initialStoreId={quickAddState?.storeId}
+        initialStoreId={quickAddState?.storeId || currentStoreId}
         initialDate={quickAddState?.date}
         singleShiftMode={true}
       />

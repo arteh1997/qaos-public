@@ -44,9 +44,9 @@ export function PainPoints() {
           {painPoints.map((point, index) => (
             <div
               key={index}
-              className="group rounded-2xl border border-border/60 bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-destructive/5 hover:-translate-y-1 hover:border-destructive/20"
+              className="group rounded-2xl border border-border/60 bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-destructive/5 hover:-translate-y-1 hover:border-destructive/20 text-center"
             >
-              <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-colors duration-300 group-hover:bg-destructive/15">
+              <div className="mb-6 mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-colors duration-300 group-hover:bg-destructive/15">
                 <point.icon className="h-7 w-7" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-foreground">{point.title}</h3>

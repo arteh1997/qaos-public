@@ -1,157 +1,253 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseUpsert } from '@/lib/supabase/client'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { StoreInventory, InventoryItem } from '@/types'
 import { toast } from 'sonner'
 
-export function useStoreInventory(storeId: string | null) {
-  const [inventory, setInventory] = useState<StoreInventory[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+/**
+ * Fetch store inventory with joined inventory_item data
+ * Now uses the NEW multi-tenant inventory_items with store_id
+ */
+async function fetchStoreInventory(storeId: string): Promise<StoreInventory[]> {
+  if (!storeId) {
+    return []
+  }
 
-  const fetchInventory = useCallback(async () => {
-    if (!storeId) {
-      setInventory([])
-      setIsLoading(false)
-      return
+  // Fetch inventory items for this store (NEW: filtered by store_id)
+  const itemsResponse = await fetch(`/api/inventory?store_id=${storeId}`)
+  if (!itemsResponse.ok) {
+    throw new Error('Failed to fetch inventory items')
+  }
+  const itemsData = await itemsResponse.json()
+  const items: InventoryItem[] = itemsData.data || []
+
+  // Fetch store_inventory records (quantities and PAR levels)
+  const storeInvResponse = await fetch(`/api/stores/${storeId}/inventory`)
+  if (!storeInvResponse.ok) {
+    throw new Error('Failed to fetch store inventory')
+  }
+  const storeInvData = await storeInvResponse.json()
+  const storeInventoryRecords: StoreInventory[] = storeInvData.data || []
+
+  // Create a map for quick lookup
+  const storeInvMap = new Map<string, StoreInventory>()
+  for (const record of storeInventoryRecords) {
+    storeInvMap.set(record.inventory_item_id, record)
+  }
+
+  // Merge: all inventory items with their store_inventory data
+  const merged: StoreInventory[] = items.map((item) => {
+    const existing = storeInvMap.get(item.id)
+    if (existing) {
+      return { ...existing, inventory_item: item }
     }
 
-    setIsLoading(true)
-    setError(null)
+    // Virtual record for items not yet in store_inventory
+    return {
+      id: `virtual-${item.id}`,
+      store_id: storeId,
+      inventory_item_id: item.id,
+      quantity: 0,
+      par_level: null,
+      last_updated_at: new Date().toISOString(),
+      last_updated_by: null,
+      inventory_item: item,
+    }
+  })
 
-    try {
-      // Fetch all active inventory items
-      const { data: allItems, error: itemsError } = await supabaseFetch<InventoryItem>('inventory_items', {
-        filter: { is_active: 'eq.true' },
-        order: 'name',
+  return merged
+}
+
+/**
+ * TanStack Query hook for store inventory
+ *
+ * Replaces the old useStoreInventory hook with:
+ * - No more race conditions when switching stores
+ * - Automatic caching per store
+ * - Background refetching
+ * - Request deduplication
+ *
+ * @example
+ * const { data: inventory, isLoading } = useStoreInventoryQuery('store-id')
+ */
+export function useStoreInventoryQuery(storeId: string | null) {
+  return useQuery({
+    queryKey: ['store-inventory', storeId],
+    queryFn: () => {
+      if (!storeId) throw new Error('Store ID is required')
+      return fetchStoreInventory(storeId)
+    },
+    enabled: !!storeId, // Only run if storeId is provided
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+/**
+ * Mutation hook for updating inventory quantity and PAR level
+ */
+export function useUpdateInventoryQuantity(storeId: string | null) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      inventoryItemId,
+      quantity,
+      parLevel,
+    }: {
+      inventoryItemId: string
+      quantity: number
+      parLevel?: number
+    }) => {
+      if (!storeId) throw new Error('Store ID is required')
+
+      const response = await fetch(`/api/stores/${storeId}/inventory/${inventoryItemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity, par_level: parLevel }),
       })
 
-      if (itemsError) throw itemsError
-
-      // Fetch existing store inventory records
-      const { data: storeItems, error: storeError } = await supabaseFetch<StoreInventory>('store_inventory', {
-        select: '*,inventory_item:inventory_items(*)',
-        filter: { store_id: `eq.${storeId}` },
-      })
-
-      if (storeError) throw storeError
-
-      // Create a map of existing store inventory by inventory_item_id
-      const storeItemsMap = new Map<string, StoreInventory>()
-      for (const item of storeItems || []) {
-        storeItemsMap.set(item.inventory_item_id, item)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update inventory')
       }
 
-      // Merge: include all inventory items, using store_inventory data if it exists
-      const mergedInventory: StoreInventory[] = (allItems || []).map(item => {
-        const existing = storeItemsMap.get(item.id)
-        if (existing) return existing
-        return {
-          id: `virtual-${item.id}`,
-          store_id: storeId,
-          inventory_item_id: item.id,
-          quantity: 0,
-          par_level: null,
-          last_updated_at: new Date().toISOString(),
-          last_updated_by: null,
-          inventory_item: item,
+      return response.json()
+    },
+    // Optimistic update
+    onMutate: async ({ inventoryItemId, quantity, parLevel }) => {
+      if (!storeId) return
+
+      await queryClient.cancelQueries({ queryKey: ['store-inventory', storeId] })
+      const previousInventory = queryClient.getQueryData(['store-inventory', storeId])
+
+      queryClient.setQueryData<StoreInventory[]>(
+        ['store-inventory', storeId],
+        (old) => {
+          if (!old) return old
+
+          return old.map((item) =>
+            item.inventory_item_id === inventoryItemId
+              ? {
+                  ...item,
+                  quantity,
+                  ...(parLevel !== undefined && { par_level: parLevel }),
+                  last_updated_at: new Date().toISOString(),
+                }
+              : item
+          )
         }
+      )
+
+      return { previousInventory }
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previousInventory && storeId) {
+        queryClient.setQueryData(['store-inventory', storeId], context.previousInventory)
+      }
+      toast.error('Failed to update quantity: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    },
+    onSuccess: () => {
+      if (storeId) {
+        queryClient.invalidateQueries({ queryKey: ['store-inventory', storeId] })
+      }
+      toast.success('Stock updated')
+    },
+  })
+}
+
+/**
+ * Mutation hook for updating PAR level only
+ */
+export function useSetParLevel(storeId: string | null) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      inventoryItemId,
+      parLevel,
+    }: {
+      inventoryItemId: string
+      parLevel: number
+    }) => {
+      if (!storeId) throw new Error('Store ID is required')
+
+      const response = await fetch(`/api/stores/${storeId}/inventory/${inventoryItemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ par_level: parLevel }),
       })
 
-      setInventory(mergedInventory)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch inventory'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [storeId])
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update PAR level')
+      }
 
-  useEffect(() => {
-    fetchInventory()
-  }, [fetchInventory])
-
-  const updateQuantity = useCallback(async ({
-    inventoryItemId,
-    quantity,
-    parLevel
-  }: {
-    inventoryItemId: string
-    quantity: number
-    parLevel?: number
-  }) => {
-    if (!storeId) throw new Error('No store selected')
-
+      return response.json()
+    },
     // Optimistic update
-    setInventory(prev => prev.map(item =>
-      item.inventory_item_id === inventoryItemId
-        ? { ...item, quantity, ...(parLevel !== undefined && { par_level: parLevel }) }
-        : item
-    ))
+    onMutate: async ({ inventoryItemId, parLevel }) => {
+      if (!storeId) return
 
-    try {
-      const { error } = await supabaseUpsert('store_inventory', {
-        store_id: storeId,
-        inventory_item_id: inventoryItemId,
-        quantity,
-        par_level: parLevel,
-        last_updated_at: new Date().toISOString(),
-      }, 'store_id,inventory_item_id')
+      await queryClient.cancelQueries({ queryKey: ['store-inventory', storeId] })
+      const previousInventory = queryClient.getQueryData(['store-inventory', storeId])
 
-      if (error) throw error
-      toast.success('Stock updated')
-    } catch (err) {
-      fetchInventory()
-      toast.error('Failed to update quantity: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      throw err
-    }
-  }, [storeId, fetchInventory])
+      queryClient.setQueryData<StoreInventory[]>(
+        ['store-inventory', storeId],
+        (old) => {
+          if (!old) return old
 
-  const setParLevel = useCallback(async ({
-    inventoryItemId,
-    parLevel
-  }: {
-    inventoryItemId: string
-    parLevel: number
-  }) => {
-    if (!storeId) throw new Error('No store selected')
+          return old.map((item) =>
+            item.inventory_item_id === inventoryItemId
+              ? { ...item, par_level: parLevel, last_updated_at: new Date().toISOString() }
+              : item
+          )
+        }
+      )
 
-    // Optimistic update
-    setInventory(prev => prev.map(item =>
-      item.inventory_item_id === inventoryItemId
-        ? { ...item, par_level: parLevel }
-        : item
-    ))
-
-    try {
-      const { error } = await supabaseUpsert('store_inventory', {
-        store_id: storeId,
-        inventory_item_id: inventoryItemId,
-        par_level: parLevel,
-        last_updated_at: new Date().toISOString(),
-      }, 'store_id,inventory_item_id')
-
-      if (error) throw error
-      toast.success('PAR level updated')
-    } catch (err) {
-      fetchInventory()
+      return { previousInventory }
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previousInventory && storeId) {
+        queryClient.setQueryData(['store-inventory', storeId], context.previousInventory)
+      }
       toast.error('Failed to update PAR level: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      throw err
-    }
-  }, [storeId, fetchInventory])
+    },
+    onSuccess: () => {
+      if (storeId) {
+        queryClient.invalidateQueries({ queryKey: ['store-inventory', storeId] })
+      }
+      toast.success('PAR level updated')
+    },
+  })
+}
 
-  // Get items below PAR level
+/**
+ * Combined hook that matches the old useStoreInventory API
+ *
+ * @example
+ * const { inventory, lowStockItems, updateQuantity, setParLevel, isLoading } = useStoreInventory('store-id')
+ */
+export function useStoreInventory(storeId: string | null) {
+  const query = useStoreInventoryQuery(storeId)
+  const updateQuantityMutation = useUpdateInventoryQuantity(storeId)
+  const setParLevelMutation = useSetParLevel(storeId)
+
+  const inventory = query.data || []
+
+  // Calculate low stock items
   const lowStockItems = inventory.filter(
-    item => item.par_level && item.quantity < item.par_level
+    (item) => item.par_level && item.quantity < item.par_level
   )
 
   return {
     inventory,
     lowStockItems,
-    isLoading,
-    error,
-    updateQuantity,
-    setParLevel,
-    refetch: fetchInventory,
+    isLoading: query.isLoading,
+    error: query.error,
+    updateQuantity: updateQuantityMutation.mutate,
+    setParLevel: setParLevelMutation.mutate,
+    refetch: query.refetch,
+    isUpdating: updateQuantityMutation.isPending || setParLevelMutation.isPending,
   }
 }

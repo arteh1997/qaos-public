@@ -102,14 +102,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create profile
-    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+    // Create or update profile (use upsert in case a trigger already created it)
+    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: authData.user.id,
       email: email.toLowerCase(),
       full_name: fullName,
       role: 'Owner', // New signups become Owners (they'll create their own store)
       status: 'Active',
-    })
+    }, { onConflict: 'id' })
 
     if (profileError) {
       console.error('Error creating profile:', profileError)

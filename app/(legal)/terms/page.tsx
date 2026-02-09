@@ -86,7 +86,7 @@ export default function TermsOfServicePage() {
                 <li>Be responsible for all applicable taxes</li>
               </ul>
               <p className="text-muted-foreground leading-relaxed mt-4">
-                We offer a 14-day free trial for new accounts. No payment is required during the trial period.
+                We offer a 1-month free trial for new accounts. No payment is required during the trial period.
               </p>
             </section>
 

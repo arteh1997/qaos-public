@@ -34,7 +34,10 @@ export function SetupStepCard({
         <button
           type="button"
           onClick={onToggle}
-          className="w-full p-3 sm:p-4 flex items-center gap-3 sm:gap-4 text-left hover:bg-muted/50 transition-colors rounded-t-2xl"
+          className={cn(
+            'w-full p-3 sm:p-4 flex items-center gap-3 sm:gap-4 text-left hover:bg-muted/50 transition-colors',
+            isExpanded ? 'rounded-t-lg' : 'rounded-lg'
+          )}
         >
           {/* Icon with completion status */}
           <div

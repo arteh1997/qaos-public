@@ -8,7 +8,7 @@ import {
   apiForbidden,
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
-import { storeSchema } from '@/lib/validations/store'
+import { storeSchema, storeUpdateSchema } from '@/lib/validations/store'
 import { Store } from '@/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { auditLog } from '@/lib/audit'
@@ -82,7 +82,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Validate input (partial)
-    const validationResult = storeSchema.partial().safeParse(body)
+    const validationResult = storeUpdateSchema.safeParse(body)
     if (!validationResult.success) {
       return apiBadRequest(
         validationResult.error.issues.map(e => e.message).join(', '),

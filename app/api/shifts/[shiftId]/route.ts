@@ -8,7 +8,7 @@ import {
   apiForbidden,
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
-import { shiftSchema, editClockTimesSchema } from '@/lib/validations/shift'
+import { shiftSchema, shiftUpdateSchema, editClockTimesSchema } from '@/lib/validations/shift'
 import { sanitizeNotes } from '@/lib/utils'
 import { Shift } from '@/types'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -168,7 +168,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     } else {
       // Validate schedule edit (partial)
-      const validationResult = shiftSchema.partial().safeParse(body)
+      const validationResult = shiftUpdateSchema.safeParse(body)
       if (!validationResult.success) {
         return apiBadRequest(
           validationResult.error.issues.map(e => e.message).join(', '),

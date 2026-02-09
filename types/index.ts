@@ -139,12 +139,15 @@ export interface Subscription {
 
 export interface InventoryItem {
   id: string;
+  store_id: string; // Store that owns this inventory item (multi-tenant isolation)
   name: string;
   category: string | null;
   unit_of_measure: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // Joined fields
+  store?: Store;
 }
 
 export interface StoreInventory {

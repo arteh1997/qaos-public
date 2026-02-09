@@ -16,7 +16,7 @@ export const Header = memo(function Header({ role }: HeaderProps) {
 
   return (
     <header
-      className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md dark:bg-background/60"
+      className="sticky top-0 z-40 border-b bg-background"
       role="banner"
     >
       <div className="flex h-16 items-center justify-between px-4">

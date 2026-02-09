@@ -1,5 +1,15 @@
 import { z } from 'zod'
 
+// Base shift schema without refinements (for partial updates)
+export const shiftSchemaBase = z.object({
+  store_id: z.string().uuid('Invalid store'),
+  user_id: z.string().uuid('Invalid user'),
+  start_time: z.string().min(1, 'Start time is required'),
+  end_time: z.string().min(1, 'End time is required'),
+  notes: z.string().optional(),
+})
+
+// Full shift schema with refinements (for creation)
 export const shiftSchema = z.object({
   store_id: z.string().uuid('Invalid store'),
   user_id: z.string().uuid('Invalid user'),
@@ -20,6 +30,9 @@ export const shiftSchema = z.object({
   message: 'End time must be after start time',
   path: ['end_time'],
 })
+
+// Partial schema for updates (uses base without refinements)
+export const shiftUpdateSchema = shiftSchemaBase.partial()
 
 export const clockInOutSchema = z.object({
   shift_id: z.string().uuid('Invalid shift'),

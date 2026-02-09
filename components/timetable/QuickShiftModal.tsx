@@ -112,9 +112,10 @@ export function QuickShiftModal({
   )
 
   // Filter staff by selected store
+  // Note: staff prop should already be filtered to Staff role in parent component
   const availableStaff = useMemo(() => {
-    if (!selectedStore) return staff.filter(s => s.role === 'Staff')
-    return staff.filter(s => s.role === 'Staff' && s.store_id === selectedStore)
+    if (!selectedStore) return staff
+    return staff.filter(s => s.store_id === selectedStore)
   }, [staff, selectedStore])
 
   // Get preset shift times from store-defined patterns
@@ -313,7 +314,7 @@ export function QuickShiftModal({
             </div>
 
             {!hasShiftPatterns && mode === 'preset' && selectedStore && (
-              <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/50 p-2 rounded">
+              <p className="text-xs text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 p-2 rounded font-medium">
                 {storeHoursForDay && !storeHoursForDay.isOpen
                   ? `Store is closed on ${DAY_NAMES[dayOfWeek]}s. Use custom time or select a different day.`
                   : `No shift patterns configured for ${DAY_NAMES[dayOfWeek]}. Set them in store settings or use custom time.`}

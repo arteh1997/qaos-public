@@ -115,6 +115,7 @@ export default function BillingPage() {
   const [cancelingId, setCancelingId] = useState<string | null>(null)
   const [reactivatingId, setReactivatingId] = useState<string | null>(null)
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null)
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false)
 
   const ownerStores = stores?.filter(s => s.role === 'Owner') || []
   const monthlyPrice = getMonthlyPriceDisplay()
@@ -222,6 +223,29 @@ export default function BillingPage() {
     const trialEnd = new Date(subscription.trial_end)
     const now = new Date()
     return Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+  }
+
+  const handleOpenPortal = async () => {
+    setIsOpeningPortal(true)
+    try {
+      const response = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Failed to open billing portal')
+      }
+
+      const data = await response.json()
+
+      // Redirect to Stripe Customer Portal
+      window.location.href = data.data.url
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to open billing portal')
+      setIsOpeningPortal(false)
+    }
   }
 
   // Calculate metrics
@@ -357,13 +381,33 @@ export default function BillingPage() {
               {/* Right: Actions */}
               <div className="flex flex-col gap-2 lg:items-end">
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" className="bg-white">
-                    <CreditCard className="mr-2 h-4 w-4" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white"
+                    onClick={handleOpenPortal}
+                    disabled={isOpeningPortal}
+                  >
+                    {isOpeningPortal ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="mr-2 h-4 w-4" />
+                    )}
                     <span className="hidden sm:inline">Update Payment</span>
                     <span className="sm:hidden">Payment</span>
                   </Button>
-                  <Button variant="outline" size="sm" className="bg-white">
-                    <Receipt className="mr-2 h-4 w-4" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-white"
+                    onClick={handleOpenPortal}
+                    disabled={isOpeningPortal}
+                  >
+                    {isOpeningPortal ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Receipt className="mr-2 h-4 w-4" />
+                    )}
                     <span className="hidden sm:inline">View Invoices</span>
                     <span className="sm:hidden">Invoices</span>
                   </Button>

@@ -5,12 +5,16 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Use jsdom for hook tests
+    environmentMatchGlobs: [
+      ['tests/hooks/**', 'jsdom'],
+    ],
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
     exclude: ['node_modules', '.next', 'dist'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['lib/**/*.ts', 'app/api/**/*.ts'],
+      include: ['lib/**/*.ts', 'app/api/**/*.ts', 'hooks/**/*.ts'],
       exclude: [
         'lib/supabase/**',
         '**/*.d.ts',

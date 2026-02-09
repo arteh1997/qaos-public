@@ -44,8 +44,8 @@ interface TeamSetupStepProps {
 export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Owner inviting to their store - they can invite all roles except Owner (co-owner is separate)
-  const availableRoles = INVITABLE_ROLES_BY_ROLE['Owner'].filter(role => role !== 'Owner')
+  // Owner inviting to their store - they can invite all roles including co-owners
+  const availableRoles = INVITABLE_ROLES_BY_ROLE['Owner']
 
   const form = useForm<TeamInviteFormData>({
     resolver: zodResolver(teamInviteSchema),

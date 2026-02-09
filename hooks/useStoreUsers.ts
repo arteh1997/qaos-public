@@ -1,302 +1,233 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseInsert, supabaseUpdate, supabaseDelete } from '@/lib/supabase/client'
-import { StoreUser, StoreUserWithStore, Profile, AppRole } from '@/types'
-import { sanitizeErrorMessage } from '@/lib/utils'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { StoreUser, Profile } from '@/types'
 import { toast } from 'sonner'
-
-const PAGE_SIZE = 20
-
-export interface StoreUsersFilters {
-  storeId: string
-  search?: string
-  role?: AppRole | 'all'
-  page?: number
-}
 
 export interface StoreUserWithProfile extends StoreUser {
   user: Profile
 }
 
-export interface AddStoreUserData {
-  store_id: string
-  user_id: string
-  role: AppRole
-  is_billing_owner?: boolean
-  invited_by?: string
-}
+/**
+ * Fetch users for a specific store
+ */
+async function fetchStoreUsers(storeId: string): Promise<StoreUserWithProfile[]> {
+  if (!storeId) {
+    return []
+  }
 
-export interface UpdateStoreUserData {
-  role?: AppRole
-  is_billing_owner?: boolean
+  const response = await fetch(`/api/stores/${storeId}/users`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch store users')
+  }
+
+  const data = await response.json()
+  return data.data || []
 }
 
 /**
- * Hook for managing store memberships (store_users table)
- * Used for inviting users to stores and managing their roles
+ * TanStack Query hook for store users
+ *
+ * Replaces the old useStoreUsers hook with:
+ * - No race conditions when adding/removing users
+ * - Proper request sequencing
+ * - Automatic cache invalidation
+ *
+ * @example
+ * const { data: users, isLoading } = useStoreUsersQuery('store-id')
  */
-export function useStoreUsers(filters: StoreUsersFilters) {
-  const { storeId, search = '', role = 'all', page = 1 } = filters
-  const [storeUsers, setStoreUsers] = useState<StoreUserWithProfile[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+export function useStoreUsersQuery(storeId: string | null) {
+  return useQuery({
+    queryKey: ['store-users', storeId],
+    queryFn: () => {
+      if (!storeId) throw new Error('Store ID is required')
+      return fetchStoreUsers(storeId)
+    },
+    enabled: !!storeId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  })
+}
 
-  const fetchStoreUsers = useCallback(async () => {
-    if (!storeId) {
-      setStoreUsers([])
-      setTotalCount(0)
-      setIsLoading(false)
-      return
-    }
+/**
+ * Mutation hook for adding a user to a store
+ */
+export function useAddUserToStore(storeId: string | null) {
+  const queryClient = useQueryClient()
 
-    setIsLoading(true)
-    setError(null)
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      role,
+    }: {
+      userId: string
+      role: string
+    }) => {
+      if (!storeId) throw new Error('Store ID is required')
 
-    try {
-      const filter: Record<string, string> = {
-        store_id: `eq.${storeId}`,
-      }
-
-      if (role !== 'all') {
-        filter['role'] = `eq.${role}`
-      }
-
-      const from = (page - 1) * PAGE_SIZE
-      const to = from + PAGE_SIZE - 1
-
-      const { data, error: fetchError, count } = await supabaseFetch<StoreUserWithProfile>(
-        'store_users',
-        {
-          select: '*, user:profiles(*)',
-          filter,
-          range: { from, to },
-          count: true,
-        }
-      )
-
-      if (fetchError) throw fetchError
-
-      // Filter by search if provided (search on user email/name)
-      let filteredData = data || []
-      if (search) {
-        const searchLower = search.toLowerCase()
-        filteredData = filteredData.filter(su =>
-          su.user?.email?.toLowerCase().includes(searchLower) ||
-          su.user?.full_name?.toLowerCase().includes(searchLower)
-        )
-      }
-
-      setStoreUsers(filteredData)
-      setTotalCount(count ?? 0)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch store users'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [storeId, search, role, page])
-
-  useEffect(() => {
-    fetchStoreUsers()
-  }, [fetchStoreUsers])
-
-  /**
-   * Add a user to a store with a specific role
-   */
-  const addUserToStore = useCallback(async (data: AddStoreUserData) => {
-    const now = new Date().toISOString()
-
-    try {
-      const { error } = await supabaseInsert('store_users', {
-        ...data,
-        created_at: now,
-        updated_at: now,
+      const response = await fetch(`/api/stores/${storeId}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, role }),
       })
 
-      if (error) throw error
-      toast.success('User added to store successfully')
-      fetchStoreUsers()
-    } catch (err) {
-      toast.error('Failed to add user to store: ' + sanitizeErrorMessage(err))
-      throw err
-    }
-  }, [fetchStoreUsers])
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add user to store')
+      }
 
-  /**
-   * Update a user's role or billing status at a store
-   */
-  const updateStoreUser = useCallback(async (id: string, data: UpdateStoreUserData) => {
-    // Optimistic update
-    setStoreUsers(prev => prev.map(su =>
-      su.id === id ? { ...su, ...data, updated_at: new Date().toISOString() } : su
-    ))
+      return response.json()
+    },
+    onSuccess: () => {
+      if (storeId) {
+        queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
+      }
+      toast.success('User added to store')
+    },
+    onError: (err) => {
+      toast.error('Failed to add user: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    },
+  })
+}
 
-    try {
-      const { error } = await supabaseUpdate('store_users', id, {
-        ...data,
-        updated_at: new Date().toISOString(),
-      })
+/**
+ * Mutation hook for removing a user from a store
+ */
+export function useRemoveUserFromStore(storeId: string | null) {
+  const queryClient = useQueryClient()
 
-      if (error) throw error
-      toast.success('User role updated successfully')
-    } catch (err) {
-      fetchStoreUsers()
-      toast.error('Failed to update user role: ' + sanitizeErrorMessage(err))
-      throw err
-    }
-  }, [fetchStoreUsers])
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      if (!storeId) throw new Error('Store ID is required')
 
-  /**
-   * Remove a user from a store
-   */
-  const removeUserFromStore = useCallback(async (id: string) => {
-    // Find the user to check billing status
-    const storeUser = storeUsers.find(su => su.id === id)
-    if (storeUser?.is_billing_owner) {
-      toast.error('Cannot remove the billing owner. Transfer billing ownership first.')
-      return
-    }
-
-    if (!storeUser?.user_id) {
-      toast.error('User not found')
-      return
-    }
-
-    // Optimistic update
-    setStoreUsers(prev => prev.filter(su => su.id !== id))
-    setTotalCount(prev => prev - 1)
-
-    try {
-      // Use API endpoint to handle active shifts and audit logging
-      const response = await fetch(`/api/stores/${storeId}/users/${storeUser.user_id}`, {
+      const response = await fetch(`/api/stores/${storeId}/users/${userId}`, {
         method: 'DELETE',
       })
 
-      const result = await response.json()
-
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to remove user')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove user from store')
       }
 
-      if (result.data?.activeShiftsEnded > 0) {
-        toast.success(`User removed from store. ${result.data.activeShiftsEnded} active shift(s) were ended.`)
-      } else {
-        toast.success('User removed from store successfully')
-      }
-    } catch (err) {
-      fetchStoreUsers()
-      toast.error('Failed to remove user from store: ' + sanitizeErrorMessage(err))
-      throw err
-    }
-  }, [fetchStoreUsers, storeUsers, storeId])
+      return response.json()
+    },
+    // Optimistic update
+    onMutate: async (userId) => {
+      if (!storeId) return
 
-  /**
-   * Transfer billing ownership to another user at this store
-   */
-  const transferBillingOwnership = useCallback(async (newBillingOwnerUserId: string) => {
-    const newBillingOwner = storeUsers.find(su => su.user_id === newBillingOwnerUserId)
+      await queryClient.cancelQueries({ queryKey: ['store-users', storeId] })
+      const previousUsers = queryClient.getQueryData(['store-users', storeId])
 
-    if (!newBillingOwner) {
-      toast.error('New billing owner not found')
-      return
-    }
-
-    if (newBillingOwner.role !== 'Owner') {
-      toast.error('Billing owner must have Owner role')
-      return
-    }
-
-    try {
-      // Use API endpoint for atomic transfer with proper safeguards
-      const response = await fetch(`/api/stores/${storeId}/billing-owner`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newBillingOwnerId: newBillingOwnerUserId }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to transfer billing ownership')
-      }
-
-      toast.success('Billing ownership transferred successfully')
-      fetchStoreUsers()
-    } catch (err) {
-      fetchStoreUsers()
-      toast.error('Failed to transfer billing ownership: ' + sanitizeErrorMessage(err))
-      throw err
-    }
-  }, [fetchStoreUsers, storeUsers, storeId])
-
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
-
-  return {
-    storeUsers,
-    totalCount,
-    totalPages,
-    currentPage: page,
-    isLoading,
-    error,
-    addUserToStore,
-    updateStoreUser,
-    removeUserFromStore,
-    transferBillingOwnership,
-    refetch: fetchStoreUsers,
-  }
-}
-
-/**
- * Hook to get all stores a user has access to
- */
-export function useUserStores(userId: string | null) {
-  const [stores, setStores] = useState<StoreUserWithStore[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
-  const fetchUserStores = useCallback(async () => {
-    if (!userId) {
-      setStores([])
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const { data, error: fetchError } = await supabaseFetch<StoreUserWithStore>(
-        'store_users',
-        {
-          select: '*, store:stores(*)',
-          filter: { user_id: `eq.${userId}` },
+      queryClient.setQueryData<StoreUserWithProfile[]>(
+        ['store-users', storeId],
+        (old) => {
+          if (!old) return old
+          return old.filter((su) => su.user_id !== userId)
         }
       )
 
-      if (fetchError) throw fetchError
+      return { previousUsers }
+    },
+    onError: (err, _userId, context) => {
+      if (context?.previousUsers && storeId) {
+        queryClient.setQueryData(['store-users', storeId], context.previousUsers)
+      }
+      toast.error('Failed to remove user: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    },
+    onSuccess: () => {
+      if (storeId) {
+        queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
+      }
+      toast.success('User removed from store')
+    },
+  })
+}
 
-      // Filter out any without valid store data
-      const validStores = (data || []).filter(
-        (s): s is StoreUserWithStore => s.store !== null && s.store !== undefined
+/**
+ * Mutation hook for updating a user's role at a store
+ */
+export function useUpdateUserRole(storeId: string | null) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      role,
+    }: {
+      userId: string
+      role: string
+    }) => {
+      if (!storeId) throw new Error('Store ID is required')
+
+      const response = await fetch(`/api/stores/${storeId}/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update user role')
+      }
+
+      return response.json()
+    },
+    // Optimistic update
+    onMutate: async ({ userId, role }) => {
+      if (!storeId) return
+
+      await queryClient.cancelQueries({ queryKey: ['store-users', storeId] })
+      const previousUsers = queryClient.getQueryData(['store-users', storeId])
+
+      queryClient.setQueryData<StoreUserWithProfile[]>(
+        ['store-users', storeId],
+        (old) => {
+          if (!old) return old
+          return old.map((su) =>
+            su.user_id === userId ? { ...su, role: role as any } : su
+          )
+        }
       )
 
-      setStores(validStores)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch user stores'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [userId])
+      return { previousUsers }
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previousUsers && storeId) {
+        queryClient.setQueryData(['store-users', storeId], context.previousUsers)
+      }
+      toast.error('Failed to update role: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    },
+    onSuccess: () => {
+      if (storeId) {
+        queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
+      }
+      toast.success('User role updated')
+    },
+  })
+}
 
-  useEffect(() => {
-    fetchUserStores()
-  }, [fetchUserStores])
+/**
+ * Combined hook that matches the old useStoreUsers API
+ *
+ * @example
+ * const { storeUsers, addUserToStore, removeUserFromStore, updateUserRole, isLoading } = useStoreUsers('store-id')
+ */
+export function useStoreUsers(storeId: string | null) {
+  const query = useStoreUsersQuery(storeId)
+  const addMutation = useAddUserToStore(storeId)
+  const removeMutation = useRemoveUserFromStore(storeId)
+  const updateRoleMutation = useUpdateUserRole(storeId)
 
   return {
-    stores,
-    isLoading,
-    error,
-    refetch: fetchUserStores,
+    storeUsers: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    addUserToStore: addMutation.mutate,
+    removeUserFromStore: removeMutation.mutate,
+    updateUserRole: updateRoleMutation.mutate,
+    isAdding: addMutation.isPending,
+    isRemoving: removeMutation.isPending,
+    isUpdatingRole: updateRoleMutation.isPending,
+    refetch: query.refetch,
   }
 }

@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseUpdate, supabaseDelete } from '@/lib/supabase/client'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Store } from '@/types'
 import { StoreFormData } from '@/lib/validations/store'
 import { sanitizeSearchInput, sanitizeErrorMessage } from '@/lib/utils'
@@ -22,83 +21,84 @@ export interface PaginatedStores {
   currentPage: number
 }
 
-export function useStores(filters: StoresFilters = {}) {
+/**
+ * Fetch stores from API with filters
+ * This function is used by the query and can be called directly for prefetching
+ */
+async function fetchStores(filters: StoresFilters = {}): Promise<PaginatedStores> {
   const { search = '', status = 'all', page = 1 } = filters
-  const [stores, setStores] = useState<Store[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
 
-  const fetchStores = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+  // Build query params
+  const params = new URLSearchParams()
+  params.set('page', page.toString())
+  params.set('page_size', PAGE_SIZE.toString())
 
-    try {
-      const filter: Record<string, string> = {}
-
-      if (search) {
-        const sanitizedSearch = sanitizeSearchInput(search)
-        if (sanitizedSearch) {
-          filter['or'] = `(name.ilike.%${sanitizedSearch}%,address.ilike.%${sanitizedSearch}%)`
-        }
-      }
-
-      if (status === 'active') {
-        filter['is_active'] = 'eq.true'
-      } else if (status === 'inactive') {
-        filter['is_active'] = 'eq.false'
-      }
-
-      const from = (page - 1) * PAGE_SIZE
-      const to = from + PAGE_SIZE - 1
-
-      const { data, error: fetchError, count } = await supabaseFetch<Store>('stores', {
-        order: 'name',
-        filter,
-        range: { from, to },
-        count: true,
-      })
-
-      console.log('[useStores] Fetch result:', { data, error: fetchError, count, filter })
-
-      if (fetchError) throw fetchError
-
-      setStores(data || [])
-      setTotalCount(count ?? 0)
-    } catch (err) {
-      console.error('[useStores] Error:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch stores'))
-    } finally {
-      setIsLoading(false)
+  if (search) {
+    const sanitizedSearch = sanitizeSearchInput(search)
+    if (sanitizedSearch) {
+      params.set('search', sanitizedSearch)
     }
-  }, [search, status, page])
+  }
 
-  useEffect(() => {
-    fetchStores()
-  }, [fetchStores])
+  if (status !== 'all') {
+    params.set('status', status)
+  }
 
-  const createStore = useCallback(async (formData: StoreFormData) => {
-    const now = new Date().toISOString()
-    const optimisticStore: Store = {
-      id: crypto.randomUUID(),
-      name: formData.name,
-      address: formData.address ?? null,
-      is_active: true,
-      opening_time: formData.opening_time ?? null,
-      closing_time: formData.closing_time ?? null,
-      weekly_hours: formData.weekly_hours ?? null,
-      billing_user_id: formData.billing_user_id ?? null,
-      subscription_status: 'active', // Default to active (billing deferred)
-      created_at: now,
-      updated_at: now,
-    }
+  const response = await fetch(`/api/stores?${params.toString()}`)
 
-    // Optimistic update
-    setStores(prev => [...prev, optimisticStore].sort((a, b) => a.name.localeCompare(b.name)))
-    setTotalCount(prev => prev + 1)
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to fetch stores')
+  }
 
-    try {
-      // Use API route which properly sets billing_user_id and creates store_users entry
+  const data = await response.json()
+
+  return {
+    stores: data.data || [],
+    totalCount: data.meta?.pagination?.total || 0,
+    totalPages: Math.ceil((data.meta?.pagination?.total || 0) / PAGE_SIZE),
+    currentPage: page,
+  }
+}
+
+/**
+ * TanStack Query hook for fetching stores with pagination and filters
+ *
+ * Replaces the old useStores hook with:
+ * - Automatic request deduplication (no more race conditions)
+ * - Built-in caching (30 second stale time)
+ * - Background refetching on window focus
+ * - Automatic retry on failure
+ *
+ * @example
+ * const { data, isLoading, error } = useStoresQuery({ search: 'Restaurant', page: 1 })
+ * console.log(data?.stores) // Store[]
+ */
+export function useStoresQuery(filters: StoresFilters = {}) {
+  return useQuery({
+    queryKey: ['stores', filters],
+    queryFn: () => fetchStores(filters),
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    // Placeholde data to prevent loading flicker on filter changes
+    placeholderData: (previousData) => previousData,
+  })
+}
+
+/**
+ * Mutation hook for creating a new store
+ *
+ * Features:
+ * - Optimistic updates (UI updates immediately)
+ * - Automatic rollback on error
+ * - Cache invalidation on success
+ * - Toast notifications
+ */
+export function useCreateStore() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (formData: StoreFormData) => {
       const response = await fetch('/api/stores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,64 +110,212 @@ export function useStores(filters: StoresFilters = {}) {
         throw new Error(errorData.error || 'Failed to create store')
       }
 
-      toast.success('Store created successfully')
-      fetchStores()
-    } catch (err) {
-      // Rollback
-      setStores(prev => prev.filter(s => s.id !== optimisticStore.id))
-      setTotalCount(prev => prev - 1)
+      return response.json()
+    },
+    // Optimistic update
+    onMutate: async (formData) => {
+      // Cancel outgoing queries to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['stores'] })
+
+      // Snapshot previous value for rollback
+      const previousStores = queryClient.getQueriesData({ queryKey: ['stores'] })
+
+      // Optimistically update cache
+      queryClient.setQueriesData<PaginatedStores>(
+        { queryKey: ['stores'] },
+        (old) => {
+          if (!old) return old
+
+          const optimisticStore: Store = {
+            id: crypto.randomUUID(),
+            name: formData.name,
+            address: formData.address ?? null,
+            is_active: true,
+            opening_time: formData.opening_time ?? null,
+            closing_time: formData.closing_time ?? null,
+            weekly_hours: formData.weekly_hours ?? null,
+            billing_user_id: formData.billing_user_id ?? null,
+            subscription_status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+
+          return {
+            ...old,
+            stores: [...old.stores, optimisticStore].sort((a, b) =>
+              a.name.localeCompare(b.name)
+            ),
+            totalCount: old.totalCount + 1,
+            totalPages: Math.ceil((old.totalCount + 1) / PAGE_SIZE),
+          }
+        }
+      )
+
+      return { previousStores }
+    },
+    // Rollback on error
+    onError: (err, _formData, context) => {
+      if (context?.previousStores) {
+        // Restore previous cache state
+        context.previousStores.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
       toast.error('Failed to create store: ' + sanitizeErrorMessage(err))
-      throw err
-    }
-  }, [fetchStores])
+    },
+    // Refetch on success to get server-side data
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+      toast.success('Store created successfully')
+    },
+  })
+}
 
-  const updateStore = useCallback(async ({ id, data }: { id: string; data: Partial<StoreFormData> }) => {
+/**
+ * Mutation hook for updating a store
+ */
+export function useUpdateStore() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<StoreFormData> }) => {
+      const response = await fetch(`/api/stores/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update store')
+      }
+
+      return response.json()
+    },
     // Optimistic update
-    setStores(prev => prev.map(store =>
-      store.id === id ? { ...store, ...data } : store
-    ))
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['stores'] })
+      const previousStores = queryClient.getQueriesData({ queryKey: ['stores'] })
 
-    try {
-      const { error } = await supabaseUpdate('stores', id, data)
+      queryClient.setQueriesData<PaginatedStores>(
+        { queryKey: ['stores'] },
+        (old) => {
+          if (!old) return old
 
-      if (error) throw error
-      toast.success('Store updated successfully')
-    } catch (err) {
-      fetchStores()
+          return {
+            ...old,
+            stores: old.stores.map((store) =>
+              store.id === id ? { ...store, ...data } : store
+            ),
+          }
+        }
+      )
+
+      return { previousStores }
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previousStores) {
+        context.previousStores.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
       toast.error('Failed to update store: ' + sanitizeErrorMessage(err))
-      throw err
-    }
-  }, [fetchStores])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+      toast.success('Store updated successfully')
+    },
+  })
+}
 
-  const deleteStore = useCallback(async (id: string) => {
+/**
+ * Mutation hook for deleting a store
+ */
+export function useDeleteStore() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/stores/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete store')
+      }
+
+      return response.json()
+    },
     // Optimistic update
-    setStores(prev => prev.filter(store => store.id !== id))
-    setTotalCount(prev => prev - 1)
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['stores'] })
+      const previousStores = queryClient.getQueriesData({ queryKey: ['stores'] })
 
-    try {
-      const { error } = await supabaseDelete('stores', id)
+      queryClient.setQueriesData<PaginatedStores>(
+        { queryKey: ['stores'] },
+        (old) => {
+          if (!old) return old
 
-      if (error) throw error
-      toast.success('Store deleted successfully')
-    } catch (err) {
-      fetchStores()
+          return {
+            ...old,
+            stores: old.stores.filter((store) => store.id !== id),
+            totalCount: old.totalCount - 1,
+            totalPages: Math.ceil((old.totalCount - 1) / PAGE_SIZE),
+          }
+        }
+      )
+
+      return { previousStores }
+    },
+    onError: (err, _id, context) => {
+      if (context?.previousStores) {
+        context.previousStores.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
       toast.error('Failed to delete store: ' + sanitizeErrorMessage(err))
-      throw err
-    }
-  }, [fetchStores])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+      toast.success('Store deleted successfully')
+    },
+  })
+}
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+/**
+ * Combined hook that provides all store operations
+ * This matches the API of the old useStores hook for easier migration
+ *
+ * @example
+ * const { stores, isLoading, createStore, updateStore, deleteStore } = useStores({ page: 1 })
+ */
+export function useStores(filters: StoresFilters = {}) {
+  const query = useStoresQuery(filters)
+  const createMutation = useCreateStore()
+  const updateMutation = useUpdateStore()
+  const deleteMutation = useDeleteStore()
 
   return {
-    stores,
-    totalCount,
-    totalPages,
-    currentPage: page,
-    isLoading,
-    error,
-    createStore,
-    updateStore,
-    deleteStore,
-    refetch: fetchStores,
+    // Query data
+    stores: query.data?.stores || [],
+    totalCount: query.data?.totalCount || 0,
+    totalPages: query.data?.totalPages || 0,
+    currentPage: filters.page || 1,
+    isLoading: query.isLoading,
+    error: query.error,
+
+    // Mutations
+    createStore: createMutation.mutate,
+    updateStore: updateMutation.mutate,
+    deleteStore: deleteMutation.mutate,
+
+    // Additional mutation states
+    isCreating: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+
+    // Refetch function
+    refetch: query.refetch,
   }
 }

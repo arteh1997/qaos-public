@@ -77,13 +77,13 @@ export default function StockCountPage({ params }: StockCountPageProps) {
   )
 
   const handleSuccess = () => {
-    router.push(`/stores/${storeId}`)
+    router.push('/')
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Link href={`/stores/${storeId}`}>
+        <Link href="/">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>

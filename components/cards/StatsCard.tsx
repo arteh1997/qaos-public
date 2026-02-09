@@ -20,21 +20,21 @@ export function StatsCard({
 }: StatsCardProps) {
   const variantStyles = {
     default: '',
-    warning: 'border-yellow-500/50 bg-yellow-500/10 dark:bg-yellow-500/5',
-    success: 'border-green-500/50 bg-green-500/10 dark:bg-green-500/5',
-    danger: 'border-red-500/50 bg-red-500/10 dark:bg-red-500/5',
+    warning: 'border-yellow-500/50 bg-yellow-500/10',
+    success: 'border-green-500/50 bg-green-500/10',
+    danger: 'border-red-500/50 bg-red-500/10',
   }
 
   return (
-    <Card className={cn('card-glow group', variantStyles[variant], className)}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+    <Card className={cn('group py-5 gap-4', variantStyles[variant], className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <div className="text-muted-foreground group-hover:text-foreground transition-colors duration-200">
           {icon}
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold tracking-tight">{value}</div>
+        <div className="text-2xl font-semibold tracking-tight">{value}</div>
         {description && (
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
         )}
