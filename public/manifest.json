@@ -1,7 +1,7 @@
 {
-  "name": "Restaurant Inventory Management",
-  "short_name": "Inventory",
-  "description": "Multi-location restaurant inventory management system",
+  "name": "RestaurantOS - Inventory Management",
+  "short_name": "RestaurantOS",
+  "description": "Multi-location restaurant inventory management with barcode scanning, offline support, and real-time stock tracking",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

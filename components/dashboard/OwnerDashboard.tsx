@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useUsers } from '@/hooks/useUsers'
 import { useMissingCounts, useLowStockReport, useStockHistory } from '@/hooks/useReports'
 import { useStoreSetupStatus } from '@/hooks/useStoreSetupStatus'
+import { useAnalytics } from '@/hooks/useAnalytics'
 import { supabaseFetch, supabaseUpdate } from '@/lib/supabase/client'
 import { canDoStockCount, canDoStockReception, canManageStores } from '@/lib/auth'
 import { StatsCard } from '@/components/cards/StatsCard'
@@ -28,6 +29,13 @@ import {
   TrendingUp,
   Activity,
 } from 'lucide-react'
+import {
+  StockActivityChart,
+  TopMovingItemsChart,
+  CategoryBreakdownChart,
+  InventoryHealthChart,
+  StockTrendChart,
+} from '@/components/charts'
 import { Store, StoreInventory } from '@/types'
 import { StoreFormData } from '@/lib/validations/store'
 import { format, formatDistanceToNow } from 'date-fns'
@@ -69,6 +77,9 @@ export function OwnerDashboard() {
   // Fetch store inventory to calculate out of stock
   const [storeInventory, setStoreInventory] = useState<StoreInventory[]>([])
   const [inventoryLoading, setInventoryLoading] = useState(false)
+
+  // Analytics data for charts (30-day lookback)
+  const { data: analytics, isLoading: analyticsLoading } = useAnalytics(currentStoreId || null, 30)
 
   // Get today's date for recent activity - filter to current store
   const today = new Date().toISOString().split('T')[0]
@@ -430,6 +441,39 @@ export function OwnerDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ANALYTICS CHARTS */}
+      {analytics && !analyticsLoading && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Analytics</h2>
+            <Link href="/reports">
+              <Button variant="ghost" size="sm" className="h-8 text-xs">
+                All Reports
+                <ArrowRight className="h-3 w-3 ml-1" />
+              </Button>
+            </Link>
+          </div>
+
+          {/* Row 1: Stock Trend + Inventory Health */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <StockTrendChart data={analytics.stockValueTrend} />
+            <InventoryHealthChart
+              data={analytics.inventoryHealth}
+              completionRate={analytics.countCompletionRate}
+            />
+          </div>
+
+          {/* Row 2: Activity Chart + Category Breakdown */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <StockActivityChart data={analytics.stockActivityByDay} />
+            <CategoryBreakdownChart data={analytics.categoryBreakdown} />
+          </div>
+
+          {/* Row 3: Top Moving Items (full width) */}
+          <TopMovingItemsChart data={analytics.topMovingItems} />
+        </div>
+      )}
 
       {/* QUICK ACTIONS */}
       <Card className="bg-white">

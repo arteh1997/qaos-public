@@ -1,28 +1,43 @@
 /**
- * Simple in-memory rate limiter using sliding window algorithm
- * Note: This is suitable for single-instance deployments.
- * For multi-instance/serverless deployments, consider using Redis-based rate limiting.
+ * Production-ready rate limiter using Upstash Redis with sliding window algorithm
+ * Supports multi-instance/serverless deployments with true horizontal scaling
  */
 
+import { Redis } from '@upstash/redis'
+
+// Initialize Redis client (will be null if env vars not configured)
+let redis: Redis | null = null
+
+try {
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  } else {
+    console.warn('⚠️  Upstash Redis not configured. Rate limiting will use in-memory fallback.')
+  }
+} catch (error) {
+  console.error('Failed to initialize Upstash Redis:', error)
+}
+
+// Fallback in-memory store for development or when Redis unavailable
 interface RateLimitEntry {
   count: number
   resetTime: number
 }
 
-// In-memory store for rate limit tracking
-const rateLimitStore = new Map<string, RateLimitEntry>()
-
-// Clean up old entries periodically (every 5 minutes)
+const fallbackStore = new Map<string, RateLimitEntry>()
 let lastCleanup = Date.now()
 const CLEANUP_INTERVAL = 5 * 60 * 1000
 
-function cleanupOldEntries(): void {
+function cleanupFallbackStore(): void {
   const now = Date.now()
   if (now - lastCleanup < CLEANUP_INTERVAL) return
 
-  for (const [key, entry] of rateLimitStore.entries()) {
+  for (const [key, entry] of fallbackStore.entries()) {
     if (entry.resetTime < now) {
-      rateLimitStore.delete(key)
+      fallbackStore.delete(key)
     }
   }
   lastCleanup = now
@@ -47,20 +62,70 @@ export interface RateLimitResult {
 }
 
 /**
- * Check if a request should be rate limited
- * @param identifier Unique identifier for the rate limit (e.g., user ID, IP address)
- * @param config Rate limit configuration
- * @returns Rate limit result
+ * Redis-based rate limiter using sliding window algorithm with sorted sets
  */
-export function rateLimit(
+async function rateLimitRedis(
+  identifier: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const now = Date.now()
+  const windowStart = now - config.windowMs
+  const key = `ratelimit:${identifier}`
+
+  try {
+    // Use Redis pipeline for atomic operations
+    const pipeline = redis!.pipeline()
+
+    // Remove old entries outside the sliding window
+    pipeline.zremrangebyscore(key, 0, windowStart)
+
+    // Add current timestamp to sorted set
+    pipeline.zadd(key, { score: now, member: `${now}-${Math.random()}` })
+
+    // Count requests in current window
+    pipeline.zcard(key)
+
+    // Set expiration on the key (cleanup)
+    pipeline.expire(key, Math.ceil(config.windowMs / 1000))
+
+    // Execute pipeline
+    const results = await pipeline.exec()
+
+    // Extract count from ZCARD result (3rd command, index 2)
+    const count = results[2] as number
+
+    // Check if limit exceeded
+    const success = count <= config.limit
+    const remaining = Math.max(0, config.limit - count)
+
+    // Calculate reset time (end of current window)
+    const resetTime = now + config.windowMs
+
+    return {
+      success,
+      remaining,
+      resetTime,
+      limit: config.limit,
+    }
+  } catch (error) {
+    console.error('Redis rate limit error:', error)
+    // Fall back to in-memory on Redis errors
+    return rateLimitFallback(identifier, config)
+  }
+}
+
+/**
+ * Fallback in-memory rate limiter (for development or Redis unavailable)
+ */
+function rateLimitFallback(
   identifier: string,
   config: RateLimitConfig
 ): RateLimitResult {
-  cleanupOldEntries()
+  cleanupFallbackStore()
 
   const now = Date.now()
   const key = identifier
-  const entry = rateLimitStore.get(key)
+  const entry = fallbackStore.get(key)
 
   // If no existing entry or window has expired, create new entry
   if (!entry || entry.resetTime < now) {
@@ -68,7 +133,7 @@ export function rateLimit(
       count: 1,
       resetTime: now + config.windowMs,
     }
-    rateLimitStore.set(key, newEntry)
+    fallbackStore.set(key, newEntry)
 
     return {
       success: true,
@@ -90,7 +155,7 @@ export function rateLimit(
 
   // Increment count
   entry.count += 1
-  rateLimitStore.set(key, entry)
+  fallbackStore.set(key, entry)
 
   return {
     success: true,
@@ -98,6 +163,24 @@ export function rateLimit(
     resetTime: entry.resetTime,
     limit: config.limit,
   }
+}
+
+/**
+ * Check if a request should be rate limited
+ * @param identifier Unique identifier for the rate limit (e.g., user ID, IP address)
+ * @param config Rate limit configuration
+ * @returns Rate limit result
+ */
+export async function rateLimit(
+  identifier: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  // Use Redis if available, otherwise fall back to in-memory
+  if (redis) {
+    return rateLimitRedis(identifier, config)
+  }
+
+  return rateLimitFallback(identifier, config)
 }
 
 // Preset rate limit configurations

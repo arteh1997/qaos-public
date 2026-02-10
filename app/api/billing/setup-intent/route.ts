@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
     const auth = await withApiAuth(request, {
       allowedRoles: ['Owner'], // Only Owners can set up billing
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
+      requireCSRF: true,
     })
 
     if (!auth.success) return auth.response
@@ -28,8 +29,7 @@ export async function POST(request: NextRequest) {
     if (!isBillingOwner && !context.profile?.is_platform_admin) {
       return apiError(
         'Only billing owners can set up payment methods',
-        403,
-        context.requestId
+        { status: 403, requestId: context.requestId }
       )
     }
 

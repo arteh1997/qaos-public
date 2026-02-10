@@ -424,6 +424,7 @@ export type Database = {
           id: string
           name: string
           category: string | null
+          category_id: string | null
           unit_of_measure: string
           is_active: boolean
           created_at: string
@@ -433,6 +434,7 @@ export type Database = {
           id?: string
           name: string
           category?: string | null
+          category_id?: string | null
           unit_of_measure: string
           is_active?: boolean
           created_at?: string
@@ -442,12 +444,125 @@ export type Database = {
           id?: string
           name?: string
           category?: string | null
+          category_id?: string | null
           unit_of_measure?: string
           is_active?: boolean
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "item_categories"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      item_categories: {
+        Row: {
+          id: string
+          store_id: string
+          name: string
+          description: string | null
+          color: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          name: string
+          description?: string | null
+          color?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          name?: string
+          description?: string | null
+          color?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_categories_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      item_tags: {
+        Row: {
+          id: string
+          store_id: string
+          name: string
+          description: string | null
+          color: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          name: string
+          description?: string | null
+          color?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          name?: string
+          description?: string | null
+          color?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_tags_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      inventory_item_tags: {
+        Row: {
+          inventory_item_id: string
+          tag_id: string
+          created_at: string
+        }
+        Insert: {
+          inventory_item_id: string
+          tag_id: string
+          created_at?: string
+        }
+        Update: {
+          inventory_item_id?: string
+          tag_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_item_tags_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_item_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            referencedRelation: "item_tags"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       store_inventory: {
         Row: {
@@ -456,6 +571,8 @@ export type Database = {
           inventory_item_id: string
           quantity: number
           par_level: number | null
+          unit_cost: number
+          cost_currency: string
           last_updated_at: string
           last_updated_by: string | null
         }
@@ -465,6 +582,8 @@ export type Database = {
           inventory_item_id: string
           quantity?: number
           par_level?: number | null
+          unit_cost?: number
+          cost_currency?: string
           last_updated_at?: string
           last_updated_by?: string | null
         }
@@ -474,6 +593,8 @@ export type Database = {
           inventory_item_id?: string
           quantity?: number
           par_level?: number | null
+          unit_cost?: number
+          cost_currency?: string
           last_updated_at?: string
           last_updated_by?: string | null
         }
@@ -645,6 +766,922 @@ export type Database = {
           }
         ]
       }
+      waste_log: {
+        Row: {
+          id: string
+          store_id: string
+          inventory_item_id: string
+          quantity: number
+          reason: string
+          notes: string | null
+          estimated_cost: number
+          reported_by: string
+          reported_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          inventory_item_id: string
+          quantity: number
+          reason: string
+          notes?: string | null
+          estimated_cost?: number
+          reported_by: string
+          reported_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          inventory_item_id?: string
+          quantity?: number
+          reason?: string
+          notes?: string | null
+          estimated_cost?: number
+          reported_by?: string
+          reported_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waste_log_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waste_log_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waste_log_reported_by_fkey"
+            columns: ["reported_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      recipes: {
+        Row: {
+          id: string
+          store_id: string
+          name: string
+          description: string | null
+          category: string | null
+          yield_quantity: number
+          yield_unit: string
+          prep_time_minutes: number | null
+          is_active: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          name: string
+          description?: string | null
+          category?: string | null
+          yield_quantity?: number
+          yield_unit?: string
+          prep_time_minutes?: number | null
+          is_active?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          name?: string
+          description?: string | null
+          category?: string | null
+          yield_quantity?: number
+          yield_unit?: string
+          prep_time_minutes?: number | null
+          is_active?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipes_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipes_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      recipe_ingredients: {
+        Row: {
+          id: string
+          recipe_id: string
+          inventory_item_id: string
+          quantity: number
+          unit_of_measure: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          recipe_id: string
+          inventory_item_id: string
+          quantity: number
+          unit_of_measure: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          recipe_id?: string
+          inventory_item_id?: string
+          quantity?: number
+          unit_of_measure?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_ingredients_recipe_id_fkey"
+            columns: ["recipe_id"]
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_ingredients_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      menu_items: {
+        Row: {
+          id: string
+          store_id: string
+          recipe_id: string | null
+          name: string
+          description: string | null
+          category: string | null
+          selling_price: number
+          currency: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          recipe_id?: string | null
+          name: string
+          description?: string | null
+          category?: string | null
+          selling_price: number
+          currency?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          recipe_id?: string | null
+          name?: string
+          description?: string | null
+          category?: string | null
+          selling_price?: number
+          currency?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_recipe_id_fkey"
+            columns: ["recipe_id"]
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      suppliers: {
+        Row: {
+          id: string
+          store_id: string
+          name: string
+          email: string | null
+          phone: string | null
+          address: string | null
+          contact_person: string | null
+          payment_terms: string | null
+          notes: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          address?: string | null
+          contact_person?: string | null
+          payment_terms?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          address?: string | null
+          contact_person?: string | null
+          payment_terms?: string | null
+          notes?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      supplier_items: {
+        Row: {
+          id: string
+          supplier_id: string
+          inventory_item_id: string
+          supplier_sku: string | null
+          unit_cost: number
+          currency: string
+          lead_time_days: number | null
+          min_order_quantity: number
+          is_preferred: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          supplier_id: string
+          inventory_item_id: string
+          supplier_sku?: string | null
+          unit_cost?: number
+          currency?: string
+          lead_time_days?: number | null
+          min_order_quantity?: number
+          is_preferred?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          supplier_id?: string
+          inventory_item_id?: string
+          supplier_sku?: string | null
+          unit_cost?: number
+          currency?: string
+          lead_time_days?: number | null
+          min_order_quantity?: number
+          is_preferred?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          id: string
+          store_id: string
+          supplier_id: string
+          po_number: string
+          status: string
+          order_date: string | null
+          expected_delivery_date: string | null
+          actual_delivery_date: string | null
+          total_amount: number
+          currency: string
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          supplier_id: string
+          po_number: string
+          status?: string
+          order_date?: string | null
+          expected_delivery_date?: string | null
+          actual_delivery_date?: string | null
+          total_amount?: number
+          currency?: string
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          supplier_id?: string
+          po_number?: string
+          status?: string
+          order_date?: string | null
+          expected_delivery_date?: string | null
+          actual_delivery_date?: string | null
+          total_amount?: number
+          currency?: string
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      purchase_order_items: {
+        Row: {
+          id: string
+          purchase_order_id: string
+          inventory_item_id: string
+          supplier_item_id: string | null
+          quantity_ordered: number
+          quantity_received: number
+          unit_price: number
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          purchase_order_id: string
+          inventory_item_id: string
+          supplier_item_id?: string | null
+          quantity_ordered: number
+          quantity_received?: number
+          unit_price?: number
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          purchase_order_id?: string
+          inventory_item_id?: string
+          supplier_item_id?: string | null
+          quantity_ordered?: number
+          quantity_received?: number
+          unit_price?: number
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_supplier_item_id_fkey"
+            columns: ["supplier_item_id"]
+            referencedRelation: "supplier_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      alert_preferences: {
+        Row: {
+          id: string
+          store_id: string
+          user_id: string
+          low_stock_enabled: boolean
+          critical_stock_enabled: boolean
+          missing_count_enabled: boolean
+          low_stock_threshold: number
+          alert_frequency: string
+          email_enabled: boolean
+          preferred_hour: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          user_id: string
+          low_stock_enabled?: boolean
+          critical_stock_enabled?: boolean
+          missing_count_enabled?: boolean
+          low_stock_threshold?: number
+          alert_frequency?: string
+          email_enabled?: boolean
+          preferred_hour?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          user_id?: string
+          low_stock_enabled?: boolean
+          critical_stock_enabled?: boolean
+          missing_count_enabled?: boolean
+          low_stock_threshold?: number
+          alert_frequency?: string
+          email_enabled?: boolean
+          preferred_hour?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_preferences_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_preferences_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      alert_history: {
+        Row: {
+          id: string
+          store_id: string
+          user_id: string
+          alert_type: string
+          channel: string
+          subject: string
+          item_count: number
+          status: string
+          error_message: string | null
+          metadata: Json
+          sent_at: string
+          acknowledged_at: string | null
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          user_id: string
+          alert_type: string
+          channel?: string
+          subject: string
+          item_count?: number
+          status?: string
+          error_message?: string | null
+          metadata?: Json
+          sent_at?: string
+          acknowledged_at?: string | null
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          user_id?: string
+          alert_type?: string
+          channel?: string
+          subject?: string
+          item_count?: number
+          status?: string
+          error_message?: string | null
+          metadata?: Json
+          sent_at?: string
+          acknowledged_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_history_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_history_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      api_keys: {
+        Row: {
+          id: string
+          store_id: string
+          created_by: string
+          name: string
+          key_prefix: string
+          key_hash: string
+          scopes: string[]
+          is_active: boolean
+          last_used_at: string | null
+          expires_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          created_by: string
+          name: string
+          key_prefix: string
+          key_hash: string
+          scopes?: string[]
+          is_active?: boolean
+          last_used_at?: string | null
+          expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          created_by?: string
+          name?: string
+          key_prefix?: string
+          key_hash?: string
+          scopes?: string[]
+          is_active?: boolean
+          last_used_at?: string | null
+          expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      webhook_endpoints: {
+        Row: {
+          id: string
+          store_id: string
+          created_by: string
+          url: string
+          secret: string
+          events: string[]
+          is_active: boolean
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          created_by: string
+          url: string
+          secret: string
+          events?: string[]
+          is_active?: boolean
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          created_by?: string
+          url?: string
+          secret?: string
+          events?: string[]
+          is_active?: boolean
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_endpoints_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      webhook_deliveries: {
+        Row: {
+          id: string
+          webhook_endpoint_id: string
+          store_id: string
+          event_type: string
+          payload: Json
+          status: string
+          response_status: number | null
+          response_body: string | null
+          attempt_count: number
+          last_attempt_at: string | null
+          delivered_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          webhook_endpoint_id: string
+          store_id: string
+          event_type: string
+          payload: Json
+          status?: string
+          response_status?: number | null
+          response_body?: string | null
+          attempt_count?: number
+          last_attempt_at?: string | null
+          delivered_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          webhook_endpoint_id?: string
+          store_id?: string
+          event_type?: string
+          payload?: Json
+          status?: string
+          response_status?: number | null
+          response_body?: string | null
+          attempt_count?: number
+          last_attempt_at?: string | null
+          delivered_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_webhook_endpoint_id_fkey"
+            columns: ["webhook_endpoint_id"]
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_deliveries_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      pos_connections: {
+        Row: {
+          id: string
+          store_id: string
+          provider: string
+          name: string
+          is_active: boolean
+          credentials: Json
+          config: Json
+          last_synced_at: string | null
+          sync_status: string
+          sync_error: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          provider: string
+          name: string
+          is_active?: boolean
+          credentials?: Json
+          config?: Json
+          last_synced_at?: string | null
+          sync_status?: string
+          sync_error?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          provider?: string
+          name?: string
+          is_active?: boolean
+          credentials?: Json
+          config?: Json
+          last_synced_at?: string | null
+          sync_status?: string
+          sync_error?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_connections_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_connections_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      pos_item_mappings: {
+        Row: {
+          id: string
+          pos_connection_id: string
+          store_id: string
+          pos_item_id: string
+          pos_item_name: string
+          inventory_item_id: string
+          quantity_per_sale: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          pos_connection_id: string
+          store_id: string
+          pos_item_id: string
+          pos_item_name: string
+          inventory_item_id: string
+          quantity_per_sale?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          pos_connection_id?: string
+          store_id?: string
+          pos_item_id?: string
+          pos_item_name?: string
+          inventory_item_id?: string
+          quantity_per_sale?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_item_mappings_pos_connection_id_fkey"
+            columns: ["pos_connection_id"]
+            referencedRelation: "pos_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_item_mappings_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_item_mappings_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      pos_sale_events: {
+        Row: {
+          id: string
+          pos_connection_id: string
+          store_id: string
+          external_event_id: string
+          event_type: string
+          items: Json
+          total_amount: number | null
+          currency: string | null
+          occurred_at: string
+          processed_at: string | null
+          status: string
+          error_message: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          pos_connection_id: string
+          store_id: string
+          external_event_id: string
+          event_type?: string
+          items?: Json
+          total_amount?: number | null
+          currency?: string | null
+          occurred_at: string
+          processed_at?: string | null
+          status?: string
+          error_message?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          pos_connection_id?: string
+          store_id?: string
+          external_event_id?: string
+          event_type?: string
+          items?: Json
+          total_amount?: number | null
+          currency?: string | null
+          occurred_at?: string
+          processed_at?: string | null
+          status?: string
+          error_message?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sale_events_pos_connection_id_fkey"
+            columns: ["pos_connection_id"]
+            referencedRelation: "pos_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_sale_events_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -662,11 +1699,20 @@ export type Database = {
         Args: Record<string, never>
         Returns: number
       }
+      get_items_by_category: {
+        Args: { p_store_id: string }
+        Returns: {
+          category_id: string
+          category_name: string
+          category_color: string | null
+          item_count: number
+        }[]
+      }
     }
     Enums: {
       user_role: 'Owner' | 'Manager' | 'Staff' | 'Driver' | 'Admin'
       user_status: 'Invited' | 'Active' | 'Inactive'
-      stock_action_type: 'Count' | 'Reception' | 'Adjustment'
+      stock_action_type: 'Count' | 'Reception' | 'Adjustment' | 'Waste' | 'Sale'
       store_user_role: 'Owner' | 'Manager' | 'Staff' | 'Driver'
       subscription_status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid'
     }

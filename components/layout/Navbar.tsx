@@ -4,6 +4,7 @@ import { memo } from 'react'
 import Link from 'next/link'
 import { UserNav } from './UserNav'
 import { MobileNav } from './MobileNav'
+import { OfflineIndicator } from '@/components/offline/OfflineIndicator'
 import { AppRole } from '@/types'
 
 interface NavbarProps {
@@ -30,7 +31,10 @@ export const Navbar = memo(function Navbar({ role }: NavbarProps) {
             RestaurantOS
           </Link>
         </div>
-        <UserNav variant="navbar" />
+        <div className="flex items-center gap-2">
+          <OfflineIndicator />
+          <UserNav variant="navbar" />
+        </div>
       </div>
     </header>
   )

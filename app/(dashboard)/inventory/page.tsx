@@ -197,7 +197,7 @@ function InventoryPageContent() {
 
   // Get unique categories from current store's inventory
   const existingCategories = useMemo(() => {
-    const categories = inventoryWithQuantities.map(item => item.category).filter(Boolean)
+    const categories = inventoryWithQuantities.map(item => item.category).filter((c): c is string => c !== null && c !== undefined)
     return [...new Set(categories)].sort()
   }, [inventoryWithQuantities])
 

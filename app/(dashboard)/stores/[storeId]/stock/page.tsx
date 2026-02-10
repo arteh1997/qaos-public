@@ -51,8 +51,10 @@ export default function StockPage({ params }: StockPageProps) {
     setParLevel({
       inventoryItemId: item.inventory_item_id,
       parLevel,
-    }).catch(() => {
-      toast.error('Failed to update PAR level')
+    }, {
+      onError: () => {
+        toast.error('Failed to update PAR level')
+      },
     })
   }
 

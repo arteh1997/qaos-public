@@ -10,7 +10,10 @@ export type LegacyAppRole = 'Admin' | 'Driver' | 'Staff';
 
 export type UserStatus = 'Invited' | 'Active' | 'Inactive';
 
-export type StockActionType = 'Count' | 'Reception' | 'Adjustment';
+export type StockActionType = 'Count' | 'Reception' | 'Adjustment' | 'Waste' | 'Sale';
+
+// Waste tracking types
+export type WasteReason = 'spoilage' | 'damaged' | 'expired' | 'overproduction' | 'other';
 
 // Day of week for operating hours
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -142,6 +145,7 @@ export interface InventoryItem {
   store_id: string; // Store that owns this inventory item (multi-tenant isolation)
   name: string;
   category: string | null;
+  category_id: string | null;
   unit_of_measure: string;
   is_active: boolean;
   created_at: string;
@@ -156,6 +160,8 @@ export interface StoreInventory {
   inventory_item_id: string;
   quantity: number;
   par_level: number | null;
+  unit_cost: number;
+  cost_currency: string;
   last_updated_at: string;
   last_updated_by: string | null;
   // Joined fields
@@ -298,7 +304,8 @@ export type AuditCategory =
   | 'inventory' // Inventory item management
   | 'shift'     // Shift/schedule management
   | 'settings'  // Settings changes
-  | 'report';   // Report generation/export
+  | 'report'    // Report generation/export
+  | 'supplier'; // Supplier & purchase order management
 
 export interface AuditLog {
   id: string;
@@ -316,4 +323,181 @@ export interface AuditLog {
   // Joined fields
   user?: Profile;
   store?: Store;
+}
+
+// Waste log
+export interface WasteLog {
+  id: string;
+  store_id: string;
+  inventory_item_id: string;
+  quantity: number;
+  reason: WasteReason;
+  notes: string | null;
+  estimated_cost: number;
+  reported_by: string;
+  reported_at: string;
+  created_at: string;
+  // Joined fields
+  inventory_item?: InventoryItem;
+  reporter?: Profile;
+}
+
+// Recipe & Menu types
+export interface Recipe {
+  id: string;
+  store_id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  yield_quantity: number;
+  yield_unit: string;
+  prep_time_minutes: number | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined/computed fields
+  ingredients?: RecipeIngredient[];
+  total_cost?: number;
+  cost_per_unit?: number;
+  store?: Store;
+}
+
+export interface RecipeIngredient {
+  id: string;
+  recipe_id: string;
+  inventory_item_id: string;
+  quantity: number;
+  unit_of_measure: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined/computed fields
+  inventory_item?: InventoryItem;
+  unit_cost?: number;
+  line_cost?: number;
+}
+
+export interface MenuItem {
+  id: string;
+  store_id: string;
+  recipe_id: string | null;
+  name: string;
+  description: string | null;
+  category: string | null;
+  selling_price: number;
+  currency: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined/computed fields
+  recipe?: Recipe;
+  food_cost?: number;
+  food_cost_percentage?: number;
+  profit_margin?: number;
+  store?: Store;
+}
+
+// Purchase order types
+export type PurchaseOrderStatus = 'draft' | 'submitted' | 'acknowledged' | 'shipped' | 'partial' | 'received' | 'cancelled';
+
+export interface Supplier {
+  id: string;
+  store_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  contact_person: string | null;
+  payment_terms: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  store?: Store;
+}
+
+export interface SupplierItem {
+  id: string;
+  supplier_id: string;
+  inventory_item_id: string;
+  supplier_sku: string | null;
+  unit_cost: number;
+  currency: string;
+  lead_time_days: number | null;
+  min_order_quantity: number;
+  is_preferred: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  supplier?: Supplier;
+  inventory_item?: InventoryItem;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  store_id: string;
+  supplier_id: string;
+  po_number: string;
+  status: PurchaseOrderStatus;
+  order_date: string | null;
+  expected_delivery_date: string | null;
+  actual_delivery_date: string | null;
+  total_amount: number;
+  currency: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  supplier?: Supplier;
+  items?: PurchaseOrderItem[];
+}
+
+export interface PurchaseOrderItem {
+  id: string;
+  purchase_order_id: string;
+  inventory_item_id: string;
+  supplier_item_id: string | null;
+  quantity_ordered: number;
+  quantity_received: number;
+  unit_price: number;
+  notes: string | null;
+  created_at: string;
+  inventory_item?: InventoryItem;
+}
+
+// Alert types
+export type AlertType = 'low_stock' | 'critical_stock' | 'missing_count' | 'digest';
+export type AlertFrequency = 'daily' | 'weekly' | 'never';
+export type AlertChannel = 'email' | 'in_app';
+export type AlertStatus = 'sent' | 'failed' | 'acknowledged';
+
+export interface AlertPreferences {
+  id: string;
+  store_id: string;
+  user_id: string;
+  low_stock_enabled: boolean;
+  critical_stock_enabled: boolean;
+  missing_count_enabled: boolean;
+  low_stock_threshold: number;
+  alert_frequency: AlertFrequency;
+  email_enabled: boolean;
+  preferred_hour: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlertHistory {
+  id: string;
+  store_id: string;
+  user_id: string;
+  alert_type: AlertType;
+  channel: AlertChannel;
+  subject: string;
+  item_count: number;
+  status: AlertStatus;
+  error_message: string | null;
+  metadata: Record<string, unknown>;
+  sent_at: string;
+  acknowledged_at: string | null;
 }

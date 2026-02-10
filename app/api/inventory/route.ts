@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     // Verify user has access to this store
     const hasAccess = context.stores.some(s => s.store_id === storeId)
     if (!hasAccess && !context.profile?.is_platform_admin) {
-      return apiError('Access denied to this store', 403, context.requestId)
+      return apiError('Access denied to this store', { status: 403, requestId: context.requestId })
     }
 
     // Build query - now filtered by store_id for multi-tenant isolation
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const userRole = context.stores.find(s => s.store_id === body.store_id)?.role
     if (!userRole || !['Owner', 'Manager'].includes(userRole)) {
       if (!context.profile?.is_platform_admin) {
-        return apiError('Only Owners and Managers can create inventory items', 403, context.requestId)
+        return apiError('Only Owners and Managers can create inventory items', { status: 403, requestId: context.requestId })
       }
     }
 

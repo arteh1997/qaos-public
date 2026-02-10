@@ -70,6 +70,11 @@ function createMockRequest(
     nextUrl: url,
     url: url.toString(),
     headers: new Headers(),
+    cookies: {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+    },
   } as unknown as NextRequest
 }
 

@@ -74,6 +74,11 @@ function createMockRequest(searchParams?: Record<string, string>): NextRequest {
     url: url.toString(),
     json: vi.fn(() => Promise.resolve({})),
     headers: new Headers(),
+    cookies: {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+    },
   } as unknown as NextRequest
 }
 

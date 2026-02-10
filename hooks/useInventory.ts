@@ -51,8 +51,10 @@ export function useInventory() {
     const now = new Date().toISOString()
     const optimisticItem: InventoryItem = {
       id: crypto.randomUUID(),
+      store_id: '',
       name: formData.name,
       category: formData.category ?? null,
+      category_id: null,
       unit_of_measure: formData.unit_of_measure,
       is_active: formData.is_active ?? true,
       created_at: now,

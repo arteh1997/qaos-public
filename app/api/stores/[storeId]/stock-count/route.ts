@@ -11,6 +11,14 @@ import { stockCountSchema } from '@/lib/validations/inventory'
 import { sanitizeNotes } from '@/lib/utils'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { auditLog } from '@/lib/audit'
+import {
+  verifyActiveItems,
+  getCurrentInventoryMap,
+  prepareInventoryUpdates,
+  prepareHistoryInserts,
+  verifyStoreAccess,
+  executeStockOperation,
+} from '@/lib/services/stockOperations'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -56,105 +64,52 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Verify all inventory items are still active (not deleted)
     const itemIds = items.map(item => item.inventory_item_id)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: activeItems } = await (context.supabase as any)
-      .from('inventory_items')
-      .select('id')
-      .in('id', itemIds)
-      .eq('is_active', true)
-
-    const activeItemIds = new Set((activeItems ?? []).map((item: { id: string }) => item.id))
-    const deletedItems = items.filter(item => !activeItemIds.has(item.inventory_item_id))
-
-    if (deletedItems.length > 0) {
+    try {
+      await verifyActiveItems(context.supabase, itemIds, context.requestId)
+    } catch (err) {
       return apiBadRequest(
-        `Some items have been deleted and cannot be counted. Please refresh the page to see the current inventory list.`,
+        err instanceof Error ? err.message : 'Some items have been deleted',
         context.requestId
       )
     }
 
     // Get current inventory levels
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: currentInventory } = await (context.supabase as any)
-      .from('store_inventory')
-      .select('inventory_item_id, quantity')
-      .eq('store_id', storeId)
+    const currentInventoryMap = await getCurrentInventoryMap(context.supabase, storeId)
 
-    const currentMap = new Map<string, number>(
-      (currentInventory ?? []).map((item: { inventory_item_id: string; quantity: number }) => [item.inventory_item_id, item.quantity])
-    )
-
+    // Prepare operation data
     const now = new Date().toISOString()
     const sanitizedNotes = sanitizeNotes(notes)
 
-    // Prepare batch data
-    const inventoryUpdates = items.map(item => ({
-      store_id: storeId,
-      inventory_item_id: item.inventory_item_id,
-      quantity: item.quantity,
-      last_updated_at: now,
-      last_updated_by: context.user.id,
-    }))
+    const inventoryUpdates = prepareInventoryUpdates(
+      items,
+      storeId,
+      context.user.id,
+      now
+    )
 
-    const historyInserts = items.map(item => {
-      const quantityBefore = currentMap.get(item.inventory_item_id) ?? 0
-      return {
-        store_id: storeId,
-        inventory_item_id: item.inventory_item_id,
-        action_type: 'Count' as const,
-        quantity_before: quantityBefore,
-        quantity_after: item.quantity,
-        quantity_change: item.quantity - quantityBefore,
-        performed_by: context.user.id,
-        notes: sanitizedNotes,
-      }
-    })
+    const historyInserts = prepareHistoryInserts(
+      items,
+      currentInventoryMap,
+      storeId,
+      context.user.id,
+      'Count',
+      sanitizedNotes ?? null
+    )
 
-    // Re-verify store access before writes (in case access was revoked mid-operation)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: currentAccess } = await (context.supabase as any)
-      .from('store_users')
-      .select('id')
-      .eq('store_id', storeId)
-      .eq('user_id', context.user.id)
-      .single()
+    // Re-verify store access before writes (prevents TOCTOU vulnerabilities)
+    await verifyStoreAccess(context.supabase, storeId, context.user.id)
 
-    if (!currentAccess) {
-      return apiForbidden('Your access to this store has been revoked', context.requestId)
-    }
+    // Execute the stock operation (upsert inventory, insert history, mark daily count)
+    const itemsUpdated = await executeStockOperation(
+      context.supabase,
+      storeId,
+      context.user.id,
+      inventoryUpdates,
+      historyInserts,
+      true // markDailyCountComplete
+    )
 
-    // Batch upsert store inventory
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updateError } = await (context.supabase as any)
-      .from('store_inventory')
-      .upsert(inventoryUpdates, { onConflict: 'store_id,inventory_item_id' })
-
-    if (updateError) throw updateError
-
-    // Batch insert stock history
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: historyError } = await (context.supabase as any)
-      .from('stock_history')
-      .insert(historyInserts)
-
-    if (historyError) throw historyError
-
-    // Mark daily count as complete
     const today = new Date().toISOString().split('T')[0]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: dailyCountError } = await (context.supabase as any)
-      .from('daily_counts')
-      .upsert(
-        {
-          store_id: storeId,
-          count_date: today,
-          submitted_by: context.user.id,
-          submitted_at: now,
-        },
-        { onConflict: 'store_id,count_date' }
-      )
-
-    if (dailyCountError) throw dailyCountError
 
     // Audit log the stock count
     const adminClient = createAdminClient()
@@ -165,7 +120,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       storeId,
       resourceType: 'stock_count',
       details: {
-        itemsUpdated: items.length,
+        itemsUpdated,
         date: today,
       },
       request,
@@ -174,7 +129,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return apiSuccess(
       {
         message: 'Stock count submitted successfully',
-        itemsUpdated: items.length,
+        itemsUpdated,
         date: today,
       },
       { requestId: context.requestId, status: 201 }

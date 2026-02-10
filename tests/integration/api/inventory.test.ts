@@ -53,6 +53,12 @@ vi.mock('@/lib/rate-limit', () => ({
   getRateLimitHeaders: vi.fn(() => ({})),
 }))
 
+// Mock CSRF validation
+vi.mock('@/lib/csrf', () => ({
+  validateCSRFToken: vi.fn().mockResolvedValue(true),
+  getCSRFToken: vi.fn().mockResolvedValue('test-csrf-token'),
+}))
+
 // Helper to create mock NextRequest
 function createMockRequest(
   method: string,
@@ -71,6 +77,11 @@ function createMockRequest(
     nextUrl: url,
     json: vi.fn(() => Promise.resolve(body || {})),
     headers: new Headers(),
+    cookies: {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+    },
   } as unknown as NextRequest
 }
 
@@ -96,11 +107,11 @@ function setupAuthenticatedUser(role: string) {
     data: [
       {
         id: 'su-1',
-        store_id: 'store-1',
+        store_id: '550e8400-e29b-41d4-a716-446655440000',
         user_id: 'user-123',
         role,
         is_billing_owner: role === 'Owner',
-        store: { id: 'store-1', name: 'Test Store', is_active: true },
+        store: { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Test Store', is_active: true },
       },
     ],
     error: null,
@@ -156,7 +167,7 @@ describe('Inventory API Integration Tests', () => {
 
         const { GET } = await import('@/app/api/inventory/route')
 
-        const request = createMockRequest('GET')
+        const request = createMockRequest('GET', undefined, { store_id: '550e8400-e29b-41d4-a716-446655440000' })
         const response = await GET(request)
         const data = await response.json()
 
@@ -185,7 +196,7 @@ describe('Inventory API Integration Tests', () => {
 
         const { GET } = await import('@/app/api/inventory/route')
 
-        const request = createMockRequest('GET', undefined, { page: '1', pageSize: '10' })
+        const request = createMockRequest('GET', undefined, { store_id: '550e8400-e29b-41d4-a716-446655440000', page: '1', pageSize: '10' })
         const response = await GET(request)
         const data = await response.json()
 
@@ -212,7 +223,7 @@ describe('Inventory API Integration Tests', () => {
 
         const { GET } = await import('@/app/api/inventory/route')
 
-        const request = createMockRequest('GET', undefined, { search: 'tomato' })
+        const request = createMockRequest('GET', undefined, { store_id: '550e8400-e29b-41d4-a716-446655440000', search: 'tomato' })
         const response = await GET(request)
         const data = await response.json()
 
@@ -237,7 +248,7 @@ describe('Inventory API Integration Tests', () => {
 
         const { GET } = await import('@/app/api/inventory/route')
 
-        const request = createMockRequest('GET', undefined, { category: 'Meat' })
+        const request = createMockRequest('GET', undefined, { store_id: '550e8400-e29b-41d4-a716-446655440000', category: 'Meat' })
         const response = await GET(request)
         const data = await response.json()
 
@@ -364,6 +375,7 @@ describe('Inventory API Integration Tests', () => {
         const { POST } = await import('@/app/api/inventory/route')
 
         const request = createMockRequest('POST', {
+          store_id: '550e8400-e29b-41d4-a716-446655440000',
           name: 'Existing Item',
           unit_of_measure: 'kg',
           is_active: true,
@@ -413,6 +425,7 @@ describe('Inventory API Integration Tests', () => {
         const { POST } = await import('@/app/api/inventory/route')
 
         const request = createMockRequest('POST', {
+          store_id: '550e8400-e29b-41d4-a716-446655440000',
           name: 'New Ingredient',
           category: 'Produce',
           unit_of_measure: 'kg',
@@ -456,6 +469,7 @@ describe('Inventory API Integration Tests', () => {
         const { POST } = await import('@/app/api/inventory/route')
 
         const request = createMockRequest('POST', {
+          store_id: '550e8400-e29b-41d4-a716-446655440000',
           name: 'Manager Created Item',
           unit_of_measure: 'units',
           is_active: true,

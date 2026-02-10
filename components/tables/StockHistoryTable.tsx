@@ -19,6 +19,8 @@ const actionColors = {
   Count: 'default' as const,
   Reception: 'secondary' as const,
   Adjustment: 'outline' as const,
+  Waste: 'destructive' as const,
+  Sale: 'secondary' as const,
 }
 
 // Sort configuration

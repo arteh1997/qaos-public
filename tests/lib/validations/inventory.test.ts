@@ -4,6 +4,7 @@ import {
   storeInventorySchema,
   stockCountSchema,
   stockReceptionSchema,
+  wasteReportSchema,
 } from '@/lib/validations/inventory'
 
 // Valid UUIDs for testing
@@ -15,6 +16,7 @@ describe('Inventory Validation Schemas', () => {
     describe('Valid Inputs', () => {
       it('should accept valid inventory item with all fields', () => {
         const result = inventoryItemSchema.safeParse({
+          store_id: validUuid,
           name: 'Tomatoes',
           category: 'Produce',
           unit_of_measure: 'lb',
@@ -25,6 +27,7 @@ describe('Inventory Validation Schemas', () => {
 
       it('should accept item without category (optional)', () => {
         const result = inventoryItemSchema.safeParse({
+          store_id: validUuid,
           name: 'Custom Item',
           unit_of_measure: 'each',
           is_active: true,
@@ -34,6 +37,7 @@ describe('Inventory Validation Schemas', () => {
 
       it('should accept minimum length name (2 characters)', () => {
         const result = inventoryItemSchema.safeParse({
+          store_id: validUuid,
           name: 'AB',
           unit_of_measure: 'kg',
           is_active: false,
@@ -45,6 +49,7 @@ describe('Inventory Validation Schemas', () => {
     describe('Invalid Inputs', () => {
       it('should reject name shorter than 2 characters', () => {
         const result = inventoryItemSchema.safeParse({
+          store_id: validUuid,
           name: 'A',
           unit_of_measure: 'lb',
           is_active: true,
@@ -59,6 +64,7 @@ describe('Inventory Validation Schemas', () => {
 
       it('should reject empty name', () => {
         const result = inventoryItemSchema.safeParse({
+          store_id: validUuid,
           name: '',
           unit_of_measure: 'lb',
           is_active: true,
@@ -68,6 +74,7 @@ describe('Inventory Validation Schemas', () => {
 
       it('should reject empty unit_of_measure', () => {
         const result = inventoryItemSchema.safeParse({
+          store_id: validUuid,
           name: 'Tomatoes',
           unit_of_measure: '',
           is_active: true,
@@ -80,14 +87,16 @@ describe('Inventory Validation Schemas', () => {
 
       it('should reject missing is_active', () => {
         const result = inventoryItemSchema.safeParse({
+          store_id: validUuid,
           name: 'Tomatoes',
           unit_of_measure: 'lb',
         })
-        expect(result.success).toBe(false)
+        expect(result.success).toBe(false) // is_active is required
       })
 
       it('should reject non-boolean is_active', () => {
         const result = inventoryItemSchema.safeParse({
+          store_id: validUuid,
           name: 'Tomatoes',
           unit_of_measure: 'lb',
           is_active: 'yes',
@@ -317,6 +326,109 @@ describe('Inventory Validation Schemas', () => {
       it('should reject missing store_id', () => {
         const result = stockReceptionSchema.safeParse({
           items: [{ inventory_item_id: validUuid, quantity: 10 }],
+        })
+        expect(result.success).toBe(false)
+      })
+    })
+  })
+
+  describe('wasteReportSchema', () => {
+    describe('Valid Inputs', () => {
+      it('should accept valid waste report with reason', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
+          items: [
+            { inventory_item_id: validUuid, quantity: 5, reason: 'spoilage' },
+            { inventory_item_id: validUuid2, quantity: 3, reason: 'expired' },
+          ],
+        })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept waste report without reason (optional)', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
+          items: [{ inventory_item_id: validUuid, quantity: 2 }],
+        })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept all valid reasons', () => {
+        const reasons = ['spoilage', 'damaged', 'expired', 'overproduction', 'other']
+        for (const reason of reasons) {
+          const result = wasteReportSchema.safeParse({
+            store_id: validUuid,
+            items: [{ inventory_item_id: validUuid, quantity: 1, reason }],
+          })
+          expect(result.success).toBe(true)
+        }
+      })
+
+      it('should accept with optional notes', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
+          items: [{ inventory_item_id: validUuid, quantity: 1, reason: 'damaged' }],
+          notes: 'Dropped during transport',
+        })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept zero quantity items', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
+          items: [{ inventory_item_id: validUuid, quantity: 0 }],
+        })
+        expect(result.success).toBe(true)
+      })
+    })
+
+    describe('Invalid Inputs', () => {
+      it('should reject empty items array', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
+          items: [],
+        })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe('At least one item is required')
+        }
+      })
+
+      it('should reject invalid reason', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
+          items: [{ inventory_item_id: validUuid, quantity: 1, reason: 'invalid_reason' }],
+        })
+        expect(result.success).toBe(false)
+      })
+
+      it('should reject negative quantity', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
+          items: [{ inventory_item_id: validUuid, quantity: -3, reason: 'spoilage' }],
+        })
+        expect(result.success).toBe(false)
+      })
+
+      it('should reject invalid store_id', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: 'not-a-uuid',
+          items: [{ inventory_item_id: validUuid, quantity: 1 }],
+        })
+        expect(result.success).toBe(false)
+      })
+
+      it('should reject invalid inventory_item_id', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
+          items: [{ inventory_item_id: 'bad-id', quantity: 1, reason: 'spoilage' }],
+        })
+        expect(result.success).toBe(false)
+      })
+
+      it('should reject missing items', () => {
+        const result = wasteReportSchema.safeParse({
+          store_id: validUuid,
         })
         expect(result.success).toBe(false)
       })

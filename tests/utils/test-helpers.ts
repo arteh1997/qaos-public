@@ -26,7 +26,8 @@ export function createChainableMock(resolvedValue: unknown = { data: null, error
   })
 
   // Make the mock thenable so it can be awaited without calling .single()
-  mock.then = (resolve: (value: unknown) => unknown) => Promise.resolve(resolvedValue).then(resolve)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mock.then = ((resolve?: any) => Promise.resolve(resolvedValue).then(resolve)) as any
 
   return mock
 }

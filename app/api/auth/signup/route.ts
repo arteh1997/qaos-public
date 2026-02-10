@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { validateCSRFToken } from '@/lib/csrf'
 
 const signupSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -19,7 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     // Rate limiting
     const identifier = request.headers.get('x-forwarded-for') || 'anonymous'
-    const rateLimitResult = rateLimit(`signup:${identifier}`, RATE_LIMITS.auth)
+    const rateLimitResult = await rateLimit(`signup:${identifier}`, RATE_LIMITS.auth)
 
     if (!rateLimitResult.success) {
       const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
@@ -33,14 +32,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // CSRF protection
-    const isValidCSRF = await validateCSRFToken(request)
-    if (!isValidCSRF) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid or missing CSRF token' },
-        { status: 403 }
-      )
-    }
+    // Note: No CSRF on signup - it's a pre-auth endpoint (no session to hijack).
+    // Rate limiting above protects against abuse.
 
     const body = await request.json()
 

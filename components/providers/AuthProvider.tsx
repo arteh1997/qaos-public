@@ -7,10 +7,11 @@
  * and getSession() for reliable auth state management.
  */
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient, supabaseFetch } from '@/lib/supabase/client'
 import { Profile, AppRole, StoreUserWithStore } from '@/types'
+import { debugLog } from '@/lib/debug'
 import {
   hasGlobalAccess as checkGlobalAccess,
   isStoreScopedRole as checkStoreScopedRole,
@@ -62,7 +63,7 @@ const emptyState: AuthState = {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  console.log('[AuthProvider] RENDER - component is rendering')
+  debugLog('AuthProvider', '[AuthProvider] RENDER - component is rendering')
 
   const [authState, setAuthState] = useState<AuthState>({
     ...emptyState,
@@ -71,9 +72,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const supabase = createClient()
 
+  // Race condition prevention: Track latest request ID
+  const latestRequestIdRef = useRef(0)
+
+  // Prevent concurrent refreshProfile calls
+  const refreshInProgressRef = useRef(false)
+
   // Fetch profile and stores for a user
   // Accepts partial user (just id) for cookie-based auth, or full User from Supabase
-  const fetchUserData = useCallback(async (user: User | { id: string; email?: string }): Promise<AuthState> => {
+  // Returns null if request was cancelled (not latest)
+  const fetchUserData = useCallback(async (
+    user: User | { id: string; email?: string },
+    requestId: number
+  ): Promise<{ data: AuthState; requestId: number } | null> => {
     try {
       const [profileResult, storesResult] = await Promise.all([
         supabaseFetch<Profile>('profiles', {
@@ -85,9 +96,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
       ])
 
+      // Check if this request is still the latest
+      if (requestId !== latestRequestIdRef.current) {
+        debugLog("AuthProvider", `[AuthProvider] Request ${requestId} cancelled (latest: ${latestRequestIdRef.current})`)
+        return null
+      }
+
       if (profileResult.error) {
         console.error('[AuthProvider] Profile fetch error:', profileResult.error)
-        return { ...emptyState, user: user as User }
+        return { data: { ...emptyState, user: user as User }, requestId }
       }
 
       const profile = profileResult.data?.[0] || null
@@ -96,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
 
       if (!profile) {
-        return { ...emptyState, user: user as User }
+        return { data: { ...emptyState, user: user as User }, requestId }
       }
 
       // Determine current store
@@ -118,20 +135,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentRole = currentStore ? currentStore.role : normalizeRole(profile.role)
 
       return {
-        user: user as User,
-        profile,
-        stores,
-        currentStore,
-        role: currentRole,
-        storeId: currentStore?.store_id || profile.store_id,
-        isLoading: false,
-        hasGlobalAccess: checkGlobalAccess(currentRole),
-        isStoreScopedRole: checkStoreScopedRole(currentRole),
-        isPlatformAdmin: profile.is_platform_admin || false,
+        data: {
+          user: user as User,
+          profile,
+          stores,
+          currentStore,
+          role: currentRole,
+          storeId: currentStore?.store_id || profile.store_id,
+          isLoading: false,
+          hasGlobalAccess: checkGlobalAccess(currentRole),
+          isStoreScopedRole: checkStoreScopedRole(currentRole),
+          isPlatformAdmin: profile.is_platform_admin || false,
+        },
+        requestId,
       }
     } catch (error) {
       console.error('[AuthProvider] Error fetching user data:', error)
-      return { ...emptyState, user: user as User }
+      return { data: { ...emptyState, user: user as User }, requestId }
     }
   }, [])
 
@@ -140,28 +160,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true
 
     const initAuth = async () => {
-      console.log('[AuthProvider] 1. initAuth started')
-      console.log('[AuthProvider] 2. document.visibilityState:', document.visibilityState)
+      // Get a new request ID for this initialization
+      const requestId = ++latestRequestIdRef.current
+      debugLog("AuthProvider", `[AuthProvider] 1. initAuth started (request ${requestId})`)
+      debugLog('AuthProvider', '[AuthProvider] 2. document.visibilityState:', document.visibilityState)
 
       try {
         // First, try to get user from cookies (instant, no network)
         // This bypasses the potentially hanging getSession() call
         const { getUserFromCookies } = await import('@/lib/supabase/client')
         const cookieUser = getUserFromCookies()
-        console.log('[AuthProvider] 3. Cookie user:', cookieUser ? cookieUser.id : 'null')
+        debugLog('AuthProvider', '[AuthProvider] 3. Cookie user:', cookieUser ? cookieUser.id : 'null')
 
         if (cookieUser) {
           // We have a valid JWT in cookies - fetch user data directly
-          console.log('[AuthProvider] 4. Fetching user data from cookie user...')
-          const userData = await fetchUserData({ id: cookieUser.id, email: cookieUser.email })
-          console.log('[AuthProvider] 5. User data fetched')
-          if (mounted) setAuthState(userData)
+          debugLog('AuthProvider', '[AuthProvider] 4. Fetching user data from cookie user...')
+          const result = await fetchUserData({ id: cookieUser.id, email: cookieUser.email }, requestId)
+          debugLog('AuthProvider', '[AuthProvider] 5. User data fetched')
+
+          // Check if this request is still valid
+          if (result && mounted && result.requestId === latestRequestIdRef.current) {
+            setAuthState(result.data)
+          }
 
           // Also call getSession in background to ensure Supabase client is synced
           // and update with full User object when it completes
           supabase.auth.getSession().then(({ data: { session } }) => {
-            console.log('[AuthProvider] 6. Background getSession completed, session:', session ? 'exists' : 'null')
-            if (mounted && session?.user) {
+            debugLog('AuthProvider', '[AuthProvider] 6. Background getSession completed, session:', session ? 'exists' : 'null')
+            if (mounted && session?.user && requestId === latestRequestIdRef.current) {
               // Update with the full User object from Supabase
               setAuthState(prev => ({ ...prev, user: session.user }))
             }
@@ -170,11 +196,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // No cookie user - try getSession (for cases like OAuth callback)
-        console.log('[AuthProvider] 4. No cookie user, calling getSession...')
+        debugLog('AuthProvider', '[AuthProvider] 4. No cookie user, calling getSession...')
         const startTime = Date.now()
         const { data: { session }, error } = await supabase.auth.getSession()
-        console.log('[AuthProvider] 5. getSession returned after', Date.now() - startTime, 'ms')
-        console.log('[AuthProvider] 6. session:', session ? 'exists' : 'null', 'error:', error)
+        debugLog('AuthProvider', '[AuthProvider] 5. getSession returned after', Date.now() - startTime, 'ms')
+        debugLog('AuthProvider', '[AuthProvider] 6. session:', session ? 'exists' : 'null', 'error:', error)
+
+        // Check if this request is still valid
+        if (requestId !== latestRequestIdRef.current) {
+          debugLog("AuthProvider", `[AuthProvider] Request ${requestId} cancelled after getSession`)
+          return
+        }
 
         if (error) {
           console.error('[AuthProvider] getSession error:', error)
@@ -183,42 +215,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (session?.user) {
-          console.log('[AuthProvider] 7. User found, fetching user data...')
-          const userData = await fetchUserData(session.user)
-          console.log('[AuthProvider] 8. User data fetched')
-          if (mounted) setAuthState(userData)
+          debugLog('AuthProvider', '[AuthProvider] 7. User found, fetching user data...')
+          const result = await fetchUserData(session.user, requestId)
+          debugLog('AuthProvider', '[AuthProvider] 8. User data fetched')
+
+          // Check if this request is still valid
+          if (result && mounted && result.requestId === latestRequestIdRef.current) {
+            setAuthState(result.data)
+          }
         } else {
-          console.log('[AuthProvider] 7. No session, setting empty state')
-          if (mounted) setAuthState(emptyState)
+          debugLog('AuthProvider', '[AuthProvider] 7. No session, setting empty state')
+          if (mounted && requestId === latestRequestIdRef.current) {
+            setAuthState(emptyState)
+          }
         }
       } catch (error) {
         console.error('[AuthProvider] Init error:', error)
-        if (mounted) setAuthState(emptyState)
+        if (mounted && requestId === latestRequestIdRef.current) {
+          setAuthState(emptyState)
+        }
       }
     }
 
-    console.log('[AuthProvider] 0. useEffect running, calling initAuth')
+    debugLog('AuthProvider', '[AuthProvider] 0. useEffect running, calling initAuth')
     initAuth()
 
     // Listen for auth changes
+    // IMPORTANT: Only increment latestRequestIdRef for events we actually handle.
+    // Unhandled events (like INITIAL_SESSION) must NOT invalidate in-flight initAuth() requests.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[AuthProvider] Auth state changed:', event)
+        debugLog("AuthProvider", `[AuthProvider] Auth state changed: ${event}`)
 
         if (event === 'SIGNED_IN' && session?.user) {
-          const userData = await fetchUserData(session.user)
-          if (mounted) setAuthState(userData)
+          const requestId = ++latestRequestIdRef.current
+          debugLog("AuthProvider", `[AuthProvider] SIGNED_IN - fetching user data (request ${requestId})`)
+          const result = await fetchUserData(session.user, requestId)
+          if (result && mounted && result.requestId === latestRequestIdRef.current) {
+            setAuthState(result.data)
+          }
         } else if (event === 'SIGNED_OUT') {
+          const requestId = ++latestRequestIdRef.current
           if (typeof window !== 'undefined') {
             localStorage.removeItem(CURRENT_STORE_KEY)
           }
-          if (mounted) setAuthState(emptyState)
+          if (mounted && requestId === latestRequestIdRef.current) {
+            setAuthState(emptyState)
+          }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Just update the user object, don't re-fetch everything
           if (mounted) {
             setAuthState(prev => ({ ...prev, user: session.user }))
           }
         }
+        // INITIAL_SESSION and other events are intentionally ignored here -
+        // initAuth() already handles the initial session load.
       }
     )
 
@@ -226,7 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // This works around browser throttling of background events
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[AuthProvider] Tab became visible, re-checking auth...')
+        debugLog('AuthProvider', '[AuthProvider] Tab became visible, re-checking auth...')
         initAuth()
       }
     }
@@ -240,6 +291,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase, fetchUserData])
 
   const signOut = useCallback(async () => {
+    // Cancel any in-flight requests by incrementing the request ID
+    ++latestRequestIdRef.current
+    debugLog("AuthProvider", `[AuthProvider] Sign out - invalidating in-flight requests (new latest: ${latestRequestIdRef.current})`)
+
     // Set loading to prevent flash of content
     setAuthState(prev => ({ ...prev, isLoading: true }))
 
@@ -254,9 +309,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase])
 
   const refreshProfile = useCallback(async () => {
-    if (authState.user) {
-      const userData = await fetchUserData(authState.user)
-      setAuthState(userData)
+    // Prevent concurrent refresh calls
+    if (refreshInProgressRef.current) {
+      debugLog('AuthProvider', '[AuthProvider] Refresh already in progress, skipping')
+      return
+    }
+
+    if (!authState.user) {
+      return
+    }
+
+    try {
+      refreshInProgressRef.current = true
+      const requestId = ++latestRequestIdRef.current
+      debugLog("AuthProvider", `[AuthProvider] Refresh profile started (request ${requestId})`)
+
+      const result = await fetchUserData(authState.user, requestId)
+
+      if (result && result.requestId === latestRequestIdRef.current) {
+        setAuthState(result.data)
+        debugLog("AuthProvider", `[AuthProvider] Refresh profile completed (request ${requestId})`)
+      } else {
+        debugLog("AuthProvider", `[AuthProvider] Refresh profile cancelled (request ${requestId})`)
+      }
+    } finally {
+      refreshInProgressRef.current = false
     }
   }, [authState.user, fetchUserData])
 

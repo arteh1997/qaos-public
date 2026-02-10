@@ -65,7 +65,7 @@ export function InventorySetupStep({ onComplete }: InventorySetupStepProps) {
 
   // Get existing categories from current items
   const existingCategories = useMemo(() => {
-    const categories = items.map(item => item.category).filter(Boolean)
+    const categories = items.map(item => item.category).filter((c): c is string => c !== null && c !== undefined)
     return [...new Set(categories)]
   }, [items])
 

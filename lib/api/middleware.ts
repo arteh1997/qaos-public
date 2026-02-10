@@ -119,7 +119,7 @@ export async function withApiAuth(
 
   // Apply rate limiting if configured
   if (rateLimitConfig) {
-    const result = rateLimit(
+    const result = await rateLimit(
       `${rateLimitConfig.key}:${user.id}`,
       rateLimitConfig.config
     )

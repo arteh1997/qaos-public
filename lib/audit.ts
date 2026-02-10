@@ -29,6 +29,7 @@ export type AuditCategory =
   | 'shift'     // Shift/schedule management
   | 'settings'  // Settings changes
   | 'report'    // Report generation/export
+  | 'supplier'  // Supplier & purchase order management
 
 // Pre-defined actions for type safety
 export type AuditAction =
@@ -55,6 +56,7 @@ export type AuditAction =
   | 'stock.count_submit'
   | 'stock.reception_submit'
   | 'stock.adjustment'
+  | 'stock.waste_report'
   // Inventory
   | 'inventory.item_create'
   | 'inventory.item_update'
@@ -72,6 +74,17 @@ export type AuditAction =
   // Report
   | 'report.export'
   | 'report.generate'
+  // Supplier
+  | 'supplier.create'
+  | 'supplier.update'
+  | 'supplier.delete'
+  | 'supplier.item_add'
+  | 'supplier.item_update'
+  | 'supplier.item_remove'
+  | 'supplier.po_create'
+  | 'supplier.po_update'
+  | 'supplier.po_receive'
+  | 'supplier.po_cancel'
 
 export interface AuditLogEntry {
   userId?: string | null
@@ -127,23 +140,32 @@ function getUserAgent(request?: NextRequest): string | null {
  * @param supabase - Supabase admin client (with service role)
  * @param entry - Audit log entry details
  */
+/**
+ * Transform an audit log entry into database insert format
+ */
+function transformAuditLogEntry(entry: AuditLogEntry) {
+  return {
+    user_id: entry.userId || null,
+    user_email: entry.userEmail || null,
+    action: entry.action,
+    action_category: getCategoryFromAction(entry.action),
+    store_id: entry.storeId || null,
+    resource_type: entry.resourceType || null,
+    resource_id: entry.resourceId || null,
+    details: entry.details || {},
+    ip_address: getIpAddress(entry.request),
+    user_agent: getUserAgent(entry.request),
+  }
+}
+
 export async function auditLog(
   supabase: SupabaseClient,
   entry: AuditLogEntry
 ): Promise<void> {
   try {
-    const { error } = await supabase.from('audit_logs').insert({
-      user_id: entry.userId || null,
-      user_email: entry.userEmail || null,
-      action: entry.action,
-      action_category: getCategoryFromAction(entry.action),
-      store_id: entry.storeId || null,
-      resource_type: entry.resourceType || null,
-      resource_id: entry.resourceId || null,
-      details: entry.details || {},
-      ip_address: getIpAddress(entry.request),
-      user_agent: getUserAgent(entry.request),
-    })
+    const { error } = await supabase
+      .from('audit_logs')
+      .insert(transformAuditLogEntry(entry))
 
     if (error) {
       // Log error but don't throw - audit logging should not break the main flow
@@ -165,18 +187,7 @@ export async function auditLogBatch(
   if (entries.length === 0) return
 
   try {
-    const logs = entries.map((entry) => ({
-      user_id: entry.userId || null,
-      user_email: entry.userEmail || null,
-      action: entry.action,
-      action_category: getCategoryFromAction(entry.action),
-      store_id: entry.storeId || null,
-      resource_type: entry.resourceType || null,
-      resource_id: entry.resourceId || null,
-      details: entry.details || {},
-      ip_address: getIpAddress(entry.request),
-      user_agent: getUserAgent(entry.request),
-    }))
+    const logs = entries.map(transformAuditLogEntry)
 
     const { error } = await supabase.from('audit_logs').insert(logs)
 

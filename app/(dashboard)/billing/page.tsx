@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useUsers } from '@/hooks/useUsers'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -97,8 +98,9 @@ const PLAN_FEATURES = [
 ]
 
 export default function BillingPage() {
-  const { stores, isLoading: authLoading, currentStore } = useAuth()
+  const { stores, isLoading: authLoading, currentStore, setCurrentStore } = useAuth()
   const currentStoreId = currentStore?.store_id
+  const searchParams = useSearchParams()
 
   // Use existing hooks for real data
   const { users, isLoading: usersLoading } = useUsers({
@@ -122,6 +124,19 @@ export default function BillingPage() {
 
   // Count active users
   const activeUsersCount = users.filter(u => u.status === 'Active').length
+
+  // Handle returning from Stripe portal with store context
+  useEffect(() => {
+    const storeParam = searchParams.get('store')
+    if (storeParam && stores && stores.length > 0) {
+      // Check if user has access to this store
+      const hasAccess = stores.some(s => s.store_id === storeParam)
+      if (hasAccess && currentStoreId !== storeParam) {
+        // Switch to the store they were viewing before going to Stripe
+        setCurrentStore(storeParam)
+      }
+    }
+  }, [searchParams, stores, currentStoreId, setCurrentStore])
 
   useEffect(() => {
     async function fetchBillingData() {
@@ -231,6 +246,9 @@ export default function BillingPage() {
       const response = await fetch('/api/billing/portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeId: currentStoreId, // Pass current store context
+        }),
       })
 
       if (!response.ok) {

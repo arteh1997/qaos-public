@@ -14,14 +14,14 @@ export {
   useDeleteStore,
   type StoresFilters,
   type PaginatedStores,
-} from './useStores.query'
+} from './useStores'
 
 export {
   useStoreInventory,
   useStoreInventoryQuery,
   useUpdateInventoryQuantity,
   useSetParLevel,
-} from './useStoreInventory.query'
+} from './useStoreInventory'
 
 export {
   useStoreUsers,
@@ -30,7 +30,7 @@ export {
   useRemoveUserFromStore,
   useUpdateUserRole,
   type StoreUserWithProfile,
-} from './useStoreUsers.query'
+} from './useStoreUsers'
 
 // Keep other hooks as-is (will migrate gradually)
 export { useAuth } from './useAuth'

@@ -49,6 +49,8 @@ async function fetchStoreInventory(storeId: string): Promise<StoreInventory[]> {
       inventory_item_id: item.id,
       quantity: 0,
       par_level: null,
+      unit_cost: 0,
+      cost_currency: 'USD',
       last_updated_at: new Date().toISOString(),
       last_updated_by: null,
       inventory_item: item,

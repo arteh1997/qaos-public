@@ -32,13 +32,13 @@ export default function DashboardLayout({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-background text-foreground">
+      <div className="fixed inset-0 flex flex-col bg-background text-foreground">
         {/* Navbar skeleton */}
         <div className="h-14 bg-black px-4 flex items-center justify-between">
           <Skeleton className="h-6 w-32 bg-white/20" />
           <Skeleton className="h-10 w-10 rounded-full bg-white/20" />
         </div>
-        <div className="flex flex-1">
+        <div className="flex flex-1 min-h-0">
           {/* Sidebar skeleton */}
           <div className="hidden md:block w-60 border-r bg-sidebar">
             <div className="p-4 space-y-2">
@@ -48,17 +48,15 @@ export default function DashboardLayout({
             </div>
           </div>
           {/* Content skeleton */}
-          <div className="flex-1 bg-background">
-            <main className="flex-1 overflow-auto">
-              <div className="mx-auto max-w-6xl px-6 py-6 md:px-10 md:py-8">
-                <Skeleton className="h-8 w-48 mb-6" />
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  {[...Array(4)].map((_, i) => (
-                    <Skeleton key={i} className="h-32 w-full" />
-                  ))}
-                </div>
+          <div className="flex-1 overflow-y-auto bg-background">
+            <div className="mx-auto max-w-6xl px-6 py-6 md:px-10 md:py-8">
+              <Skeleton className="h-8 w-48 mb-6" />
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full" />
+                ))}
               </div>
-            </main>
+            </div>
           </div>
         </div>
       </div>
@@ -66,7 +64,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
+    <div className="fixed inset-0 flex flex-col bg-background text-foreground">
       {/* Skip to main content link for keyboard users */}
       <a
         href="#main-content"
@@ -80,12 +78,12 @@ export default function DashboardLayout({
       {/* Black navbar at top - full width */}
       <Navbar role={role} />
 
-      {/* Sidebar and content below */}
-      <div className="flex flex-1">
+      {/* Sidebar stays fixed, only main content scrolls */}
+      <div className="flex flex-1 min-h-0">
         <Sidebar role={role} />
         <main
           id="main-content"
-          className="flex-1 overflow-auto bg-background"
+          className="flex-1 overflow-y-auto bg-background"
           role="main"
           aria-label="Main content"
           tabIndex={-1}

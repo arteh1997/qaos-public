@@ -4,7 +4,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, RATE_LIMITS, getRateLimitHeaders } from '@/lib/rate-limit'
 import { loginSchema } from '@/lib/validations/auth'
 import { auditLog } from '@/lib/audit'
-import { validateCSRFToken } from '@/lib/csrf'
 
 /**
  * POST /api/auth/login - Server-side login with rate limiting
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
       || 'unknown'
 
     // Apply rate limiting (stricter for auth endpoints)
-    const rateLimitResult = rateLimit(`login:${ip}`, {
+    const rateLimitResult = await rateLimit(`login:${ip}`, {
       limit: 5, // 5 attempts
       windowMs: 15 * 60 * 1000, // per 15 minutes
     })
@@ -39,17 +38,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // CSRF protection
-    const isValidCSRF = await validateCSRFToken(request)
-    if (!isValidCSRF) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid or missing CSRF token' },
-        {
-          status: 403,
-          headers: getRateLimitHeaders(rateLimitResult),
-        }
-      )
-    }
+    // Note: No CSRF on login - it's a pre-auth endpoint (no session to hijack).
+    // Rate limiting above protects against brute-force abuse.
 
     // Parse and validate request body
     const body = await request.json()

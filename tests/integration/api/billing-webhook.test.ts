@@ -36,6 +36,13 @@ vi.mock('@/lib/stripe/server', () => ({
   logBillingEvent: vi.fn(() => Promise.resolve()),
 }))
 
+// Mock email functions
+vi.mock('@/lib/email', () => ({
+  sendPaymentFailureEmail: vi.fn(() => Promise.resolve({ success: true })),
+  sendTrialEndingEmail: vi.fn(() => Promise.resolve({ success: true })),
+  sendDisputeNotificationEmail: vi.fn(() => Promise.resolve({ success: true })),
+}))
+
 // Helper to create mock NextRequest
 function createMockRequest(payload: string, signature: string | null): NextRequest {
   const url = new URL('http://localhost:3000/api/billing/webhook')
@@ -51,12 +58,43 @@ function createMockRequest(payload: string, signature: string | null): NextReque
     url: url.toString(),
     text: vi.fn(() => Promise.resolve(payload)),
     headers,
+    cookies: {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+    },
   } as unknown as NextRequest
 }
 
 describe('Billing Webhook API Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+
+    // Mock admin client with smart responses based on table
+    mockAdminClient.from = vi.fn((table: string) => {
+      const mockQuery = {
+        select: vi.fn().mockReturnThis(),
+        insert: vi.fn().mockReturnThis(),
+        update: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockImplementation(() => {
+          // Return null for billing_events (no duplicate found)
+          if (table === 'billing_events') {
+            return Promise.resolve({ data: null, error: { code: 'PGRST116' } })
+          }
+          // Return subscription data for subscriptions table
+          if (table === 'subscriptions') {
+            return Promise.resolve({
+              data: { store_id: 'store-123', billing_user_id: 'user-123' },
+              error: null,
+            })
+          }
+          // Default: no data found
+          return Promise.resolve({ data: null, error: { code: 'PGRST116' } })
+        }),
+      }
+      return mockQuery
+    })
   })
 
   describe('POST /api/billing/webhook', () => {
@@ -93,7 +131,7 @@ describe('Billing Webhook API Tests', () => {
       it('should handle customer.subscription.created event', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_sub_created_123',
           type: 'customer.subscription.created',
           data: {
             object: {
@@ -128,7 +166,7 @@ describe('Billing Webhook API Tests', () => {
       it('should handle customer.subscription.updated event', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_sub_updated_123',
           type: 'customer.subscription.updated',
           data: {
             object: {
@@ -155,7 +193,7 @@ describe('Billing Webhook API Tests', () => {
       it('should handle customer.subscription.deleted event', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_sub_deleted_123',
           type: 'customer.subscription.deleted',
           data: {
             object: {
@@ -168,10 +206,22 @@ describe('Billing Webhook API Tests', () => {
           },
         } as any)
 
-        mockAdminClient.from.mockImplementation(() => ({
-          update: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }))
+        // Mock needs to handle both deduplication check AND update calls
+        mockAdminClient.from.mockImplementation((table: string) => {
+          if (table === 'billing_events') {
+            // Deduplication check - return null (no duplicate found)
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+            }
+          }
+          // For subscriptions and stores tables (update calls)
+          return {
+            update: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }
+        })
 
         const { POST } = await import('@/app/api/billing/webhook/route')
         const { logBillingEvent } = await import('@/lib/stripe/server')
@@ -191,7 +241,7 @@ describe('Billing Webhook API Tests', () => {
       it('should handle invoice.payment_succeeded event', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_invoice_paid_123',
           type: 'invoice.payment_succeeded',
           data: {
             object: {
@@ -204,15 +254,26 @@ describe('Billing Webhook API Tests', () => {
           },
         } as any)
 
-        mockAdminClient.from.mockImplementation(() => ({
+        // Mock needs to handle both deduplication check AND subscription query
+        mockAdminClient.from.mockImplementation((table: string) => ({
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({
-            data: {
-              store_id: 'store-123',
-              billing_user_id: 'user-123',
-            },
-            error: null,
+          single: vi.fn().mockImplementation(() => {
+            // Deduplication check - no duplicate found
+            if (table === 'billing_events') {
+              return Promise.resolve({ data: null, error: { code: 'PGRST116' } })
+            }
+            // Subscription query - return subscription data
+            if (table === 'subscriptions') {
+              return Promise.resolve({
+                data: {
+                  store_id: 'store-123',
+                  billing_user_id: 'user-123',
+                },
+                error: null,
+              })
+            }
+            return Promise.resolve({ data: null, error: { code: 'PGRST116' } })
           }),
         }))
 
@@ -238,7 +299,7 @@ describe('Billing Webhook API Tests', () => {
       it('should handle invoice.payment_failed event', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_invoice_failed_123',
           type: 'invoice.payment_failed',
           data: {
             object: {
@@ -251,16 +312,27 @@ describe('Billing Webhook API Tests', () => {
           },
         } as any)
 
-        mockAdminClient.from.mockImplementation(() => ({
+        // Mock needs to handle deduplication check, subscription query, AND update calls
+        mockAdminClient.from.mockImplementation((table: string) => ({
           select: vi.fn().mockReturnThis(),
           update: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({
-            data: {
-              store_id: 'store-123',
-              billing_user_id: 'user-123',
-            },
-            error: null,
+          single: vi.fn().mockImplementation(() => {
+            // Deduplication check - no duplicate found
+            if (table === 'billing_events') {
+              return Promise.resolve({ data: null, error: { code: 'PGRST116' } })
+            }
+            // Subscription query - return subscription data
+            if (table === 'subscriptions') {
+              return Promise.resolve({
+                data: {
+                  store_id: 'store-123',
+                  billing_user_id: 'user-123',
+                },
+                error: null,
+              })
+            }
+            return Promise.resolve({ data: null, error: { code: 'PGRST116' } })
           }),
         }))
 
@@ -284,7 +356,7 @@ describe('Billing Webhook API Tests', () => {
       it('should handle customer.subscription.trial_will_end event', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_trial_ending_123',
           type: 'customer.subscription.trial_will_end',
           data: {
             object: {
@@ -317,7 +389,7 @@ describe('Billing Webhook API Tests', () => {
       it('should handle unhandled event types gracefully', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_unknown_123',
           type: 'some.unknown.event',
           data: {
             object: {},
@@ -336,7 +408,7 @@ describe('Billing Webhook API Tests', () => {
       it('should skip events without store_id', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_no_store_123',
           type: 'customer.subscription.created',
           data: {
             object: {
@@ -362,7 +434,7 @@ describe('Billing Webhook API Tests', () => {
       it('should return 500 when handler fails', async () => {
         const { stripe } = await import('@/lib/stripe/config')
         vi.mocked(stripe.webhooks.constructEvent).mockReturnValue({
-          id: 'evt_test_123',
+          id: 'evt_handler_fails_123',
           type: 'customer.subscription.created',
           data: {
             object: {

@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe/config'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { syncSubscriptionToDatabase, logBillingEvent } from '@/lib/stripe/server'
+import { sendPaymentFailureEmail, sendTrialEndingEmail } from '@/lib/email'
+import { debugLog, debugError } from '@/lib/debug'
+import {
+  getSubscriptionFromInvoice,
+  handleDisputeEvent,
+} from '@/lib/services/billingEventHandlers'
 import Stripe from 'stripe'
-
-// Type for subscription query result
-interface DbSubscriptionRow {
-  store_id: string
-  billing_user_id: string
-}
 
 /**
  * POST /api/billing/webhook
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET || ''
     )
   } catch (err) {
-    console.error('Webhook signature verification failed:', err)
+    debugError('Webhook', 'Signature verification failed:', err)
     return NextResponse.json(
       { error: 'Invalid signature' },
       { status: 400 }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingEvent) {
-      console.log(`[Webhook] Event ${event.id} already processed, skipping`)
+      debugLog('Webhook', `Event ${event.id} already processed, skipping`)
       return NextResponse.json({ received: true, duplicate: true }, { status: 200 })
     }
 
@@ -106,13 +106,7 @@ export async function POST(request: NextRequest) {
         const subscriptionId = invoice.subscription as string
 
         if (subscriptionId) {
-          const { data: dbSubData } = await supabaseAdmin
-            .from('subscriptions')
-            .select('store_id, billing_user_id')
-            .eq('stripe_subscription_id', subscriptionId)
-            .single()
-
-          const dbSubscription = dbSubData as DbSubscriptionRow | null
+          const dbSubscription = await getSubscriptionFromInvoice(supabaseAdmin, subscriptionId)
 
           if (dbSubscription) {
             await logBillingEvent('invoice.paid', dbSubscription.store_id, dbSubscription.billing_user_id, {
@@ -135,13 +129,7 @@ export async function POST(request: NextRequest) {
         const subscriptionId = invoice.subscription as string
 
         if (subscriptionId) {
-          const { data: dbSubData } = await supabaseAdmin
-            .from('subscriptions')
-            .select('store_id, billing_user_id')
-            .eq('stripe_subscription_id', subscriptionId)
-            .single()
-
-          const dbSubscription = dbSubData as DbSubscriptionRow | null
+          const dbSubscription = await getSubscriptionFromInvoice(supabaseAdmin, subscriptionId)
 
           if (dbSubscription) {
             // Update subscription status
@@ -172,7 +160,25 @@ export async function POST(request: NextRequest) {
               },
             })
 
-            // TODO: Send email notification to billing owner about failed payment
+            // Send email notification to billing owner
+            const nextRetryDate = invoice.next_payment_attempt
+              ? new Date(invoice.next_payment_attempt * 1000)
+              : undefined
+
+            const emailResult = await sendPaymentFailureEmail({
+              storeId: dbSubscription.store_id,
+              attemptCount: invoice.attempt_count || 1,
+              amountDue: invoice.amount_due || 0,
+              currency: invoice.currency || 'usd',
+              nextRetryDate,
+            })
+
+            if (!emailResult.success) {
+              debugError('Webhook', 'Failed to send payment failure email:', emailResult.error)
+              // Don't fail the webhook if email fails - log and continue
+            } else {
+              debugLog('Webhook', `Payment failure email sent for store ${dbSubscription.store_id}`)
+            }
           }
         }
         break
@@ -194,19 +200,52 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          // TODO: Send email notification to billing owner about trial ending
+          // Send email notification to billing owner
+          if (subscription.trial_end) {
+            const trialEndsAt = new Date(subscription.trial_end * 1000)
+
+            const emailResult = await sendTrialEndingEmail({
+              storeId,
+              trialEndsAt,
+            })
+
+            if (!emailResult.success) {
+              debugError('Webhook', 'Failed to send trial ending email:', emailResult.error)
+              // Don't fail the webhook if email fails - log and continue
+            } else {
+              debugLog('Webhook', `Trial ending email sent for store ${storeId}`)
+            }
+          }
         }
+        break
+      }
+
+      case 'charge.dispute.created': {
+        const dispute = event.data.object as Stripe.Dispute
+        await handleDisputeEvent(supabaseAdmin, dispute, 'dispute.created', event.id)
+        break
+      }
+
+      case 'charge.dispute.updated': {
+        const dispute = event.data.object as Stripe.Dispute
+        await handleDisputeEvent(supabaseAdmin, dispute, 'dispute.updated', event.id)
+        break
+      }
+
+      case 'charge.dispute.closed': {
+        const dispute = event.data.object as Stripe.Dispute
+        await handleDisputeEvent(supabaseAdmin, dispute, 'dispute.closed', event.id)
         break
       }
 
       default:
         // Unhandled event type
-        console.log(`Unhandled webhook event type: ${event.type}`)
+        debugLog('Webhook', `Unhandled webhook event type: ${event.type}`)
     }
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Error processing webhook:', error)
+    debugError('Webhook', 'Error processing webhook:', error)
     return NextResponse.json(
       { error: 'Webhook handler failed' },
       { status: 500 }

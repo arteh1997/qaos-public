@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FileText, AlertTriangle, ArrowRight } from 'lucide-react'
+import { FileText, AlertTriangle, ArrowRight, BarChart3, Brain } from 'lucide-react'
 
 export default function ReportsPage() {
   return (
@@ -15,7 +15,32 @@ export default function ReportsPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Link href="/reports/benchmark">
+          <Card className="hover:bg-accent transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-blue-500" />
+                Store Benchmarking
+              </CardTitle>
+              <CardDescription>
+                Compare performance across all your stores
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Side-by-side store comparison</li>
+                <li>• Health scores and rankings</li>
+                <li>• Activity trends and KPIs</li>
+              </ul>
+              <Button variant="ghost" className="mt-4 p-0">
+                View Report
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
+
         <Link href="/reports/daily-summary">
           <Card className="hover:bg-accent transition-colors cursor-pointer h-full">
             <CardHeader>
@@ -35,6 +60,31 @@ export default function ReportsPage() {
               </ul>
               <Button variant="ghost" className="mt-4 p-0">
                 View Report
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/reports/forecast">
+          <Card className="hover:bg-accent transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-purple-500" />
+                AI Demand Forecast
+              </CardTitle>
+              <CardDescription>
+                Predict future consumption and prevent stockouts
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Consumption trend analysis</li>
+                <li>• Day-of-week patterns</li>
+                <li>• Stockout predictions and order suggestions</li>
+              </ul>
+              <Button variant="ghost" className="mt-4 p-0">
+                View Forecast
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardContent>

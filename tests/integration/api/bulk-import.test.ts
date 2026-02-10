@@ -96,6 +96,12 @@ vi.mock('@/lib/rate-limit', () => ({
   getRateLimitHeaders: vi.fn(() => ({})),
 }))
 
+// Mock CSRF validation
+vi.mock('@/lib/csrf', () => ({
+  validateCSRFToken: vi.fn().mockResolvedValue(true),
+  getCSRFToken: vi.fn().mockResolvedValue('test-csrf-token'),
+}))
+
 // Helper to create mock NextRequest
 function createMockRequest(body: object): NextRequest {
   const url = new URL('http://localhost:3000/api/users/bulk-import')
@@ -106,6 +112,11 @@ function createMockRequest(body: object): NextRequest {
     url: url.toString(),
     json: vi.fn(() => Promise.resolve(body)),
     headers: new Headers(),
+    cookies: {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+    },
   } as unknown as NextRequest
 }
 

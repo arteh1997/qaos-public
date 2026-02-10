@@ -744,7 +744,7 @@ Cache refreshes → Components re-render → Toast notification
 
 | Category | Score | Notes |
 |----------|:-----:|-------|
-| **Code Organization** | 9/10 | Excellent separation, consistent patterns |
+| **Code Organisation** | 9/10 | Excellent separation, consistent patterns |
 | **Type Safety** | 9/10 | Full TypeScript + Zod coverage |
 | **Security** | 6/10 | Good RLS, but needs search_path fix + rate limiting |
 | **Scalability** | 5/10 | Will struggle past 50 stores / 500 users without pagination |
