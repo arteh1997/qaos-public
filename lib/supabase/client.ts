@@ -3,22 +3,21 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { Database } from '@/types/database'
 
+// Fallback placeholders prevent build crashes when env vars aren't available
+// (e.g. dependabot PR builds that don't have access to secrets).
+// Client pages prerender as loading states so these placeholders are never called at runtime.
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJplaceholder'
+
 // For auth operations only - use the SSR client
 let authClient: ReturnType<typeof createBrowserClient<Database>> | null = null
 
 export function createClient() {
   if (!authClient) {
-    authClient = createBrowserClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    authClient = createBrowserClient<Database>(SUPABASE_URL, SUPABASE_KEY)
   }
   return authClient
 }
-
-// Direct fetch wrapper for data operations - bypasses all Supabase client issues
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 // Decoded JWT user info
 interface JWTPayload {
