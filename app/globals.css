@@ -413,3 +413,86 @@ button:disabled,
 .pull-indicator.active {
   height: 48px;
 }
+
+/* Print styles */
+@media print {
+  /* Hide navigation, controls, and non-essential UI */
+  header,
+  nav,
+  aside,
+  .print\\:hidden,
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-content"],
+  button:not(.print\\:visible),
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset layout for printing */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12px;
+  }
+
+  .fixed {
+    position: static !important;
+  }
+
+  main {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Clean card styling */
+  [data-slot="card"],
+  .border {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  /* Ensure tables print well */
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 4px 8px !important;
+  }
+
+  /* Badge styling for print */
+  .badge, [class*="badge"] {
+    border: 1px solid #999 !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Page break control */
+  h1, h2, h3 {
+    break-after: avoid;
+  }
+
+  /* Show full content */
+  .overflow-hidden,
+  .overflow-y-auto,
+  .max-h-72,
+  .max-h-80 {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Add URL after links in print */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+
+  /* Print header */
+  .print-header {
+    display: block !important;
+  }
+}

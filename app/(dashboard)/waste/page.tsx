@@ -26,7 +26,7 @@ import {
 import { EmptyState } from '@/components/ui/empty-state'
 import { WasteLogForm } from '@/components/waste/WasteLogForm'
 import { WasteAnalyticsCharts } from '@/components/waste/WasteAnalyticsCharts'
-import { Trash2, DollarSign, AlertTriangle, TrendingDown, Plus } from 'lucide-react'
+import { Trash2, DollarSign, AlertTriangle, TrendingDown, Plus, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import type { WasteReason } from '@/types'
 
@@ -130,10 +130,16 @@ export default function WastePage() {
             Monitor and reduce waste across {currentStore?.store?.name ?? 'your store'}
           </p>
         </div>
-        <Button onClick={() => setShowLogForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Log Waste
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button onClick={() => setShowLogForm(true)} className="print:hidden">
+            <Plus className="h-4 w-4 mr-2" />
+            Log Waste
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}

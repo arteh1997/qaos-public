@@ -28,6 +28,7 @@ import {
   XCircle,
   TrendingUp,
   Activity,
+  DollarSign,
 } from 'lucide-react'
 import {
   StockActivityChart,
@@ -129,6 +130,7 @@ export function OwnerDashboard() {
     const low = lowStockItems.length - outOfStock // Low but not out
     const healthy = total - low - outOfStock
     const healthPercentage = total > 0 ? Math.round((healthy / total) * 100) : 0
+    const totalValue = storeInventory.reduce((sum, item) => sum + (item.quantity * (item.unit_cost || 0)), 0)
 
     return {
       total,
@@ -136,6 +138,7 @@ export function OwnerDashboard() {
       low,
       healthy,
       healthPercentage,
+      totalValue,
     }
   }, [storeInventory, lowStockItems])
 
@@ -330,10 +333,19 @@ export function OwnerDashboard() {
         </div>
       )}
 
-      {/* INVENTORY STATUS - 4 Cards */}
+      {/* INVENTORY VALUE + STATUS */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Inventory Status</h2>
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <h2 className="text-lg font-semibold">Inventory Overview</h2>
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+          <Link href="/inventory-value" className="col-span-2 lg:col-span-1">
+            <StatsCard
+              title="Inventory Value"
+              value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(inventoryMetrics.totalValue)}
+              description="Current stock valuation"
+              icon={<DollarSign className="h-4 w-4" />}
+              className="hover:border-primary/50 transition-colors cursor-pointer bg-white"
+            />
+          </Link>
           <Link href="/inventory">
             <StatsCard
               title="Total Items"

@@ -21,6 +21,8 @@ import {
   ClipboardList,
   AlertTriangle,
   PackageCheck,
+  Activity,
+  DollarSign,
 } from 'lucide-react'
 import { normalizeRole } from '@/lib/auth'
 import { Separator } from '@/components/ui/separator'
@@ -51,6 +53,13 @@ const navItems: NavItem[] = [
     title: 'Inventory',
     href: '/inventory',
     icon: Package,
+    roles: ['Owner', 'Manager'],
+    section: 'operations',
+  },
+  {
+    title: 'Inventory Value',
+    href: '/inventory-value',
+    icon: DollarSign,
     roles: ['Owner', 'Manager'],
     section: 'operations',
   },
@@ -142,6 +151,13 @@ const navItems: NavItem[] = [
     href: '/reports',
     icon: FileText,
     roles: ['Owner', 'Manager', 'Driver'],
+    section: 'insights',
+  },
+  {
+    title: 'Activity Log',
+    href: '/activity',
+    icon: Activity,
+    roles: ['Owner', 'Manager'],
     section: 'insights',
   },
 

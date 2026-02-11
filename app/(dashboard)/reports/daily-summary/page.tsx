@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
-import { ArrowLeft, ClipboardList, Truck, Download, Calendar, Package } from 'lucide-react'
+import { ArrowLeft, ClipboardList, Truck, Download, Calendar, Package, Printer } from 'lucide-react'
 import { format, startOfWeek } from 'date-fns'
 import { exportToCSV, generateExportFilename, formatDateTimeForExport } from '@/lib/export'
 import { toast } from 'sonner'
@@ -188,10 +188,16 @@ export default function DailySummaryPage() {
           className="w-auto min-w-[280px]"
         />
         {history && history.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-            Export CSV
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={handleExport} className="print:hidden">
+              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+              Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+              <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
+              Print
+            </Button>
+          </>
         )}
       </div>
 

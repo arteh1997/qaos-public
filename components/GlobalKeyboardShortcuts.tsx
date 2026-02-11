@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { KeyboardShortcutsHelp } from '@/components/dialogs/KeyboardShortcutsHelp'
@@ -9,11 +9,24 @@ import { canManageInventoryItems, canManageUsers, canViewReports } from '@/lib/a
 
 interface GlobalKeyboardShortcutsProps {
   role: AppRole | null
+  onOpenCommandPalette?: () => void
 }
 
-export function GlobalKeyboardShortcuts({ role }: GlobalKeyboardShortcutsProps) {
+export function GlobalKeyboardShortcuts({ role, onOpenCommandPalette }: GlobalKeyboardShortcutsProps) {
   const router = useRouter()
   const [showHelp, setShowHelp] = useState(false)
+
+  // Cmd+K / Ctrl+K for command palette
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        onOpenCommandPalette?.()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onOpenCommandPalette])
 
   // Navigation shortcuts
   useKeyboardShortcuts([
@@ -95,6 +108,7 @@ export function GlobalKeyboardShortcuts({ role }: GlobalKeyboardShortcutsProps) 
     {
       title: 'General',
       shortcuts: [
+        { key: '⌘K', description: 'Open command palette' },
         { key: 'shift+?', description: 'Show keyboard shortcuts' },
         { key: 'escape', description: 'Close dialogs' },
       ],

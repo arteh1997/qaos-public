@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useLowStockReport } from '@/hooks/useReports'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatsCard } from '@/components/cards/StatsCard'
 import {
@@ -20,6 +21,7 @@ import {
   XCircle,
   Package,
   TrendingDown,
+  Printer,
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -71,14 +73,20 @@ export default function LowStockPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <AlertTriangle className="h-6 w-6" />
-          Low Stock
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {currentStore?.store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <AlertTriangle className="h-6 w-6" />
+            Low Stock
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {currentStore?.store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+          <Printer className="h-4 w-4 mr-2" />
+          Print
+        </Button>
       </div>
 
       {/* Summary cards */}

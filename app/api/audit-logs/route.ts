@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { withApiAuth } from '@/lib/api/middleware'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import {
   apiSuccess,
@@ -55,21 +56,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get accessible store IDs for the user (for non-admin users)
+    const accessibleStoreIds = context.stores.map(s => s.store_id)
+
+    // Use admin client to bypass RLS (auth already verified above)
+    const adminClient = createAdminClient()
+
     // Build query
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (context.supabase as any)
+    let query = adminClient
       .from('audit_logs')
-      .select(`
-        *,
-        user:profiles!audit_logs_user_id_fkey(id, full_name, email),
-        store:stores!audit_logs_store_id_fkey(id, name)
-      `, { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    // Apply filters
+    // Apply filters — scope to user's stores unless platform admin
     if (storeId) {
       query = query.eq('store_id', storeId)
+    } else if (!context.profile.is_platform_admin && accessibleStoreIds.length > 0) {
+      // Show logs for all user's stores + their own personal logs
+      query = query.or(`store_id.in.(${accessibleStoreIds.join(',')}),user_id.eq.${context.user.id}`)
     }
 
     if (category) {

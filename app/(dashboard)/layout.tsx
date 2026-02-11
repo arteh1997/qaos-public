@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Navbar } from '@/components/layout/Navbar'
 import { GlobalKeyboardShortcuts } from '@/components/GlobalKeyboardShortcuts'
+import { CommandPalette } from '@/components/CommandPalette'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
@@ -17,6 +18,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter()
   const { isLoading, role, user, stores } = useAuth()
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), [])
 
   // Redirect to onboarding if user has no stores
   useEffect(() => {
@@ -72,11 +75,12 @@ export default function DashboardLayout({
       >
         Skip to main content
       </a>
-      <GlobalKeyboardShortcuts role={role} />
+      <GlobalKeyboardShortcuts role={role} onOpenCommandPalette={openCommandPalette} />
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
       <PWAInstallPrompt />
 
       {/* Black navbar at top - full width */}
-      <Navbar role={role} />
+      <Navbar role={role} onOpenCommandPalette={openCommandPalette} />
 
       {/* Sidebar stays fixed, only main content scrolls */}
       <div className="flex flex-1 min-h-0">
