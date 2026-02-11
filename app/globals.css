@@ -420,10 +420,8 @@ button:disabled,
   header,
   nav,
   aside,
-  .print\\:hidden,
   [data-slot="dialog-overlay"],
   [data-slot="dialog-content"],
-  button:not(.print\\:visible),
   .no-print {
     display: none !important;
   }
