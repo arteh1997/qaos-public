@@ -148,8 +148,23 @@ export async function POST(request: NextRequest) {
     )
 
     // Prepare batch upsert and history records
-    const upsertRecords: Array<Record<string, unknown>> = []
-    const historyRecords: Array<Record<string, unknown>> = []
+    const upsertRecords: Array<{
+      store_id: string
+      inventory_item_id: string
+      quantity: number
+      last_updated_at: string
+      last_updated_by: string | null
+    }> = []
+    const historyRecords: Array<{
+      store_id: string
+      inventory_item_id: string
+      action_type: string
+      quantity_before: number
+      quantity_after: number
+      quantity_change: number
+      notes: string
+      performed_by: string | null
+    }> = []
     const now = new Date().toISOString()
 
     for (const item of items) {
