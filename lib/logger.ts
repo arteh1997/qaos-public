@@ -7,19 +7,19 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
-interface LogContext {
-  requestId?: string
-  storeId?: string
-  userId?: string
-  [key: string]: unknown
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LogContext = Record<string, any>
 
 function emit(level: LogLevel, message: string, context?: LogContext) {
-  const entry = {
+  const entry: Record<string, unknown> = {
     level,
     message,
     timestamp: new Date().toISOString(),
-    ...context,
+  }
+  if (context) {
+    for (const [key, value] of Object.entries(context)) {
+      entry[key] = value instanceof Error ? { message: value.message, name: value.name } : value
+    }
   }
 
   switch (level) {
