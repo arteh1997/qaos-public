@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     const historyRecords: Array<{
       store_id: string
       inventory_item_id: string
-      action_type: string
+      action_type: 'Count' | 'Reception' | 'Adjustment' | 'Waste' | 'Sale'
       quantity_before: number
       quantity_after: number
       quantity_change: number
