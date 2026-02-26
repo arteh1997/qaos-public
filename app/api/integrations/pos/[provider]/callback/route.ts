@@ -103,7 +103,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       302
     )
   } catch (err) {
-    logger.error(`POS OAuth callback error (${provider}):`, err)
+    logger.error(`POS OAuth callback error (${provider}):`, { error: err })
     return NextResponse.redirect(`${baseUrl}/integrations?error=exchange_failed`, 302)
   }
 }
