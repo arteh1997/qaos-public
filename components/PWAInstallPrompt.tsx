@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download, X } from 'lucide-react'
+import { safeGetItem, safeSetItem } from '@/lib/utils/storage'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -13,7 +14,7 @@ const DISMISS_KEY = 'pwa-install-dismissed-permanently'
 
 function isDismissed(): boolean {
   if (typeof window === 'undefined') return true
-  return localStorage.getItem(DISMISS_KEY) === 'true'
+  return safeGetItem(DISMISS_KEY) === 'true'
 }
 
 export function PWAInstallPrompt() {
@@ -67,7 +68,7 @@ export function PWAInstallPrompt() {
   const handleDismiss = useCallback(() => {
     setShowPrompt(false)
     setInstallPrompt(null)
-    localStorage.setItem(DISMISS_KEY, 'true')
+    safeSetItem(DISMISS_KEY, 'true')
   }, [])
 
   if (!showPrompt || !installPrompt) {

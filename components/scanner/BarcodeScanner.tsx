@@ -56,7 +56,7 @@ export function BarcodeScanner({ onScan, onClose, className = '' }: BarcodeScann
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             {isScanning ? (
-              <Camera className="h-4 w-4 text-green-600" />
+              <Camera className="h-4 w-4 text-emerald-600" />
             ) : (
               <CameraOff className="h-4 w-4 text-muted-foreground" />
             )}
@@ -64,7 +64,7 @@ export function BarcodeScanner({ onScan, onClose, className = '' }: BarcodeScann
               {isStarting ? 'Starting camera...' : isScanning ? 'Scanning...' : 'Camera off'}
             </span>
             {isScanning && (
-              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800">
+              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800">
                 Live
               </Badge>
             )}
@@ -126,7 +126,7 @@ export function BarcodeScanner({ onScan, onClose, className = '' }: BarcodeScann
 
         {/* Last scanned result */}
         {lastScannedCode && (
-          <div className="px-4 py-3 border-t bg-green-50 dark:bg-green-950/20">
+          <div className="px-4 py-3 border-t bg-emerald-50 dark:bg-green-950/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">Last scanned</p>

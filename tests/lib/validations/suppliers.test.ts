@@ -175,7 +175,7 @@ describe('Supplier Validation Schemas', () => {
 
   describe('updatePurchaseOrderSchema', () => {
     it('should accept valid status update', () => {
-      const result = updatePurchaseOrderSchema.safeParse({ status: 'submitted' })
+      const result = updatePurchaseOrderSchema.safeParse({ status: 'awaiting_delivery' })
       expect(result.success).toBe(true)
     })
 

@@ -77,6 +77,14 @@ vi.mock('@/lib/csrf', () => ({
   validateCSRFToken: vi.fn().mockResolvedValue(true),
 }))
 
+// Mock admin client — PUT handler uses createAdminClient for upsert
+const mockAdminClient = {
+  from: vi.fn(),
+}
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: vi.fn(() => mockAdminClient),
+}))
+
 const mockStoreId = 'store-1'
 const mockUserId = 'user-123'
 
@@ -210,9 +218,15 @@ describe('Alert Preferences API', () => {
       }
       const prefsQuery = createChainableMock({ data: updatedPrefs, error: null })
 
+      // Auth middleware uses mockSupabaseClient
       mockSupabaseClient.from.mockImplementation((table: string) => {
         if (table === 'profiles') return profileQuery
         if (table === 'store_users') return storeUsersQuery
+        return createChainableMock({ data: null, error: null })
+      })
+
+      // PUT handler uses admin client for the upsert
+      mockAdminClient.from.mockImplementation((table: string) => {
         if (table === 'alert_preferences') return prefsQuery
         return createChainableMock({ data: null, error: null })
       })

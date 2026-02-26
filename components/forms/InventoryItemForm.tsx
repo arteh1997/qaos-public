@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { inventoryItemSchema, InventoryItemFormData } from '@/lib/validations/inventory'
@@ -22,16 +22,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Loader2 } from 'lucide-react'
-import { UNITS_OF_MEASURE } from '@/lib/constants'
 import { useMemo } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 
 // Common category suggestions
 const SUGGESTED_CATEGORIES = [
@@ -50,9 +43,10 @@ interface InventoryItemFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   item?: InventoryItem | null
-  onSubmit: (data: InventoryItemFormData) => Promise<void>
+  onSubmit: (data: InventoryItemFormData, options?: { costPerUnit?: number }) => Promise<void>
   isLoading?: boolean
   existingCategories?: string[]
+  currentCost?: number | null
 }
 
 export function InventoryItemForm({
@@ -62,10 +56,14 @@ export function InventoryItemForm({
   onSubmit,
   isLoading,
   existingCategories = [],
+  currentCost,
 }: InventoryItemFormProps) {
+  const { storeId } = useAuth()
+
   const form = useForm<InventoryItemFormData>({
     resolver: zodResolver(inventoryItemSchema),
     defaultValues: {
+      store_id: storeId ?? '',
       name: '',
       category: '',
       unit_of_measure: '',
@@ -73,17 +71,22 @@ export function InventoryItemForm({
     },
   })
 
+  // Cost is stored on store_inventory, not inventory_items — managed separately
+  const [costPerUnit, setCostPerUnit] = useState('')
+
   // Reset form when item changes (for edit mode) or when dialog opens
   useEffect(() => {
     if (open) {
       form.reset({
+        store_id: item?.store_id ?? storeId ?? '',
         name: item?.name ?? '',
         category: item?.category ?? '',
         unit_of_measure: item?.unit_of_measure ?? '',
         is_active: item?.is_active ?? true,
       })
+      setCostPerUnit(currentCost && currentCost > 0 ? currentCost.toString() : '')
     }
-  }, [open, item, form])
+  }, [open, item, form, currentCost, storeId])
 
   // Combine existing and suggested categories
   const categoryOptions = useMemo(() => {
@@ -91,16 +94,16 @@ export function InventoryItemForm({
     return combined.sort()
   }, [existingCategories])
 
-  // Get existing units from items (if we want to add that later)
-  const unitOptions = UNITS_OF_MEASURE
-
   const handleOpenChange = (newOpen: boolean) => {
     onOpenChange(newOpen)
   }
 
   const handleSubmit = async (data: InventoryItemFormData) => {
-    await onSubmit(data)
+    const parsedCost = parseFloat(costPerUnit)
+    const options = !isNaN(parsedCost) && parsedCost >= 0 ? { costPerUnit: parsedCost } : undefined
+    await onSubmit(data, options)
     form.reset()
+    setCostPerUnit('')
   }
 
   return (
@@ -148,28 +151,28 @@ export function InventoryItemForm({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="unit_of_measure"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Unit of Measure</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g., kg, liters, pcs"
-                      list="unit-options"
-                      {...field}
-                    />
-                  </FormControl>
-                  <datalist id="unit-options">
-                    {unitOptions.map((unit) => (
-                      <option key={unit} value={unit} />
-                    ))}
-                  </datalist>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Cost per unit — stored on store_inventory, not the Zod schema */}
+            <div className="space-y-2">
+              <label htmlFor="cost-per-unit" className="text-sm font-medium leading-none">
+                Cost Per Unit (optional)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">£</span>
+                <Input
+                  id="cost-per-unit"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={costPerUnit}
+                  onChange={(e) => setCostPerUnit(e.target.value)}
+                  className="pl-7"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Cost per single unit
+              </p>
+            </div>
 
             <FormField
               control={form.control}

@@ -1,8 +1,10 @@
 'use client'
 
+import { useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { recipeIngredientSchema, type RecipeIngredientFormData } from '@/lib/validations/recipes'
+import { z } from 'zod'
+import type { RecipeIngredientFormData } from '@/lib/validations/recipes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -29,6 +31,20 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 
+const COMMON_UNITS = [
+  'grams',
+  'kg',
+  'ml',
+  'litres',
+  'pieces',
+  'slices',
+  'cups',
+  'tbsp',
+  'tsp',
+  'oz',
+  'lb',
+]
+
 interface InventoryOption {
   id: string
   name: string
@@ -43,33 +59,48 @@ interface IngredientFormProps {
   inventoryItems: InventoryOption[]
 }
 
+// Local schema: quantity as string to avoid leading-zero problem
+const ingredientFormSchema = z.object({
+  inventory_item_id: z.string().min(1, 'Pick an ingredient'),
+  quantity: z.string().min(1, 'Enter how much you use').refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    'Must be a number greater than 0'
+  ),
+  unit_of_measure: z.string().min(1, 'Pick or type a unit'),
+})
+
+type FormValues = z.infer<typeof ingredientFormSchema>
+
 export function IngredientForm({ open, onOpenChange, onSubmit, isSubmitting, inventoryItems }: IngredientFormProps) {
-  const form = useForm<RecipeIngredientFormData>({
-    resolver: zodResolver(recipeIngredientSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(ingredientFormSchema),
     defaultValues: {
       inventory_item_id: '',
-      quantity: 0,
+      quantity: '',
       unit_of_measure: '',
-      notes: '',
     },
   })
 
-  const selectedItemId = form.watch('inventory_item_id')
-  const selectedItem = inventoryItems.find(i => i.id === selectedItemId)
+  const prevUnitRef = useRef('')
 
-  const handleSubmit = async (values: RecipeIngredientFormData) => {
-    await onSubmit(values)
+  const handleSubmit = async (values: FormValues) => {
+    const data: RecipeIngredientFormData = {
+      inventory_item_id: values.inventory_item_id,
+      quantity: parseFloat(values.quantity),
+      unit_of_measure: values.unit_of_measure,
+    }
+    await onSubmit(data)
     form.reset()
     onOpenChange(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Ingredient</DialogTitle>
           <DialogDescription>
-            Add an inventory item as an ingredient to this recipe.
+            Pick something from your inventory and say how much you use per serving.
           </DialogDescription>
         </DialogHeader>
 
@@ -80,24 +111,17 @@ export function IngredientForm({ open, onOpenChange, onSubmit, isSubmitting, inv
               name="inventory_item_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Inventory Item *</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value)
-                      const item = inventoryItems.find(i => i.id === value)
-                      if (item) form.setValue('unit_of_measure', item.unit_of_measure)
-                    }}
-                    value={field.value}
-                  >
+                  <FormLabel>Ingredient *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select an item" />
+                        <SelectValue placeholder="Choose from your inventory" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {inventoryItems.map(item => (
                         <SelectItem key={item.id} value={item.id}>
-                          {item.name} ({item.unit_of_measure})
+                          {item.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -107,15 +131,21 @@ export function IngredientForm({ open, onOpenChange, onSubmit, isSubmitting, inv
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="quantity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quantity *</FormLabel>
+                    <FormLabel>Amount *</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" min="0" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="e.g. 200"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -128,8 +158,26 @@ export function IngredientForm({ open, onOpenChange, onSubmit, isSubmitting, inv
                   <FormItem>
                     <FormLabel>Unit *</FormLabel>
                     <FormControl>
-                      <Input placeholder={selectedItem?.unit_of_measure ?? 'kg, oz, each'} {...field} />
+                      <Input
+                        placeholder="e.g. grams, pieces"
+                        list="ingredient-units"
+                        {...field}
+                        onFocus={() => {
+                          prevUnitRef.current = field.value
+                          field.onChange('')
+                        }}
+                        onBlur={() => {
+                          if (!field.value) {
+                            field.onChange(prevUnitRef.current)
+                          }
+                        }}
+                      />
                     </FormControl>
+                    <datalist id="ingredient-units">
+                      {COMMON_UNITS.map(unit => (
+                        <option key={unit} value={unit} />
+                      ))}
+                    </datalist>
                     <FormMessage />
                   </FormItem>
                 )}

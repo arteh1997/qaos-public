@@ -19,6 +19,7 @@ import {
 import { Plus, Edit, Trash2, Loader2, AlertCircle, Tag as TagIcon } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
+import { PageGuide } from '@/components/help/PageGuide'
 
 interface TagListProps {
   storeId: string
@@ -96,10 +97,13 @@ export function TagList({ storeId }: TagListProps) {
             Add flexible labels to your inventory items
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="mr-2 size-4" />
-          New Tag
-        </Button>
+        <div className="flex items-center gap-1">
+          <PageGuide pageKey="tags" />
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="mr-2 size-4" />
+            New Tag
+          </Button>
+        </div>
       </div>
 
       {/* Tags List */}

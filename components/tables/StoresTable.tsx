@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
-import { MoreHorizontal, Eye, Edit, Trash2, Package, Store as StoreIcon, Plus } from 'lucide-react'
+import { MoreHorizontal, Edit, Trash2, Package, Store as StoreIcon, Plus } from 'lucide-react'
 import { StoresTableSkeleton } from '@/components/ui/skeletons'
 import { EmptyState } from '@/components/ui/empty-state'
 
@@ -90,12 +90,6 @@ export function StoresTable({ stores, canManage, isLoading, onAdd, onEdit, onDel
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem asChild>
-                      <Link href={`/stores/${store.id}`}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
                       <Link href={`/stores/${store.id}/stock`}>
                         <Package className="mr-2 h-4 w-4" />
                         View Stock
@@ -109,7 +103,7 @@ export function StoresTable({ stores, canManage, isLoading, onAdd, onEdit, onDel
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setDeleteStore(store)}
-                          className="text-red-600"
+                          className="text-destructive"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
@@ -120,13 +114,7 @@ export function StoresTable({ stores, canManage, isLoading, onAdd, onEdit, onDel
                 </DropdownMenu>
               </div>
               <div className="flex gap-2 mt-2">
-                <Button asChild variant="outline" size="sm" className="flex-1 h-8 text-xs">
-                  <Link href={`/stores/${store.id}`}>
-                    <Eye className="mr-1.5 h-3.5 w-3.5" />
-                    Details
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="sm" className="flex-1 h-8 text-xs">
+                <Button asChild variant="outline" size="sm" className="w-full h-8 text-xs">
                   <Link href={`/stores/${store.id}/stock`}>
                     <Package className="mr-1.5 h-3.5 w-3.5" />
                     Stock
@@ -190,12 +178,6 @@ export function StoresTable({ stores, canManage, isLoading, onAdd, onEdit, onDel
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/stores/${store.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
                           <Link href={`/stores/${store.id}/stock`}>
                             <Package className="mr-2 h-4 w-4" />
                             View Stock
@@ -209,7 +191,7 @@ export function StoresTable({ stores, canManage, isLoading, onAdd, onEdit, onDel
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => setDeleteStore(store)}
-                              className="text-red-600"
+                              className="text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete

@@ -296,7 +296,7 @@ export const InventoryTable = memo(function InventoryTable({
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setDeleteItem(item)}
-                          className="text-red-600"
+                          className="text-destructive"
                         >
                           <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
                           Deactivate
@@ -411,7 +411,7 @@ export const InventoryTable = memo(function InventoryTable({
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setDeleteItem(item)}
-                          className="text-red-600"
+                          className="text-destructive"
                         >
                           <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
                           Deactivate

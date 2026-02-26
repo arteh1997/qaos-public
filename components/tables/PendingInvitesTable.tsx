@@ -81,7 +81,67 @@ export function PendingInvitesTable({
 
   return (
     <>
-      <div className="border rounded-lg">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2">
+        {invites.map((invite) => {
+          const expiresAt = new Date(invite.expires_at)
+          const isExpiringSoon = expiresAt.getTime() - Date.now() < 30 * 60 * 1000
+
+          return (
+            <div key={invite.id} className="border rounded-lg p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{invite.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {invite.store?.name || 'All stores'}
+                  </p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onResend && (
+                      <DropdownMenuItem
+                        onClick={() => handleResend(invite)}
+                        disabled={resendingId === invite.id}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Resend Invitation
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => handleCancelClick(invite)}
+                      disabled={cancelingId === invite.id}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Cancel Invitation
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <Badge variant="outline">{invite.role}</Badge>
+                <span className="text-xs text-muted-foreground">
+                  Sent {formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Clock className={`h-3 w-3 ${isExpiringSoon ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                  <span className={`text-xs ${isExpiringSoon ? 'text-yellow-600' : 'text-muted-foreground'}`}>
+                    {format(expiresAt, 'h:mm a')}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block border rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

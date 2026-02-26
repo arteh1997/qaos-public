@@ -11,7 +11,9 @@ import {
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { storeSchema } from '@/lib/validations/store'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 import { Store } from '@/types'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/stores - List all stores with pagination
@@ -71,7 +73,7 @@ export async function GET(request: NextRequest) {
       pagination: createPaginationMeta(page, pageSize, totalItems),
     })
   } catch (error) {
-    console.error('Error listing stores:', error)
+    logger.error('Error listing stores:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to list stores')
   }
 }
@@ -171,12 +173,23 @@ export async function POST(request: NextRequest) {
         .eq('id', context.user.id)
     }
 
+    await auditLog(adminClient, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'store.create',
+      storeId: store.id,
+      resourceType: 'store',
+      resourceId: store.id,
+      details: { storeName: store.name },
+      request,
+    })
+
     return apiSuccess(store as Store, {
       requestId: context.requestId,
       status: 201,
     })
   } catch (error) {
-    console.error('Error creating store:', error)
+    logger.error('Error creating store:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create store')
   }
 }

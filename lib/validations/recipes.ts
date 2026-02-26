@@ -25,7 +25,7 @@ export const createMenuItemSchema = z.object({
   category: z.string().max(50).optional(),
   recipe_id: z.string().uuid('Invalid recipe').optional(),
   selling_price: z.number().min(0, 'Price cannot be negative'),
-  currency: z.string().default('USD'),
+  currency: z.string().default('GBP'),
   is_active: z.boolean().optional(),
 })
 
@@ -33,7 +33,7 @@ export const updateMenuItemSchema = createMenuItemSchema.partial()
 
 export const updateItemCostSchema = z.object({
   unit_cost: z.number().min(0, 'Unit cost cannot be negative'),
-  cost_currency: z.string().default('USD'),
+  cost_currency: z.string().default('GBP'),
 })
 
 export type CreateRecipeFormData = z.infer<typeof createRecipeSchema>

@@ -30,6 +30,8 @@ export type Database = {
           weekly_hours: Json | null
           billing_user_id: string | null
           subscription_status: string | null
+          country: string
+          currency: string
           created_at: string
           updated_at: string
         }
@@ -43,6 +45,8 @@ export type Database = {
           weekly_hours?: Json | null
           billing_user_id?: string | null
           subscription_status?: string | null
+          country?: string
+          currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -56,6 +60,8 @@ export type Database = {
           weekly_hours?: Json | null
           billing_user_id?: string | null
           subscription_status?: string | null
+          country?: string
+          currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -133,6 +139,7 @@ export type Database = {
           user_id: string
           role: Database['public']['Enums']['store_user_role']
           is_billing_owner: boolean
+          hourly_rate: number | null
           invited_by: string | null
           created_at: string
           updated_at: string
@@ -143,6 +150,7 @@ export type Database = {
           user_id: string
           role: Database['public']['Enums']['store_user_role']
           is_billing_owner?: boolean
+          hourly_rate?: number | null
           invited_by?: string | null
           created_at?: string
           updated_at?: string
@@ -153,6 +161,7 @@ export type Database = {
           user_id?: string
           role?: Database['public']['Enums']['store_user_role']
           is_billing_owner?: boolean
+          hourly_rate?: number | null
           invited_by?: string | null
           created_at?: string
           updated_at?: string
@@ -193,6 +202,7 @@ export type Database = {
           current_period_start: string | null
           current_period_end: string | null
           cancel_at_period_end: boolean
+          currency: string
           created_at: string
           updated_at: string
         }
@@ -210,6 +220,7 @@ export type Database = {
           current_period_start?: string | null
           current_period_end?: string | null
           cancel_at_period_end?: boolean
+          currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -227,6 +238,7 @@ export type Database = {
           current_period_start?: string | null
           current_period_end?: string | null
           cancel_at_period_end?: boolean
+          currency?: string
           created_at?: string
           updated_at?: string
         }
@@ -995,6 +1007,9 @@ export type Database = {
           payment_terms: string | null
           notes: string | null
           is_active: boolean
+          edi_webhook_url: string | null
+          edi_webhook_secret: string | null
+          edi_enabled: boolean
           created_at: string
           updated_at: string
         }
@@ -1009,6 +1024,9 @@ export type Database = {
           payment_terms?: string | null
           notes?: string | null
           is_active?: boolean
+          edi_webhook_url?: string | null
+          edi_webhook_secret?: string | null
+          edi_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -1023,6 +1041,9 @@ export type Database = {
           payment_terms?: string | null
           notes?: string | null
           is_active?: boolean
+          edi_webhook_url?: string | null
+          edi_webhook_secret?: string | null
+          edi_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -1682,6 +1703,527 @@ export type Database = {
           }
         ]
       }
+      pay_runs: {
+        Row: {
+          id: string
+          store_id: string
+          period_start: string
+          period_end: string
+          status: 'draft' | 'approved' | 'paid'
+          notes: string | null
+          total_amount: number
+          currency: string
+          approved_by: string | null
+          approved_at: string | null
+          paid_by: string | null
+          paid_at: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          period_start: string
+          period_end: string
+          status?: 'draft' | 'approved' | 'paid'
+          notes?: string | null
+          total_amount?: number
+          currency?: string
+          approved_by?: string | null
+          approved_at?: string | null
+          paid_by?: string | null
+          paid_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          period_start?: string
+          period_end?: string
+          status?: 'draft' | 'approved' | 'paid'
+          notes?: string | null
+          total_amount?: number
+          currency?: string
+          approved_by?: string | null
+          approved_at?: string | null
+          paid_by?: string | null
+          paid_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pay_runs_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_runs_approved_by_fkey"
+            columns: ["approved_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_runs_paid_by_fkey"
+            columns: ["paid_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_runs_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      pay_run_items: {
+        Row: {
+          id: string
+          pay_run_id: string
+          user_id: string
+          hourly_rate: number
+          total_hours: number
+          overtime_hours: number
+          adjustments: number
+          adjustment_notes: string | null
+          gross_pay: number
+          shift_ids: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          pay_run_id: string
+          user_id: string
+          hourly_rate?: number
+          total_hours?: number
+          overtime_hours?: number
+          adjustments?: number
+          adjustment_notes?: string | null
+          gross_pay?: number
+          shift_ids?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          pay_run_id?: string
+          user_id?: string
+          hourly_rate?: number
+          total_hours?: number
+          overtime_hours?: number
+          adjustments?: number
+          adjustment_notes?: string | null
+          gross_pay?: number
+          shift_ids?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pay_run_items_pay_run_id_fkey"
+            columns: ["pay_run_id"]
+            referencedRelation: "pay_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_run_items_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      invoices: {
+        Row: {
+          id: string
+          store_id: string
+          supplier_id: string | null
+          purchase_order_id: string | null
+          file_path: string
+          file_name: string
+          file_type: string
+          file_size_bytes: number | null
+          invoice_number: string | null
+          invoice_date: string | null
+          due_date: string | null
+          subtotal: number | null
+          tax_amount: number | null
+          total_amount: number | null
+          currency: string
+          extracted_data: Record<string, unknown>
+          ocr_provider: string | null
+          ocr_confidence: number | null
+          ocr_raw_response: Record<string, unknown> | null
+          ocr_processed_at: string | null
+          status: string
+          applied_reception_id: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          notes: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          supplier_id?: string | null
+          purchase_order_id?: string | null
+          file_path: string
+          file_name: string
+          file_type: string
+          file_size_bytes?: number | null
+          invoice_number?: string | null
+          invoice_date?: string | null
+          due_date?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          total_amount?: number | null
+          currency?: string
+          extracted_data?: Record<string, unknown>
+          ocr_provider?: string | null
+          ocr_confidence?: number | null
+          ocr_raw_response?: Record<string, unknown> | null
+          ocr_processed_at?: string | null
+          status?: string
+          applied_reception_id?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          notes?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          supplier_id?: string | null
+          purchase_order_id?: string | null
+          file_path?: string
+          file_name?: string
+          file_type?: string
+          file_size_bytes?: number | null
+          invoice_number?: string | null
+          invoice_date?: string | null
+          due_date?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          total_amount?: number | null
+          currency?: string
+          extracted_data?: Record<string, unknown>
+          ocr_provider?: string | null
+          ocr_confidence?: number | null
+          ocr_raw_response?: Record<string, unknown> | null
+          ocr_processed_at?: string | null
+          status?: string
+          applied_reception_id?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          notes?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      invoice_line_items: {
+        Row: {
+          id: string
+          invoice_id: string
+          description: string | null
+          quantity: number | null
+          unit_price: number | null
+          total_price: number | null
+          unit_of_measure: string | null
+          inventory_item_id: string | null
+          match_confidence: number | null
+          match_status: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_line_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          }
+        ]
+        Insert: {
+          id?: string
+          invoice_id: string
+          description?: string | null
+          quantity?: number | null
+          unit_price?: number | null
+          total_price?: number | null
+          unit_of_measure?: string | null
+          inventory_item_id?: string | null
+          match_confidence?: number | null
+          match_status?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          invoice_id?: string
+          description?: string | null
+          quantity?: number | null
+          unit_price?: number | null
+          total_price?: number | null
+          unit_of_measure?: string | null
+          inventory_item_id?: string | null
+          match_confidence?: number | null
+          match_status?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      accounting_connections: {
+        Row: {
+          id: string
+          store_id: string
+          provider: string
+          credentials: Json
+          config: Json
+          is_active: boolean
+          last_synced_at: string | null
+          sync_status: string
+          sync_error: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          provider: string
+          credentials?: Json
+          config?: Json
+          is_active?: boolean
+          last_synced_at?: string | null
+          sync_status?: string
+          sync_error?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          provider?: string
+          credentials?: Json
+          config?: Json
+          is_active?: boolean
+          last_synced_at?: string | null
+          sync_status?: string
+          sync_error?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_connections_store_id_fkey"
+            columns: ["store_id"]
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      accounting_sync_log: {
+        Row: {
+          id: string
+          connection_id: string
+          store_id: string
+          entity_type: string
+          entity_id: string
+          external_id: string | null
+          direction: string
+          status: string
+          error_message: string | null
+          payload: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          connection_id: string
+          store_id: string
+          entity_type: string
+          entity_id: string
+          external_id?: string | null
+          direction: string
+          status?: string
+          error_message?: string | null
+          payload?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          connection_id?: string
+          store_id?: string
+          entity_type?: string
+          entity_id?: string
+          external_id?: string | null
+          direction?: string
+          status?: string
+          error_message?: string | null
+          payload?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_sync_log_connection_id_fkey"
+            columns: ["connection_id"]
+            referencedRelation: "accounting_connections"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      integration_oauth_states: {
+        Row: {
+          id: string
+          store_id: string
+          provider: string
+          state_token: string
+          redirect_data: Json
+          expires_at: string
+          used_at: string | null
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          store_id: string
+          provider: string
+          state_token: string
+          redirect_data?: Json
+          expires_at: string
+          used_at?: string | null
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          store_id?: string
+          provider?: string
+          state_token?: string
+          redirect_data?: Json
+          expires_at?: string
+          used_at?: string | null
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      supplier_portal_tokens: {
+        Row: {
+          id: string
+          supplier_id: string
+          store_id: string
+          token_hash: string
+          token_prefix: string
+          can_view_orders: boolean
+          can_upload_invoices: boolean
+          can_update_catalog: boolean
+          can_update_order_status: boolean
+          name: string
+          is_active: boolean
+          last_used_at: string | null
+          expires_at: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          supplier_id: string
+          store_id: string
+          token_hash: string
+          token_prefix: string
+          can_view_orders?: boolean
+          can_upload_invoices?: boolean
+          can_update_catalog?: boolean
+          can_update_order_status?: boolean
+          name?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          expires_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          supplier_id?: string
+          store_id?: string
+          token_hash?: string
+          token_prefix?: string
+          can_view_orders?: boolean
+          can_upload_invoices?: boolean
+          can_update_catalog?: boolean
+          can_update_order_status?: boolean
+          name?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          expires_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      supplier_portal_activity: {
+        Row: {
+          id: string
+          supplier_id: string
+          store_id: string
+          token_id: string | null
+          action: string
+          details: Json
+          ip_address: string | null
+          user_agent: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          supplier_id: string
+          store_id: string
+          token_id?: string | null
+          action: string
+          details?: Json
+          ip_address?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          supplier_id?: string
+          store_id?: string
+          token_id?: string | null
+          action?: string
+          details?: Json
+          ip_address?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1710,10 +2252,10 @@ export type Database = {
       }
     }
     Enums: {
-      user_role: 'Owner' | 'Manager' | 'Staff' | 'Driver' | 'Admin'
+      user_role: 'Owner' | 'Manager' | 'Staff' | 'Admin'
       user_status: 'Invited' | 'Active' | 'Inactive'
       stock_action_type: 'Count' | 'Reception' | 'Adjustment' | 'Waste' | 'Sale'
-      store_user_role: 'Owner' | 'Manager' | 'Staff' | 'Driver'
+      store_user_role: 'Owner' | 'Manager' | 'Staff'
       subscription_status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid'
     }
     CompositeTypes: {

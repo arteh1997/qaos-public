@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         inviterRole = storeUser.role as AppRole
       }
     } else {
-      // For Driver invites (no store), check if user is Owner at any store
+      // For invites without a specific store, check if user is Owner at any store
       const { data: storeUsers } = await supabaseAdmin
         .from('store_users')
         .select('role')

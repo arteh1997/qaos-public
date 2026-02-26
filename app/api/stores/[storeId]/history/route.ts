@@ -8,6 +8,7 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { StockHistory } from '@/types'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       pagination: createPaginationMeta(page, pageSize, count ?? 0),
     })
   } catch (error) {
-    console.error('Error getting stock history:', error)
+    logger.error('Error getting stock history:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to get stock history')
   }
 }

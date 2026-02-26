@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
+import { useCSRF } from '@/hooks/useCSRF'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -23,6 +24,7 @@ interface ImportResult {
 }
 
 export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProps) {
+  const { csrfFetch } = useCSRF()
   const [file, setFile] = useState<File | null>(null)
   const [parsedUsers, setParsedUsers] = useState<BulkUserRow[]>([])
   const [parseErrors, setParseErrors] = useState<{ row: number; message: string }[]>([])
@@ -88,7 +90,7 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
     setResults(null)
 
     try {
-      const response = await fetch('/api/users/bulk-import', {
+      const response = await csrfFetch('/api/users/bulk-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -136,7 +138,7 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Template Download */}
-        <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 border rounded-lg bg-muted/50">
           <div>
             <p className="font-medium">CSV Template</p>
             <p className="text-sm text-muted-foreground">
@@ -152,7 +154,7 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
         {/* File Upload */}
         <div className="space-y-2">
           <Label htmlFor="csv-file">Upload CSV File</Label>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
             <input
               ref={fileInputRef}
               id="csv-file"
@@ -223,7 +225,7 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
         {parsedUsers.length > 0 && (
           <div className="space-y-2">
             <Label>Preview ({parsedUsers.length} users)</Label>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-hidden overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted">
                   <tr>
@@ -259,7 +261,7 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
         {results && (
           <div className="space-y-2">
             <Label>Import Results</Label>
-            <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+            <div className="border rounded-lg overflow-hidden max-h-64 overflow-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted sticky top-0">
                   <tr>
@@ -274,19 +276,19 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
                       <td className="px-4 py-2">{result.email}</td>
                       <td className="px-4 py-2">
                         {result.status === 'success' && (
-                          <span className="inline-flex items-center gap-1 text-green-600">
+                          <span className="inline-flex items-center gap-1 text-emerald-600">
                             <CheckCircle className="h-4 w-4" />
                             Success
                           </span>
                         )}
                         {result.status === 'skipped' && (
-                          <span className="inline-flex items-center gap-1 text-yellow-600">
+                          <span className="inline-flex items-center gap-1 text-amber-600">
                             <AlertCircle className="h-4 w-4" />
                             Skipped
                           </span>
                         )}
                         {result.status === 'error' && (
-                          <span className="inline-flex items-center gap-1 text-red-600">
+                          <span className="inline-flex items-center gap-1 text-destructive">
                             <XCircle className="h-4 w-4" />
                             Error
                           </span>

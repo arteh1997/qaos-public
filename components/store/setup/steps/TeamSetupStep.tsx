@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useCSRF } from '@/hooks/useCSRF'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -29,7 +30,7 @@ import { toast } from 'sonner'
 
 const teamInviteSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  role: z.enum(['Owner', 'Manager', 'Staff', 'Driver'], {
+  role: z.enum(['Owner', 'Manager', 'Staff'], {
     message: 'Please select a role',
   }),
 })
@@ -42,6 +43,7 @@ interface TeamSetupStepProps {
 }
 
 export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
+  const { csrfFetch } = useCSRF()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Owner inviting to their store - they can invite all roles including co-owners
@@ -60,14 +62,13 @@ export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
   const handleSubmit = async (data: TeamInviteFormData) => {
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/users/invite', {
+      const response = await csrfFetch('/api/users/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: data.email,
           role: data.role,
-          storeId: data.role !== 'Driver' ? store.id : undefined,
-          storeIds: data.role === 'Driver' ? [store.id] : undefined,
+          storeId: store.id,
         }),
       })
 
@@ -113,7 +114,7 @@ export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
                       <Input
                         type="email"
                         placeholder="teammate@example.com"
-                        className="pl-10"
+                        className="pl-10 bg-white text-black"
                         {...field}
                       />
                     </div>
@@ -131,7 +132,7 @@ export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
                   <FormLabel>Role</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white text-black">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                     </FormControl>

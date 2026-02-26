@@ -1,17 +1,15 @@
 'use client'
 
 import { useState, use } from 'react'
-import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   AlertCircle,
   Download,
   CreditCard,
-  Calendar,
+  CalendarDays,
   Loader2,
   FileSpreadsheet,
   Store,
@@ -19,6 +17,9 @@ import {
   Package,
   Clock,
 } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 import { BILLING_CONFIG, getMonthlyPriceDisplay } from '@/lib/stripe/billing-config'
@@ -30,7 +31,6 @@ interface PageProps {
 
 export default function SubscriptionExpiredPage({ params }: PageProps) {
   const { storeId } = use(params)
-  const router = useRouter()
   const { stores } = useAuth()
   const [isExporting, setIsExporting] = useState(false)
   const [startDate, setStartDate] = useState('')
@@ -163,23 +163,51 @@ export default function SubscriptionExpiredPage({ params }: PageProps) {
             <div className="border-t pt-4">
               <p className="text-sm font-medium mb-3">Or export a specific date range:</p>
               <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <Label htmlFor="start-date" className="text-xs">Start Date</Label>
-                  <Input
-                    id="start-date"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
+                <div className="space-y-1">
+                  <Label className="text-xs">Start Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={`w-full justify-start text-left font-normal ${!startDate ? 'text-muted-foreground' : ''}`}
+                      >
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        {startDate ? format(parseISO(startDate), 'MMM d, yyyy') : 'Pick date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={startDate ? parseISO(startDate) : undefined}
+                        onSelect={(date) => date && setStartDate(format(date, 'yyyy-MM-dd'))}
+                        weekStartsOn={1}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                <div>
-                  <Label htmlFor="end-date" className="text-xs">End Date</Label>
-                  <Input
-                    id="end-date"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
+                <div className="space-y-1">
+                  <Label className="text-xs">End Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={`w-full justify-start text-left font-normal ${!endDate ? 'text-muted-foreground' : ''}`}
+                      >
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        {endDate ? format(parseISO(endDate), 'MMM d, yyyy') : 'Pick date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={endDate ? parseISO(endDate) : undefined}
+                        onSelect={(date) => date && setEndDate(format(date, 'yyyy-MM-dd'))}
+                        weekStartsOn={1}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <Button
@@ -191,7 +219,7 @@ export default function SubscriptionExpiredPage({ params }: PageProps) {
                 {isExporting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Calendar className="mr-2 h-4 w-4" />
+                  <CalendarDays className="mr-2 h-4 w-4" />
                 )}
                 Export Date Range
               </Button>

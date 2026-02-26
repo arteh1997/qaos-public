@@ -3,6 +3,7 @@ import { withApiAuth } from '@/lib/api/middleware'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { getOrCreateCustomer, createSetupIntent } from '@/lib/stripe/server'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/billing/setup-intent
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
       customerId,
     }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error creating setup intent:', error)
+    logger.error('Error creating setup intent:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create setup intent')
   }
 }

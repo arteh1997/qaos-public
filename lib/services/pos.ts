@@ -1,5 +1,44 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/types/database'
+import type { PosProviderAdapter, PosProviderInfo } from '@/lib/services/pos/types'
+import { squareAdapter } from '@/lib/services/pos/adapters/square'
+import { toastAdapter } from '@/lib/services/pos/adapters/toast'
+import { cloverAdapter } from '@/lib/services/pos/adapters/clover'
+import { lightspeedAdapter } from '@/lib/services/pos/adapters/lightspeed'
+import { zettleAdapter } from '@/lib/services/pos/adapters/zettle'
+import { sumupAdapter } from '@/lib/services/pos/adapters/sumup'
+import { eposNowAdapter } from '@/lib/services/pos/adapters/epos-now'
+import { tevalisAdapter } from '@/lib/services/pos/adapters/tevalis'
+import { foodicsAdapter } from '@/lib/services/pos/adapters/foodics'
+import { oracleMicrosAdapter } from '@/lib/services/pos/adapters/oracle-micros'
+import { ncrVoyixAdapter } from '@/lib/services/pos/adapters/ncr-voyix'
+import { spotOnAdapter } from '@/lib/services/pos/adapters/spoton'
+import { revelAdapter } from '@/lib/services/pos/adapters/revel'
+import { touchBistroAdapter } from '@/lib/services/pos/adapters/touchbistro'
+import { gastrofixAdapter } from '@/lib/services/pos/adapters/gastrofix'
+import { iikoAdapter } from '@/lib/services/pos/adapters/iiko'
+import { posRocketAdapter } from '@/lib/services/pos/adapters/posrocket'
+import { parBrinkAdapter } from '@/lib/services/pos/adapters/par-brink'
+import { heartlandAdapter } from '@/lib/services/pos/adapters/heartland'
+import { hungerRushAdapter } from '@/lib/services/pos/adapters/hungerrush'
+import { cakeAdapter } from '@/lib/services/pos/adapters/cake'
+import { lavuAdapter } from '@/lib/services/pos/adapters/lavu'
+import { focusPosAdapter } from '@/lib/services/pos/adapters/focus-pos'
+import { shopifyPosAdapter } from '@/lib/services/pos/adapters/shopify-pos'
+import { aldeloExpressAdapter } from '@/lib/services/pos/adapters/aldelo-express'
+import { squirrelAdapter } from '@/lib/services/pos/adapters/squirrel'
+import { goTabAdapter } from '@/lib/services/pos/adapters/gotab'
+import { xenialAdapter } from '@/lib/services/pos/adapters/xenial'
+import { quPosAdapter } from '@/lib/services/pos/adapters/qu-pos'
+import { futurePosAdapter } from '@/lib/services/pos/adapters/future-pos'
+import { upserveAdapter } from '@/lib/services/pos/adapters/upserve'
+import { sicomAdapter } from '@/lib/services/pos/adapters/sicom'
+import { posiTouchAdapter } from '@/lib/services/pos/adapters/positouch'
+import { harbortouchAdapter } from '@/lib/services/pos/adapters/harbortouch'
+import { digitalDiningAdapter } from '@/lib/services/pos/adapters/digital-dining'
+import { maitredAdapter } from '@/lib/services/pos/adapters/maitred'
+import { speedlineAdapter } from '@/lib/services/pos/adapters/speedline'
+import { validateCustomSignature } from '@/lib/services/pos/webhook-validators'
 
 /**
  * POS Integration Service
@@ -8,7 +47,13 @@ import type { Json } from '@/types/database'
  * inventory items, and automatically deducts stock.
  */
 
-export type PosProvider = 'square' | 'toast' | 'clover' | 'lightspeed' | 'custom'
+export type PosProvider =
+  | 'square' | 'toast' | 'clover' | 'lightspeed' | 'zettle' | 'sumup' | 'epos_now' | 'tevalis'
+  | 'foodics' | 'oracle_micros' | 'ncr_voyix' | 'spoton' | 'revel' | 'touchbistro' | 'gastrofix' | 'iiko' | 'posrocket'
+  | 'par_brink' | 'heartland' | 'hungerrush' | 'cake' | 'lavu' | 'focus_pos' | 'shopify_pos' | 'aldelo_express'
+  | 'squirrel' | 'gotab' | 'xenial' | 'qu_pos' | 'future_pos' | 'upserve' | 'sicom' | 'positouch'
+  | 'harbortouch' | 'digital_dining' | 'maitred' | 'speedline'
+  | 'custom'
 
 export interface PosSaleItem {
   pos_item_id: string
@@ -34,13 +79,96 @@ export interface ProcessResult {
   error?: string
 }
 
-export const POS_PROVIDERS = {
-  square: { name: 'Square', description: 'Square POS by Block' },
-  toast: { name: 'Toast', description: 'Toast POS for restaurants' },
-  clover: { name: 'Clover', description: 'Clover POS by Fiserv' },
-  lightspeed: { name: 'Lightspeed', description: 'Lightspeed Restaurant POS' },
-  custom: { name: 'Custom', description: 'Custom POS via webhook' },
+export const POS_PROVIDERS: Record<string, PosProviderInfo> = {
+  square: { name: 'Square', description: 'Square POS by Block', authType: 'oauth2', region: 'Global' },
+  toast: { name: 'Toast', description: 'Toast POS for restaurants', authType: 'oauth2', region: 'US' },
+  clover: { name: 'Clover', description: 'Clover POS by Fiserv', authType: 'oauth2', region: 'Global' },
+  lightspeed: { name: 'Lightspeed', description: 'Lightspeed Restaurant POS', authType: 'oauth2', region: 'Global' },
+  zettle: { name: 'Zettle', description: 'Zettle by PayPal — card reader & POS', authType: 'oauth2', region: 'UK & EU' },
+  sumup: { name: 'SumUp', description: 'SumUp card payments & POS', authType: 'oauth2', region: 'UK & EU' },
+  epos_now: { name: 'Epos Now', description: 'Epos Now cloud POS', authType: 'api_key', region: 'UK' },
+  tevalis: { name: 'Tevalis', description: 'Tevalis hospitality technology', authType: 'api_key', region: 'UK' },
+  foodics: { name: 'Foodics', description: 'Leading POS in Saudi Arabia & Gulf', authType: 'oauth2', region: 'Middle East' },
+  oracle_micros: { name: 'Oracle MICROS', description: 'Oracle MICROS Simphony for enterprise', authType: 'api_key', region: 'Global' },
+  ncr_voyix: { name: 'NCR Voyix (Aloha)', description: 'NCR Voyix Aloha POS', authType: 'api_key', region: 'North America' },
+  spoton: { name: 'SpotOn', description: 'SpotOn restaurant POS & payments', authType: 'oauth2', region: 'North America' },
+  revel: { name: 'Revel Systems', description: 'Cloud-native iPad POS', authType: 'oauth2', region: 'Global' },
+  touchbistro: { name: 'TouchBistro', description: 'iPad POS for restaurants', authType: 'api_key', region: 'North America' },
+  gastrofix: { name: 'Gastrofix', description: 'iPad POS for German hospitality', authType: 'api_key', region: 'Germany & EU' },
+  iiko: { name: 'iiko', description: 'Restaurant management & POS', authType: 'api_key', region: 'Russia, CIS & Middle East' },
+  posrocket: { name: 'POSRocket', description: 'Cloud POS for Middle East', authType: 'api_key', region: 'Middle East' },
+  par_brink: { name: 'PAR Brink', description: 'Enterprise POS for multi-unit restaurants', authType: 'api_key', region: 'North America' },
+  heartland: { name: 'Heartland', description: 'Heartland restaurant POS & payments', authType: 'api_key', region: 'North America' },
+  hungerrush: { name: 'HungerRush', description: 'POS for pizza & quick service', authType: 'api_key', region: 'North America' },
+  cake: { name: 'CAKE', description: 'CAKE POS by Mad Mobile', authType: 'oauth2', region: 'North America' },
+  lavu: { name: 'Lavu', description: 'iPad POS for restaurants', authType: 'api_key', region: 'North America' },
+  focus_pos: { name: 'Focus POS', description: 'Enterprise restaurant POS', authType: 'api_key', region: 'North America' },
+  shopify_pos: { name: 'Shopify POS', description: 'Shopify retail & restaurant POS', authType: 'oauth2', region: 'Global' },
+  aldelo_express: { name: 'Aldelo Express', description: 'Cloud POS for restaurants', authType: 'api_key', region: 'North America' },
+  squirrel: { name: 'Squirrel Systems', description: 'Enterprise hospitality POS', authType: 'api_key', region: 'North America' },
+  gotab: { name: 'GoTab', description: 'Order & pay platform', authType: 'oauth2', region: 'North America' },
+  xenial: { name: 'Xenial', description: 'Xenial by Global Payments', authType: 'api_key', region: 'North America' },
+  qu_pos: { name: 'Qu POS', description: 'Unified commerce for QSR', authType: 'api_key', region: 'North America' },
+  future_pos: { name: 'Future POS', description: 'Full-service restaurant POS', authType: 'api_key', region: 'North America' },
+  upserve: { name: 'Upserve', description: 'Upserve by Lightspeed', authType: 'oauth2', region: 'North America' },
+  sicom: { name: 'SICOM', description: 'QSR & enterprise POS', authType: 'api_key', region: 'North America' },
+  positouch: { name: 'POSitouch', description: 'Full-service restaurant POS', authType: 'api_key', region: 'North America' },
+  harbortouch: { name: 'Harbortouch', description: 'Harbortouch by Shift4', authType: 'api_key', region: 'North America' },
+  digital_dining: { name: 'Digital Dining', description: 'Digital Dining by Menusoft', authType: 'api_key', region: 'North America' },
+  maitred: { name: "Maitre'D", description: "Maitre'D by PayFacto", authType: 'api_key', region: 'North America' },
+  speedline: { name: 'Speedline', description: 'Pizza & delivery POS', authType: 'api_key', region: 'North America' },
+  custom: { name: 'Custom', description: 'Custom POS via webhook', authType: 'api_key', region: 'Any' },
 } as const
+
+/**
+ * Provider adapter registry — maps provider name to its adapter
+ */
+export const POS_ADAPTERS: Record<string, PosProviderAdapter> = {
+  square: squareAdapter,
+  toast: toastAdapter,
+  clover: cloverAdapter,
+  lightspeed: lightspeedAdapter,
+  zettle: zettleAdapter,
+  sumup: sumupAdapter,
+  epos_now: eposNowAdapter,
+  tevalis: tevalisAdapter,
+  foodics: foodicsAdapter,
+  oracle_micros: oracleMicrosAdapter,
+  ncr_voyix: ncrVoyixAdapter,
+  spoton: spotOnAdapter,
+  revel: revelAdapter,
+  touchbistro: touchBistroAdapter,
+  gastrofix: gastrofixAdapter,
+  iiko: iikoAdapter,
+  posrocket: posRocketAdapter,
+  par_brink: parBrinkAdapter,
+  heartland: heartlandAdapter,
+  hungerrush: hungerRushAdapter,
+  cake: cakeAdapter,
+  lavu: lavuAdapter,
+  focus_pos: focusPosAdapter,
+  shopify_pos: shopifyPosAdapter,
+  aldelo_express: aldeloExpressAdapter,
+  squirrel: squirrelAdapter,
+  gotab: goTabAdapter,
+  xenial: xenialAdapter,
+  qu_pos: quPosAdapter,
+  future_pos: futurePosAdapter,
+  upserve: upserveAdapter,
+  sicom: sicomAdapter,
+  positouch: posiTouchAdapter,
+  harbortouch: harbortouchAdapter,
+  digital_dining: digitalDiningAdapter,
+  maitred: maitredAdapter,
+  speedline: speedlineAdapter,
+}
+
+/**
+ * Get the adapter for a specific provider
+ */
+export function getAdapter(provider: string): PosProviderAdapter | null {
+  return POS_ADAPTERS[provider] || null
+}
 
 /**
  * Process a sale event from a POS system
@@ -84,7 +212,7 @@ export async function processSaleEvent(
       event_type: event.event_type,
       items: event.items as unknown as Json,
       total_amount: event.total_amount ?? null,
-      currency: event.currency ?? 'USD',
+      currency: event.currency ?? 'GBP',
       occurred_at: event.occurred_at,
       status: 'pending',
     })
@@ -205,27 +333,26 @@ export async function processSaleEvent(
 }
 
 /**
- * Validate a POS webhook signature (provider-specific)
+ * Validate a POS webhook signature using provider-specific adapter
  */
 export function validateWebhookSignature(
   provider: PosProvider,
-  _payload: string,
-  _signature: string,
-  _secret: string
+  payload: string,
+  signature: string,
+  secret: string
 ): boolean {
-  // For custom webhooks, we use the same HMAC-SHA256 as our own webhooks
-  // For real POS providers, each has their own signature scheme
-  // This is a placeholder for provider-specific validation
-  switch (provider) {
-    case 'square':
-    case 'toast':
-    case 'clover':
-    case 'lightspeed':
-    case 'custom':
-      // In production, implement provider-specific signature validation
-      // For now, return true (validation handled at the route level via connection credentials)
-      return true
-    default:
-      return false
+  if (provider === 'custom') {
+    // Custom webhooks use standard HMAC-SHA256
+    return validateCustomSignature(payload, signature, secret)
+  }
+
+  const adapter = getAdapter(provider)
+  if (!adapter) return false
+
+  try {
+    return adapter.validateSignature(payload, signature, secret)
+  } catch {
+    // If signature validation throws (e.g. buffer length mismatch), reject
+    return false
   }
 }

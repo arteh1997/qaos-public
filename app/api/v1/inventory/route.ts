@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withApiKey } from '@/lib/api/with-api-key'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/v1/inventory - List inventory items
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Public API inventory error:', error)
+    logger.error('Public API inventory error:', { error: error })
     return NextResponse.json(
       { success: false, error: 'Failed to fetch inventory' },
       { status: 500 }

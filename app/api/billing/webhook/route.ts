@@ -8,6 +8,7 @@ import {
   getSubscriptionFromInvoice,
   handleDisputeEvent,
 } from '@/lib/services/billingEventHandlers'
+import { sendNotification } from '@/lib/services/notifications'
 import Stripe from 'stripe'
 
 /**
@@ -97,6 +98,36 @@ export async function POST(request: NextRequest) {
             stripeEventId: event.id,
             status: 'canceled',
           })
+
+          // Send subscription cancelled email to billing owner
+          const { data: store } = await supabaseAdmin
+            .from('stores')
+            .select('name')
+            .eq('id', storeId)
+            .single()
+
+          const { data: billingOwner } = await supabaseAdmin
+            .from('store_users')
+            .select('user_id')
+            .eq('store_id', storeId)
+            .eq('is_billing_owner', true)
+            .single()
+
+          if (billingOwner) {
+            const accessUntil = subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+              : 'immediately'
+
+            sendNotification({
+              type: 'subscription_cancelled',
+              storeId,
+              recipientUserId: billingOwner.user_id,
+              data: {
+                storeName: store?.name || 'your store',
+                accessUntil,
+              },
+            }).catch(() => {})
+          }
         }
         break
       }
@@ -119,6 +150,38 @@ export async function POST(request: NextRequest) {
                 invoice_number: invoice.number,
               },
             })
+
+            // Send payment receipt email to billing owner
+            if (dbSubscription.billing_user_id) {
+              const { data: paidStore } = await supabaseAdmin
+                .from('stores')
+                .select('name')
+                .eq('id', dbSubscription.store_id)
+                .single()
+
+              const amountPaid = (invoice.amount_paid || 0) / 100
+              const currency = (invoice.currency || 'gbp').toUpperCase()
+              const formattedAmount = `${currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : ''}${amountPaid.toFixed(2)}`
+
+              const periodStart = invoice.period_start
+                ? new Date(invoice.period_start * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                : ''
+              const periodEnd = invoice.period_end
+                ? new Date(invoice.period_end * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                : ''
+              const periodLabel = periodStart && periodEnd ? `${periodStart} – ${periodEnd}` : ''
+
+              sendNotification({
+                type: 'payment_succeeded',
+                storeId: dbSubscription.store_id,
+                recipientUserId: dbSubscription.billing_user_id,
+                data: {
+                  storeName: paidStore?.name || 'your store',
+                  formattedAmount,
+                  periodLabel,
+                },
+              }).catch(() => {})
+            }
           }
         }
         break

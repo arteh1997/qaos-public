@@ -2,12 +2,20 @@
 
 import { useState, use } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { usePosConnections, usePosSaleEvents, type PosConnection, type PosSaleEvent } from '@/hooks/usePosConnections'
+import { usePosConnections, usePosSaleEvents, type PosConnection, type PosSaleEvent as PosSaleEventType } from '@/hooks/usePosConnections'
 import { POS_PROVIDERS } from '@/lib/services/pos'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui/page-header'
+import { PageGuide } from '@/components/help/PageGuide'
+import { ProviderSelector } from '@/components/integrations/pos/ProviderSelector'
+import { ConnectionWizard } from '@/components/integrations/pos/ConnectionWizard'
+import { MenuSyncTable } from '@/components/integrations/pos/MenuSyncTable'
+import { useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
+import { toast } from 'sonner'
 import {
   Monitor,
   Wifi,
@@ -15,16 +23,17 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  ArrowLeft,
   Plus,
+  Settings,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
-import Link from 'next/link'
 
 const SYNC_STATUS_COLORS: Record<string, string> = {
-  synced: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  syncing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  synced: 'bg-emerald-50 text-emerald-800',
+  syncing: 'bg-blue-50 text-blue-700',
+  pending: 'bg-amber-50 text-amber-700',
+  error: 'bg-destructive/10 text-destructive',
 }
 
 const EVENT_STATUS_ICONS: Record<string, typeof CheckCircle2> = {
@@ -34,59 +43,90 @@ const EVENT_STATUS_ICONS: Record<string, typeof CheckCircle2> = {
   skipped: Clock,
 }
 
-function ConnectionCard({ connection }: { connection: PosConnection }) {
+function ConnectionCard({
+  connection,
+  storeId,
+  isExpanded,
+  onToggle,
+}: {
+  connection: PosConnection
+  storeId: string
+  isExpanded: boolean
+  onToggle: () => void
+}) {
   const provider = POS_PROVIDERS[connection.provider as keyof typeof POS_PROVIDERS]
 
   return (
-    <Card>
-      <CardContent className="pt-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-lg bg-muted flex items-center justify-center">
-              <Monitor className="size-5" />
+    <div className="space-y-0">
+      <Card className={isExpanded ? 'rounded-b-none border-b-0' : ''}>
+        <CardContent className="pt-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-lg bg-muted flex items-center justify-center">
+                <Monitor className="size-5" />
+              </div>
+              <div>
+                <h3 className="font-medium">{connection.name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {provider?.name ?? connection.provider}
+                </p>
+              </div>
             </div>
+            <div className="flex items-center gap-2">
+              {connection.is_active ? (
+                <Wifi className="size-4 text-emerald-500" />
+              ) : (
+                <WifiOff className="size-4 text-muted-foreground" />
+              )}
+              <Badge variant="secondary" className={SYNC_STATUS_COLORS[connection.sync_status] ?? ''}>
+                {connection.sync_status}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-3">
             <div>
-              <h3 className="font-medium">{connection.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {provider?.name ?? connection.provider}
-              </p>
+              {connection.last_synced_at && (
+                <p className="text-xs text-muted-foreground">
+                  Last synced: {new Date(connection.last_synced_at).toLocaleString()}
+                </p>
+              )}
+              {connection.sync_error && (
+                <p className="text-xs text-destructive mt-0.5">{connection.sync_error}</p>
+              )}
             </div>
+            <Button variant="ghost" size="sm" onClick={onToggle}>
+              <Settings className="size-3.5 mr-1" />
+              Item Mapping
+              {isExpanded ? <ChevronUp className="size-3.5 ml-1" /> : <ChevronDown className="size-3.5 ml-1" />}
+            </Button>
           </div>
-          <div className="flex items-center gap-2">
-            {connection.is_active ? (
-              <Wifi className="size-4 text-green-500" />
-            ) : (
-              <WifiOff className="size-4 text-muted-foreground" />
-            )}
-            <Badge variant="secondary" className={SYNC_STATUS_COLORS[connection.sync_status] ?? ''}>
-              {connection.sync_status}
-            </Badge>
-          </div>
+        </CardContent>
+      </Card>
+
+      {/* Expandable item mapping section */}
+      {isExpanded && (
+        <div className="border border-t-0 rounded-b-xl bg-muted/20 p-4">
+          <MenuSyncTable
+            storeId={storeId}
+            connectionId={connection.id}
+            connectionProvider={connection.provider}
+          />
         </div>
-
-        {connection.last_synced_at && (
-          <p className="text-xs text-muted-foreground mt-3">
-            Last synced: {new Date(connection.last_synced_at).toLocaleString()}
-          </p>
-        )}
-
-        {connection.sync_error && (
-          <p className="text-xs text-destructive mt-1">{connection.sync_error}</p>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   )
 }
 
-function SaleEventRow({ event }: { event: PosSaleEvent }) {
+function SaleEventRow({ event }: { event: PosSaleEventType }) {
   const StatusIcon = EVENT_STATUS_ICONS[event.status] ?? Clock
 
   return (
     <div className="flex items-center justify-between py-2 border-b last:border-0">
       <div className="flex items-center gap-3">
         <StatusIcon className={`size-4 ${
-          event.status === 'processed' ? 'text-green-500' :
-          event.status === 'failed' ? 'text-red-500' :
+          event.status === 'processed' ? 'text-emerald-500' :
+          event.status === 'failed' ? 'text-destructive' :
           'text-muted-foreground'
         }`} />
         <div>
@@ -98,7 +138,7 @@ function SaleEventRow({ event }: { event: PosSaleEvent }) {
       </div>
       <div className="text-right">
         {event.total_amount !== null && (
-          <p className="text-sm font-medium">${event.total_amount.toFixed(2)}</p>
+          <p className="text-sm font-medium">£{event.total_amount.toFixed(2)}</p>
         )}
         <Badge variant="secondary" className="text-xs">
           {event.status}
@@ -113,11 +153,36 @@ export default function PosSettingsPage({ params }: { params: Promise<{ storeId:
   const { role } = useAuth()
   const { data: connections, isLoading: connectionsLoading } = usePosConnections(storeId)
   const { data: events, isLoading: eventsLoading } = usePosSaleEvents(storeId)
+  const searchParams = useSearchParams()
+
+  const [view, setView] = useState<'main' | 'add' | 'wizard'>('main')
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
+  const [expandedConnection, setExpandedConnection] = useState<string | null>(null)
+
+  // Handle OAuth success redirect
+  const success = searchParams.get('success')
+  const successProvider = searchParams.get('provider')
+  useEffect(() => {
+    if (success === 'connected' && successProvider) {
+      const providerName = POS_PROVIDERS[successProvider]?.name || successProvider
+      toast.success(`${providerName} connected successfully!`)
+    }
+  }, [success, successProvider])
+
+  // Handle OAuth error redirect
+  const error = searchParams.get('error')
+  useEffect(() => {
+    if (error) {
+      toast.error(`POS connection failed: ${error}`)
+    }
+  }, [error])
 
   if (role !== 'Owner' && role !== 'Manager') {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">POS Integration</h1>
+        <PageHeader title="POS Integration" description="Connect your point-of-sale system">
+        <PageGuide pageKey="pos" />
+      </PageHeader>
         <Card>
           <CardContent className="pt-6 text-center text-muted-foreground">
             This feature is only available to Owners and Managers.
@@ -127,40 +192,72 @@ export default function PosSettingsPage({ params }: { params: Promise<{ storeId:
     )
   }
 
+  const connectedProviders = (connections || []).filter(c => c.is_active).map(c => c.provider)
+
+  // Add New Connection flow
+  if (view === 'add') {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="POS Integration" description="Add a new POS connection">
+          <Button variant="outline" size="sm" onClick={() => setView('main')}>
+            Back
+          </Button>
+          <PageGuide pageKey="pos" />
+        </PageHeader>
+        <ProviderSelector
+          onSelect={(provider) => {
+            setSelectedProvider(provider)
+            setView('wizard')
+          }}
+          connectedProviders={connectedProviders}
+        />
+      </div>
+    )
+  }
+
+  // Connection Wizard
+  if (view === 'wizard' && selectedProvider) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="POS Integration" description="Connect your POS system">
+        <PageGuide pageKey="pos" />
+      </PageHeader>
+        <ConnectionWizard
+          provider={selectedProvider}
+          storeId={storeId}
+          onComplete={() => {
+            setView('main')
+            setSelectedProvider(null)
+          }}
+          onBack={() => {
+            setView('add')
+            setSelectedProvider(null)
+          }}
+        />
+      </div>
+    )
+  }
+
+  // Main view
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href={`/stores/${storeId}`}>
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="size-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Monitor className="size-6" />
-              POS Integration
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Connect your Point-of-Sale system to automatically track sales
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="POS Integration"
+        description="Connect your Point-of-Sale system to automatically track sales"
+      >
+        <Button size="sm" onClick={() => setView('add')}>
+          <Plus className="size-4 mr-1.5" />
+          Add Connection
+        </Button>
+        <PageGuide pageKey="pos" />
+      </PageHeader>
 
       {/* Connections */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Connected Systems</h2>
-          <Button variant="outline" size="sm" disabled>
-            <Plus className="size-4 mr-1" />
-            Add Connection
-          </Button>
-        </div>
+        <h2 className="text-sm font-medium text-muted-foreground">Connected Systems</h2>
 
         {connectionsLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {Array.from({ length: 2 }).map((_, i) => (
               <Card key={i}>
                 <CardContent className="pt-4">
@@ -171,9 +268,17 @@ export default function PosSettingsPage({ params }: { params: Promise<{ storeId:
             ))}
           </div>
         ) : connections && connections.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {connections.map(conn => (
-              <ConnectionCard key={conn.id} connection={conn} />
+              <ConnectionCard
+                key={conn.id}
+                connection={conn}
+                storeId={storeId}
+                isExpanded={expandedConnection === conn.id}
+                onToggle={() => setExpandedConnection(
+                  expandedConnection === conn.id ? null : conn.id
+                )}
+              />
             ))}
           </div>
         ) : (
@@ -182,15 +287,12 @@ export default function PosSettingsPage({ params }: { params: Promise<{ storeId:
               <Monitor className="size-12 mx-auto text-muted-foreground mb-3" />
               <h3 className="font-medium mb-1">No POS systems connected</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Connect your POS system to automatically deduct inventory when sales occur.
+                Connect your POS to automatically deduct inventory when sales occur.
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {Object.entries(POS_PROVIDERS).map(([key, provider]) => (
-                  <Badge key={key} variant="secondary">
-                    {provider.name}
-                  </Badge>
-                ))}
-              </div>
+              <Button size="sm" onClick={() => setView('add')}>
+                <Plus className="size-4 mr-1.5" />
+                Add Your First Connection
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -204,24 +306,26 @@ export default function PosSettingsPage({ params }: { params: Promise<{ storeId:
         </CardHeader>
         <CardContent>
           <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-            <li>Connect your POS system (Square, Toast, Clover, etc.)</li>
+            <li>Connect your POS system (Square, Zettle, SumUp, Lightspeed, and more)</li>
             <li>Map POS menu items to your inventory items</li>
             <li>When a sale occurs, the POS sends an event via webhook</li>
             <li>Inventory is automatically deducted based on your mappings</li>
             <li>Stock history records every POS-triggered change</li>
           </ol>
-          <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-sm font-medium">Webhook URL for your POS system:</p>
-            <code className="text-xs text-muted-foreground break-all">
-              {typeof window !== 'undefined' ? window.location.origin : 'https://your-app.com'}/api/pos/webhook/{'<connection-id>'}
-            </code>
-          </div>
+          {connections && connections.length > 0 && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-sm font-medium">Webhook URL for your POS system:</p>
+              <code className="text-xs text-muted-foreground break-all">
+                {typeof window !== 'undefined' ? window.location.origin : 'https://your-app.com'}/api/pos/webhook/{connections[0].id}
+              </code>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Recent Events */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Recent Sale Events</h2>
+        <h2 className="text-sm font-medium text-muted-foreground">Recent Sale Events</h2>
 
         {eventsLoading ? (
           <Card>
@@ -245,7 +349,7 @@ export default function PosSettingsPage({ params }: { params: Promise<{ storeId:
         ) : (
           <Card>
             <CardContent className="pt-6 text-center text-muted-foreground">
-              No sale events yet. Events will appear here once your POS system starts sending data.
+              <p className="text-sm">No sale events yet. Events will appear here once your POS system starts sending data.</p>
             </CardContent>
           </Card>
         )}

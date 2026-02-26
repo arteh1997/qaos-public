@@ -9,6 +9,7 @@ import {
   apiNotFound,
 } from '@/lib/api/response'
 import { updateCategorySchema } from '@/lib/validations/categories-tags'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; categoryId: string }>
@@ -112,7 +113,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error updating category:', error)
+    logger.error('Error updating category:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update category')
   }
 }
@@ -194,7 +195,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error deleting category:', error)
+    logger.error('Error deleting category:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to delete category')
   }
 }

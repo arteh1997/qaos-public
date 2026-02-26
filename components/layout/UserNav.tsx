@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { LogOut, User, Shield, Truck, UserCircle, Crown, Briefcase } from 'lucide-react'
+import { LogOut, User, Shield, UserCircle, Crown, Briefcase } from 'lucide-react'
 import { AppRole, LegacyAppRole } from '@/types'
 import { normalizeRole } from '@/lib/auth'
 
@@ -21,7 +21,7 @@ interface UserNavProps {
 }
 
 export function UserNav({ variant = 'default' }: UserNavProps) {
-  const { profile, role, signOut } = useAuth()
+  const { profile, role, currentStore, signOut } = useAuth()
 
   const initials = profile?.full_name
     ?.split(' ')
@@ -40,19 +40,13 @@ export function UserNav({ variant = 'default' }: UserNavProps) {
       icon: Crown,
       color: 'text-amber-500',
       bg: 'bg-amber-500/10',
-      label: 'Owner',
+      label: currentStore?.role === 'Owner' && !currentStore?.is_billing_owner ? 'Co-Owner' : 'Owner',
     },
     Manager: {
       icon: Briefcase,
       color: 'text-purple-500',
       bg: 'bg-purple-500/10',
       label: 'Manager',
-    },
-    Driver: {
-      icon: Truck,
-      color: 'text-blue-500',
-      bg: 'bg-blue-500/10',
-      label: 'Driver',
     },
     Staff: {
       icon: UserCircle,
@@ -89,8 +83,7 @@ export function UserNav({ variant = 'default' }: UserNavProps) {
                   variant === 'navbar' ? 'border-black' : 'border-background'
                 } ${
                   normalizedRole === 'Owner' ? 'bg-amber-500' :
-                  normalizedRole === 'Manager' ? 'bg-purple-500' :
-                  normalizedRole === 'Driver' ? 'bg-blue-500' : 'bg-emerald-500'
+                  normalizedRole === 'Manager' ? 'bg-purple-500' : 'bg-emerald-500'
                 }`}
                 aria-hidden="true"
               />
@@ -136,7 +129,7 @@ export function UserNav({ variant = 'default' }: UserNavProps) {
           <div className="p-1">
             <DropdownMenuItem
               onSelect={() => signOut()}
-              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+              className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5"
             >
               <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
               Log out

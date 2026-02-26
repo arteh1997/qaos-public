@@ -19,7 +19,7 @@ export default function CategoriesPage() {
 
   if (!currentStore || !currentStoreId) {
     return (
-      <div className="container py-8">
+      <div>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Store className="size-12 text-muted-foreground mb-4" />
@@ -33,10 +33,10 @@ export default function CategoriesPage() {
     )
   }
 
-  // Staff and Drivers shouldn't reach here (sidebar filters), but guard anyway
+  // Staff shouldn't reach here (sidebar filters), but guard anyway
   if (role !== 'Owner' && role !== 'Manager') {
     return (
-      <div className="container py-8">
+      <div>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
@@ -50,7 +50,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="container py-8">
+    <div>
       <CategoryList storeId={currentStoreId} />
     </div>
   )

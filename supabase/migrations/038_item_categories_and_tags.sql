@@ -20,7 +20,7 @@ CREATE TABLE item_categories (
 CREATE INDEX idx_item_categories_store_id ON item_categories(store_id);
 CREATE INDEX idx_item_categories_sort_order ON item_categories(store_id, sort_order);
 
-COMMENT ON TABLE item_categories IS 'Product categories for inventory organization (Produce, Dairy, Meat, etc.)';
+COMMENT ON TABLE item_categories IS 'Product categories for inventory organisation (Produce, Dairy, Meat, etc.)';
 COMMENT ON COLUMN item_categories.color IS 'Hex color code for UI display';
 COMMENT ON COLUMN item_categories.sort_order IS 'Display order in UI (lower numbers first)';
 

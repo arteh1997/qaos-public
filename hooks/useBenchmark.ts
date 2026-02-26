@@ -53,7 +53,11 @@ export interface BenchmarkData {
   }
 }
 
-export function useBenchmark(storeIds: string[], days: number = 30) {
+export function useBenchmark(
+  storeIds: string[],
+  days: number = 30,
+  dateRange?: { startDate: string; endDate: string } | null,
+) {
   const [data, setData] = useState<BenchmarkData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -68,9 +72,15 @@ export function useBenchmark(storeIds: string[], days: number = 30) {
     setError(null)
 
     try {
-      const response = await fetch(
-        `/api/reports/benchmark?store_ids=${storeIds.join(',')}&days=${days}`
-      )
+      const params = new URLSearchParams({ store_ids: storeIds.join(',') })
+      if (dateRange) {
+        params.set('start_date', dateRange.startDate)
+        params.set('end_date', dateRange.endDate)
+      } else {
+        params.set('days', String(days))
+      }
+
+      const response = await fetch(`/api/reports/benchmark?${params}`)
       const json = await response.json()
 
       if (!response.ok) {
@@ -83,7 +93,7 @@ export function useBenchmark(storeIds: string[], days: number = 30) {
     } finally {
       setIsLoading(false)
     }
-  }, [storeIds.join(','), days])
+  }, [storeIds.join(','), days, dateRange?.startDate, dateRange?.endDate])
 
   useEffect(() => {
     fetchBenchmark()

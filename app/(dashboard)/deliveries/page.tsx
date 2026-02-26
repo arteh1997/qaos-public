@@ -10,14 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatsCard } from '@/components/cards/StatsCard'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
   PackageCheck,
   Truck,
   Clock,
@@ -28,7 +20,6 @@ import { format, formatDistanceToNow } from 'date-fns'
 export default function DeliveriesPage() {
   const { user, storeId } = useAuth()
   const { data: store, isLoading: storeLoading } = useStore(storeId)
-  const today = new Date().toISOString().split('T')[0]
   const { data: recentHistory, isLoading: historyLoading } = useStockHistory(storeId || null, undefined)
 
   const isLoading = storeLoading || historyLoading
@@ -81,27 +72,24 @@ export default function DeliveriesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <PackageCheck className="h-6 w-6" />
-          Deliveries
-        </h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Stock Reception</h1>
         <p className="text-muted-foreground text-sm mt-1">
           {store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
         </p>
       </div>
 
       {/* Summary cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
         <StatsCard
           title="Today's Deliveries"
           value={todayDeliveries.length}
-          description="Receptions recorded today"
+          description="Recorded today"
           icon={<Truck className="h-4 w-4" />}
         />
         <StatsCard
-          title="Items Delivered"
+          title="Items Received"
           value={todayItemsDelivered}
-          description="Total units received today"
+          description="Units received today"
           icon={<Package className="h-4 w-4" />}
         />
         <StatsCard
@@ -135,48 +123,23 @@ export default function DeliveriesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Mobile view */}
-            <div className="space-y-3 md:hidden">
+            <div className="space-y-2">
               {myDeliveries.slice(0, 15).map((delivery) => (
-                <div key={delivery.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-sm">{delivery.inventory_item?.name || 'Unknown'}</p>
+                <div
+                  key={delivery.id}
+                  className="flex items-center justify-between py-2.5 px-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{delivery.inventory_item?.name || 'Unknown'}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(delivery.created_at), { addSuffix: true })}
                     </p>
                   </div>
-                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 font-mono shrink-0 ml-3">
                     +{delivery.quantity_change}
                   </Badge>
                 </div>
               ))}
-            </div>
-            {/* Desktop table */}
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {myDeliveries.slice(0, 15).map((delivery) => (
-                    <TableRow key={delivery.id}>
-                      <TableCell className="font-medium">{delivery.inventory_item?.name || 'Unknown'}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                          +{delivery.quantity_change}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(delivery.created_at), 'MMM d, h:mm a')}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
             </div>
           </CardContent>
         </Card>

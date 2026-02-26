@@ -191,13 +191,11 @@ export function canManageUsers(role: AppRole | null | undefined): boolean {
 
 /**
  * @deprecated Use store-based functions instead
- * Check if a legacy role has global access (Admin or Driver)
+ * Check if a legacy role has global access (Admin/Owner only)
  */
 export function hasGlobalAccess(role: AppRole | LegacyAppRole | null | undefined): boolean {
   if (!role) return false
-  // Admin maps to Owner, Driver stays Driver
   if (role === 'Admin' || role === 'Owner') return true
-  if (role === 'Driver') return true
   return false
 }
 
@@ -279,7 +277,7 @@ export function mapLegacyRole(legacyRole: LegacyAppRole): AppRole {
     case 'Admin':
       return 'Owner'
     case 'Driver':
-      return 'Driver'
+      return 'Staff'
     case 'Staff':
       return 'Staff'
     default:
@@ -291,14 +289,15 @@ export function mapLegacyRole(legacyRole: LegacyAppRole): AppRole {
  * Check if a role string is a legacy role
  */
 export function isLegacyRole(role: string): role is LegacyAppRole {
-  return role === 'Admin'
+  return role === 'Admin' || role === 'Driver'
 }
 
 /**
- * Normalize a role to the new system (converts Admin to Owner)
+ * Normalize a role to the new system (converts Admin to Owner, Driver to Staff)
  */
 export function normalizeRole(role: AppRole | LegacyAppRole | null | undefined): AppRole | null {
   if (!role) return null
   if (role === 'Admin') return 'Owner'
+  if (role === 'Driver') return 'Staff'
   return role as AppRole
 }

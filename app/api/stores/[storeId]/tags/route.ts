@@ -8,6 +8,7 @@ import {
   apiForbidden,
 } from '@/lib/api/response'
 import { createTagSchema } from '@/lib/validations/categories-tags'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { storeId } = await params
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Owner', 'Manager', 'Staff', 'Driver'],
+      allowedRoles: ['Owner', 'Manager', 'Staff'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
       requireCSRF: false, // GET requests don't need CSRF
     })
@@ -77,10 +78,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return apiSuccess(
       { tags: tagsWithCounts || [] },
-      { requestId: context.requestId }
+      { requestId: context.requestId, cacheControl: 'private, max-age=60, stale-while-revalidate=300' }
     )
   } catch (error) {
-    console.error('Error fetching tags:', error)
+    logger.error('Error fetching tags:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch tags')
   }
 }
@@ -168,7 +169,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId, status: 201 }
     )
   } catch (error) {
-    console.error('Error creating tag:', error)
+    logger.error('Error creating tag:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create tag')
   }
 }

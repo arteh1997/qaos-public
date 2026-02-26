@@ -38,7 +38,7 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: { reports: { limit: 100, windowMs: 60000 } },
   getRateLimitHeaders: vi.fn(() => ({})),
 }))
-vi.mock('@/lib/audit', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/audit', () => ({ auditLog: vi.fn().mockResolvedValue(undefined), computeFieldChanges: vi.fn().mockReturnValue([]) }))
 vi.mock('@/lib/csrf', () => ({
   validateCSRFToken: vi.fn().mockResolvedValue(true),
   getCSRFToken: vi.fn().mockResolvedValue('test-csrf-token'),

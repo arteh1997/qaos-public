@@ -24,15 +24,13 @@ import {
   Printer,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { PageGuide } from '@/components/help/PageGuide'
 
 export default function LowStockPage() {
   const { storeId, currentStore } = useAuth()
-  const { data: allLowStockItems, isLoading } = useLowStockReport()
+  const { data: lowStockData, isLoading } = useLowStockReport(storeId)
 
-  const lowStockItems = useMemo(() => {
-    if (!storeId) return allLowStockItems ?? []
-    return (allLowStockItems ?? []).filter(item => item.store_id === storeId)
-  }, [allLowStockItems, storeId])
+  const lowStockItems = lowStockData ?? []
 
   const criticalItems = useMemo(() =>
     lowStockItems.filter(item => item.current_quantity === 0),
@@ -75,22 +73,26 @@ export default function LowStockPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
             <AlertTriangle className="h-6 w-6" />
             Low Stock
           </h1>
+          <p className="text-sm text-muted-foreground mt-1">Items below PAR level that need attention</p>
           <p className="text-muted-foreground text-sm mt-1">
             {currentStore?.store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
-          <Printer className="h-4 w-4 mr-2" />
-          Print
-        </Button>
+        <div className="flex items-center gap-2">
+          <PageGuide pageKey="low-stock" />
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
         <StatsCard
           title="Total Low Stock"
           value={lowStockItems.length}
@@ -127,10 +129,10 @@ export default function LowStockPage() {
         <>
           {/* Critical items (out of stock) */}
           {criticalItems.length > 0 && (
-            <Card className="border-red-500/50">
+            <Card className="border-destructive/40/50">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  <XCircle className="h-5 w-5 text-red-600" />
+                  <XCircle className="h-5 w-5 text-destructive" />
                   <CardTitle className="text-base">Out of Stock ({criticalItems.length})</CardTitle>
                 </div>
               </CardHeader>
@@ -138,13 +140,13 @@ export default function LowStockPage() {
                 {/* Mobile cards */}
                 <div className="space-y-3 md:hidden">
                   {criticalItems.map((item) => (
-                    <div key={item.inventory_item_id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                    <div key={item.inventory_item_id} className="flex items-center justify-between p-3 bg-destructive/5 rounded-lg">
                       <div>
                         <p className="font-medium text-sm">{item.item_name}</p>
                       </div>
                       <div className="text-right">
                         <Badge variant="destructive">0 / {item.par_level}</Badge>
-                        <p className="text-xs text-red-600 mt-1">Need {item.par_level}</p>
+                        <p className="text-xs text-destructive mt-1">Need {item.par_level}</p>
                       </div>
                     </div>
                   ))}
@@ -162,13 +164,13 @@ export default function LowStockPage() {
                     </TableHeader>
                     <TableBody>
                       {criticalItems.map((item) => (
-                        <TableRow key={item.inventory_item_id} className="bg-red-50/50">
+                        <TableRow key={item.inventory_item_id} className="bg-destructive/5/50">
                           <TableCell className="font-medium">{item.item_name}</TableCell>
                           <TableCell className="text-right font-mono">
                             <Badge variant="destructive">0</Badge>
                           </TableCell>
                           <TableCell className="text-right font-mono">{item.par_level}</TableCell>
-                          <TableCell className="text-right font-mono text-red-600 font-semibold">
+                          <TableCell className="text-right font-mono text-destructive font-semibold">
                             {item.shortage}
                           </TableCell>
                         </TableRow>
@@ -182,7 +184,7 @@ export default function LowStockPage() {
 
           {/* Warning items (low but not zero) */}
           {warningItems.length > 0 && (
-            <Card className="border-yellow-500/50">
+            <Card className="border-amber-500/40/50">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-yellow-600" />
@@ -193,12 +195,12 @@ export default function LowStockPage() {
                 {/* Mobile cards */}
                 <div className="space-y-3 md:hidden">
                   {warningItems.map((item) => (
-                    <div key={item.inventory_item_id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                    <div key={item.inventory_item_id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
                       <div>
                         <p className="font-medium text-sm">{item.item_name}</p>
                       </div>
                       <div className="text-right">
-                        <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                        <Badge variant="outline" className="border-amber-500/40 text-amber-700">
                           {item.current_quantity} / {item.par_level}
                         </Badge>
                         <p className="text-xs text-yellow-600 mt-1">
@@ -221,15 +223,15 @@ export default function LowStockPage() {
                     </TableHeader>
                     <TableBody>
                       {warningItems.map((item) => (
-                        <TableRow key={item.inventory_item_id} className="bg-yellow-50/30">
+                        <TableRow key={item.inventory_item_id} className="bg-amber-50/30">
                           <TableCell className="font-medium">{item.item_name}</TableCell>
                           <TableCell className="text-right font-mono">
-                            <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                            <Badge variant="outline" className="border-amber-500/40 text-amber-700">
                               {item.current_quantity}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-mono">{item.par_level}</TableCell>
-                          <TableCell className="text-right font-mono text-yellow-700 font-semibold">
+                          <TableCell className="text-right font-mono text-amber-700 font-semibold">
                             {item.shortage}
                           </TableCell>
                         </TableRow>

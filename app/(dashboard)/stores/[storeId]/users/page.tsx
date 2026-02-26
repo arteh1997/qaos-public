@@ -53,8 +53,7 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
   const roleColors: Record<string, string> = {
     Owner: 'bg-amber-500',
     Manager: 'bg-purple-500',
-    Driver: 'bg-blue-500',
-    Staff: 'bg-green-500',
+    Staff: 'bg-emerald-500',
   }
 
   const handleRemoveUser = async () => {
@@ -98,7 +97,7 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Link href={`/stores/${storeId}`}>
+        <Link href="/">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>

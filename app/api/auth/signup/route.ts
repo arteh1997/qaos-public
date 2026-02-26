@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 const signupSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -16,8 +17,10 @@ const signupSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting
-    const identifier = request.headers.get('x-forwarded-for') || 'anonymous'
+    // Rate limiting — prefer x-real-ip (trusted, set by Vercel)
+    const identifier = request.headers.get('x-real-ip')
+      || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || 'anonymous'
     const rateLimitResult = await rateLimit(`signup:${identifier}`, RATE_LIMITS.auth)
 
     if (!rateLimitResult.success) {
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase environment variables')
+      logger.error('Missing Supabase environment variables')
       return NextResponse.json(
         { success: false, message: 'Server configuration error' },
         { status: 500 }
@@ -98,7 +101,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
-      console.error('Error creating auth user:', authError)
+      logger.error('Error creating auth user:', { error: authError })
       return NextResponse.json(
         { success: false, message: 'Failed to create account. Please try again.' },
         { status: 500 }
@@ -115,7 +118,7 @@ export async function POST(request: NextRequest) {
     }, { onConflict: 'id' })
 
     if (profileError) {
-      console.error('Error creating profile:', profileError)
+      logger.error('Error creating profile:', { error: profileError })
       // Try to clean up the auth user if profile creation fails
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
@@ -129,7 +132,7 @@ export async function POST(request: NextRequest) {
       message: 'Account created successfully. Please sign in.',
     })
   } catch (error) {
-    console.error('Signup error:', error)
+    logger.error('Signup error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'An unexpected error occurred' },
       { status: 500 }

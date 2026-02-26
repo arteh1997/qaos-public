@@ -9,6 +9,9 @@ import {
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { inventoryItemSchema } from '@/lib/validations/inventory'
 import { InventoryItem } from '@/types'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ itemId: string }>
@@ -39,9 +42,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Inventory item', context.requestId)
     }
 
-    return apiSuccess(item as InventoryItem, { requestId: context.requestId })
+    // Verify user has access to this item's store
+    const typedItem = item as unknown as InventoryItem
+    const hasAccess = context.stores.some(s => s.store_id === typedItem.store_id)
+    if (!hasAccess) {
+      return apiNotFound('Inventory item', context.requestId)
+    }
+
+    return apiSuccess(typedItem, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error getting inventory item:', error)
+    logger.error('Error getting inventory item:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to get inventory item')
   }
 }
@@ -64,6 +74,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { context } = auth
     const body = await request.json()
 
+    // First, verify the item exists and user has access to its store
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingRaw, error: fetchError } = await (context.supabase as any)
+      .from('inventory_items')
+      .select('id, store_id')
+      .eq('id', itemId)
+      .single()
+
+    if (fetchError || !existingRaw) {
+      return apiNotFound('Inventory item', context.requestId)
+    }
+
+    const existingItem = existingRaw as { id: string; store_id: string }
+    const hasAccess = context.stores.some(s => s.store_id === existingItem.store_id)
+    if (!hasAccess) {
+      return apiNotFound('Inventory item', context.requestId)
+    }
+
     // Validate input (partial)
     const validationResult = inventoryItemSchema.partial().safeParse(body)
     if (!validationResult.success) {
@@ -73,11 +101,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Check for duplicate name if name is being updated
+    // Check for duplicate name within this store if name is being updated
     if (validationResult.data.name) {
-      const { data: existing } = await context.supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existing } = await (context.supabase as any)
         .from('inventory_items')
         .select('id')
+        .eq('store_id', existingItem.store_id)
         .ilike('name', validationResult.data.name)
         .neq('id', itemId)
         .single()
@@ -108,9 +138,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       throw error
     }
 
+    if (!item) {
+      return apiNotFound('Inventory item', context.requestId)
+    }
+
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'inventory.item_update',
+      storeId: item.store_id,
+      resourceType: 'inventory_item',
+      resourceId: itemId,
+      details: {
+        itemName: item.name,
+        changes: validationResult.data,
+      },
+      request,
+    })
+
     return apiSuccess(item as InventoryItem, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating inventory item:', error)
+    logger.error('Error updating inventory item:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update inventory item')
   }
 }
@@ -132,6 +181,24 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { context } = auth
 
+    // First, verify the item exists and user has access to its store
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingRaw, error: fetchError } = await (context.supabase as any)
+      .from('inventory_items')
+      .select('id, store_id')
+      .eq('id', itemId)
+      .single()
+
+    if (fetchError || !existingRaw) {
+      return apiNotFound('Inventory item', context.requestId)
+    }
+
+    const existingItem = existingRaw as { id: string; store_id: string }
+    const hasAccess = context.stores.some(s => s.store_id === existingItem.store_id)
+    if (!hasAccess) {
+      return apiNotFound('Inventory item', context.requestId)
+    }
+
     // Soft delete by setting is_active to false
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: item, error } = await (context.supabase as any)
@@ -151,12 +218,31 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       throw error
     }
 
+    if (!item) {
+      return apiNotFound('Inventory item', context.requestId)
+    }
+
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'inventory.item_delete',
+      storeId: item.store_id,
+      resourceType: 'inventory_item',
+      resourceId: itemId,
+      details: {
+        itemName: item.name,
+        category: item.category ?? null,
+      },
+      request,
+    })
+
     return apiSuccess(
       { message: 'Inventory item deactivated', item: item as InventoryItem },
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error deleting inventory item:', error)
+    logger.error('Error deleting inventory item:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to delete inventory item')
   }
 }

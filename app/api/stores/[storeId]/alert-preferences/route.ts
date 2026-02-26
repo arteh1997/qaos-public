@@ -1,8 +1,12 @@
 import { NextRequest } from 'next/server'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth, canAccessStore } from '@/lib/api/middleware'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 import { apiSuccess, apiError, apiBadRequest, apiForbidden } from '@/lib/api/response'
+import { computeFieldChanges } from '@/lib/audit'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 const updatePreferencesSchema = z.object({
   low_stock_enabled: z.boolean().optional(),
@@ -64,7 +68,7 @@ export async function GET(
 
     return apiSuccess(data, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error fetching alert preferences:', error)
+    logger.error('Error fetching alert preferences:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch alert preferences')
   }
 }
@@ -105,8 +109,18 @@ export async function PUT(
 
     const updates = validation.data
 
-    // Upsert - create if not exists, update if exists
-    const { data, error } = await context.supabase
+    // Upsert with admin client (bypasses RLS — auth already verified above)
+    const adminClient = createAdminClient()
+
+    // Fetch current state for before/after tracking
+    const { data: beforePrefs } = await adminClient
+      .from('alert_preferences')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('user_id', context.user.id)
+      .maybeSingle()
+
+    const { data, error } = await adminClient
       .from('alert_preferences')
       .upsert({
         store_id: storeId,
@@ -121,9 +135,27 @@ export async function PUT(
 
     if (error) throw error
 
+    const fieldChanges = beforePrefs
+      ? computeFieldChanges(beforePrefs, updates)
+      : Object.entries(updates).map(([field, to]) => ({ field, from: null, to }))
+    void auditLog(adminClient, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'settings.alert_preferences_update',
+      storeId,
+      resourceType: 'alert_preferences',
+      resourceId: data.id,
+      details: {
+        updatedFields: Object.keys(updates),
+        fieldChanges,
+        ...updates,
+      },
+      request,
+    }).catch(err => logger.error('Audit log error:', { error: err }))
+
     return apiSuccess(data, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating alert preferences:', error)
+    logger.error('Error updating alert preferences:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update alert preferences')
   }
 }

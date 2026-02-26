@@ -8,8 +8,11 @@ import {
   sanitizeSearchQuery,
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 import { inventoryItemSchema } from '@/lib/validations/inventory'
 import { InventoryItem } from '@/types'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/inventory - List inventory items scoped to user's accessible stores
@@ -81,7 +84,7 @@ export async function GET(request: NextRequest) {
       pagination: createPaginationMeta(page, pageSize, count ?? 0),
     })
   } catch (error) {
-    console.error('Error listing inventory items:', error)
+    logger.error('Error listing inventory items:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to list inventory items')
   }
 }
@@ -158,12 +161,28 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'inventory.item_create',
+      storeId: body.store_id,
+      resourceType: 'inventory_item',
+      resourceId: item.id,
+      details: {
+        itemName: validationResult.data.name,
+        category: validationResult.data.category ?? null,
+        unit: validationResult.data.unit_of_measure,
+      },
+      request,
+    })
+
     return apiSuccess(item as InventoryItem, {
       requestId: context.requestId,
       status: 201,
     })
   } catch (error) {
-    console.error('Error creating inventory item:', error)
+    logger.error('Error creating inventory item:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create inventory item')
   }
 }

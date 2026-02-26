@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { RateLimitResult, getRateLimitHeaders } from '@/lib/rate-limit'
 
 /**
@@ -169,6 +170,7 @@ export function apiSuccess<T>(
     pagination?: PaginationMeta
     rateLimitResult?: RateLimitResult
     status?: number
+    cacheControl?: string
   } = {}
 ): NextResponse<ApiResponse<T>> {
   const requestId = options.requestId ?? generateRequestId()
@@ -183,9 +185,14 @@ export function apiSuccess<T>(
     response.pagination = options.pagination
   }
 
+  const headers = createHeaders(requestId, options.rateLimitResult) as Record<string, string>
+  if (options.cacheControl) {
+    headers['Cache-Control'] = options.cacheControl
+  }
+
   return NextResponse.json(response, {
     status: options.status ?? 200,
-    headers: createHeaders(requestId, options.rateLimitResult),
+    headers,
   })
 }
 
@@ -204,6 +211,15 @@ export function apiError(
   } = {}
 ): NextResponse<ApiErrorResponse> {
   const requestId = options.requestId ?? generateRequestId()
+
+  // Report server errors (5xx) to Sentry for monitoring
+  const status = options.status ?? 500
+  if (status >= 500) {
+    Sentry.captureMessage(message, {
+      level: 'error',
+      extra: { requestId, code: options.code, status },
+    })
+  }
 
   // Sanitize the message unless explicitly skipped
   const sanitizedMessage = options.skipSanitization

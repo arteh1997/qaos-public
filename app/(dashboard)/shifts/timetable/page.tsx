@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useShifts } from '@/hooks/useShifts'
 import { useStores } from '@/hooks/useStores'
 import { useUsers } from '@/hooks/useUsers'
@@ -10,17 +10,10 @@ import { TimelineView } from '@/components/timetable/TimelineView'
 import { ShiftForm } from '@/components/forms/ShiftForm'
 import { ShiftFormData } from '@/lib/validations/shift'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { CalendarDays, Plus, ArrowLeft } from 'lucide-react'
+import { Plus, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { PageGuide } from '@/components/help/PageGuide'
 
 interface QuickAddState {
   date: Date
@@ -36,7 +29,6 @@ export default function ShiftTimetablePage() {
   const { stores, isLoading: storesLoading } = useStores()
   const { users, isLoading: usersLoading } = useUsers({ storeId: currentStoreId || 'all' })
 
-  const [selectedStaffId, setSelectedStaffId] = useState<string>('all')
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [quickAddState, setQuickAddState] = useState<QuickAddState | null>(null)
@@ -46,19 +38,16 @@ export default function ShiftTimetablePage() {
   const isLoading = shiftsLoading || storesLoading || usersLoading
   const canManage = canManageCurrentStore || role === 'Owner' || role === 'Manager'
 
-  // Handle quick add from timetable cell click
   const handleAddShift = useCallback((date: Date, storeId?: string, staffId?: string) => {
     setQuickAddState({ date, staffId, storeId })
     setQuickAddOpen(true)
   }, [])
 
-  // Handle shift edit
   const _handleEditShift = useCallback((shift: Shift) => {
     setEditShift(shift)
     setEditFormOpen(true)
   }, [])
 
-  // Handle quick add submit
   const handleQuickAddSubmit = async (data: ShiftFormData) => {
     await createShift({
       store_id: data.store_id,
@@ -70,123 +59,85 @@ export default function ShiftTimetablePage() {
     setQuickAddOpen(false)
   }
 
-  // Handle edit submit
   const handleEditSubmit = async (data: ShiftFormData) => {
     if (!editShift) return
-    await updateShift({
-      id: editShift.id,
-      data,
-    })
+    await updateShift({ id: editShift.id, data })
     setEditFormOpen(false)
     setEditShift(null)
   }
 
-  // Get user's role at current store from store_users
-  const getUserRoleAtStore = (user: any): string | null => {
-    if (!currentStoreId || !user.store_users) return user.role
-
-    const storeUserEntry = user.store_users.find((su: any) => su.store_id === currentStoreId)
-    return storeUserEntry ? storeUserEntry.role : user.role
-  }
-
-  // Staff members (filter to current store using store_users role)
-  const staffMembers = users.filter(u =>
-    getUserRoleAtStore(u) === 'Staff' && u.status === 'Active'
-  )
+  // All active team members — anyone can have a shift
+  const teamMembers = useMemo(() =>
+    users.filter(u => u.status === 'Active'),
+  [users])
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto px-4">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-4 w-64 mt-2" />
           </div>
-          <Skeleton className="h-10 w-28" />
+          <Skeleton className="h-9 w-28" />
         </div>
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-[500px] w-full" />
+        <Skeleton className="h-[500px] w-full rounded-lg" />
       </div>
     )
   }
 
   if (!currentStore) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto px-4">
+      <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Shift Timetable</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Please select a store from the sidebar to view its timetable.
-          </p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Shift Calendar</h1>
+          <p className="text-sm text-muted-foreground mt-1">Select a store to view the timetable</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <Link href="/shifts">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-                <CalendarDays className="h-6 w-6" />
-                Shift Calendar
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Weekly view for {currentStore.store?.name}
-              </p>
-            </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/shifts">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Shift Calendar</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Weekly schedule for {currentStore.store?.name}
+            </p>
           </div>
         </div>
-        {canManage && (
-          <Button
-            onClick={() => {
-              setQuickAddState({ date: new Date() })
-              setQuickAddOpen(true)
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Shift
-          </Button>
-        )}
+        <div className="flex items-center gap-3 ml-11 sm:ml-0">
+          <PageGuide pageKey="shift-timetable" />
+          {canManage && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setQuickAddState({ date: new Date() })
+                setQuickAddOpen(true)
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Add Shift
+            </Button>
+          )}
+        </div>
       </div>
-
-      {/* Filter */}
-      <Card className="bg-white">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium whitespace-nowrap">Filter by staff:</span>
-            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
-              <SelectTrigger className="w-full sm:w-64">
-                <SelectValue placeholder="All Staff" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Staff</SelectItem>
-                {staffMembers.map(staff => (
-                  <SelectItem key={staff.id} value={staff.id}>
-                    {staff.full_name || staff.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Timeline View */}
       <TimelineView
         shifts={shifts}
         stores={stores}
-        staff={staffMembers}
+        staff={teamMembers}
         viewMode="staff"
-        selectedStoreId={selectedStaffId === 'all' ? undefined : selectedStaffId}
+        selectedStoreId={undefined}
         currentWeek={currentWeek}
         onWeekChange={setCurrentWeek}
         onAddShift={canManage ? handleAddShift : undefined}
@@ -197,7 +148,7 @@ export default function ShiftTimetablePage() {
         open={quickAddOpen}
         onOpenChange={setQuickAddOpen}
         stores={stores}
-        users={staffMembers}
+        users={teamMembers}
         onSubmit={handleQuickAddSubmit}
         initialStoreId={quickAddState?.storeId || currentStoreId}
         initialDate={quickAddState?.date}
@@ -210,7 +161,7 @@ export default function ShiftTimetablePage() {
         onOpenChange={setEditFormOpen}
         shift={editShift}
         stores={stores}
-        users={staffMembers}
+        users={teamMembers}
         onSubmit={handleEditSubmit}
       />
     </div>

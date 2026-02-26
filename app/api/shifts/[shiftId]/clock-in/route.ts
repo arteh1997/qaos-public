@@ -8,7 +8,10 @@ import {
   apiForbidden,
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 import { Shift } from '@/types'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ shiftId: string }>
@@ -91,11 +94,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (updateError) throw updateError
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'shift.clock_in',
+      storeId: shift.store_id,
+      resourceType: 'shift',
+      resourceId: shiftId,
+      details: {
+        employeeId: shift.user_id,
+        clockInTime: now.toISOString(),
+        scheduledStart: shift.start_time,
+        scheduledEnd: shift.end_time,
+        minutesFromScheduledStart: Math.round(diffMinutes),
+      },
+      request,
+    })
+
     return apiSuccess(updatedShift as Shift, {
       requestId: context.requestId,
     })
   } catch (error) {
-    console.error('Error clocking in:', error)
+    logger.error('Error clocking in:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to clock in')
   }
 }

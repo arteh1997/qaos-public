@@ -123,8 +123,7 @@ interface SortConfig {
 const ROLE_PRIORITY: Record<string, number> = {
   'Owner': 1,
   'Manager': 2,
-  'Driver': 3,
-  'Staff': 4,
+  'Staff': 3,
 }
 
 // Priority for status sorting (lower = shows first in ascending order)
@@ -254,8 +253,7 @@ export const UsersTable = memo(function UsersTable({
     'Co-Owner': 'bg-amber-400', // Slightly lighter to distinguish from billing owner
     Manager: 'bg-purple-500',
     Admin: 'bg-amber-500', // Legacy: maps to Owner
-    Driver: 'bg-blue-500',
-    Staff: 'bg-green-500',
+    Staff: 'bg-emerald-500',
   }
 
   const statusColors = {
@@ -313,7 +311,7 @@ export const UsersTable = memo(function UsersTable({
                           setActionUser(user)
                           setShowDeleteConfirm(true)
                         }}
-                        className="text-red-600"
+                        className="text-destructive"
                       >
                         <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
                         Remove from Store
@@ -440,7 +438,7 @@ export const UsersTable = memo(function UsersTable({
                               setActionUser(user)
                               setShowDeleteConfirm(true)
                             }}
-                            className="text-red-600"
+                            className="text-destructive"
                           >
                             <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
                             Remove from Store

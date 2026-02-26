@@ -97,9 +97,9 @@ const StockHistoryRow = memo(function StockHistoryRow({ record, showStore }: Sto
         <span
           className={`inline-flex items-center justify-end px-2 py-0.5 rounded text-sm font-medium ${
             record.quantity_change && record.quantity_change > 0
-              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-green-900/30 dark:text-green-400'
               : record.quantity_change && record.quantity_change < 0
-              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              ? 'bg-destructive/10 text-destructive/70 dark:bg-red-900/30 dark:text-red-400'
               : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
           }`}
         >
@@ -223,23 +223,23 @@ export const StockHistoryTable = memo(function StockHistoryTable({ history, show
                   {record.action_type}
                 </Badge>
               </div>
-              <div className="flex items-center gap-4 mt-2 pt-2 border-t">
+              <div className="grid grid-cols-3 gap-3 mt-2 pt-2 border-t">
                 <div className="text-center">
-                  <div className="text-[10px] text-muted-foreground uppercase">Before</div>
+                  <div className="text-xs text-muted-foreground">Before</div>
                   <div className="text-sm font-mono text-muted-foreground">{record.quantity_before ?? 0}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-[10px] text-muted-foreground uppercase">After</div>
+                  <div className="text-xs text-muted-foreground">After</div>
                   <div className="text-sm font-mono font-medium">{record.quantity_after ?? 0}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-[10px] text-muted-foreground uppercase">Change</div>
+                  <div className="text-xs text-muted-foreground">Change</div>
                   <span
                     className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-xs font-medium ${
                       record.quantity_change && record.quantity_change > 0
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-green-900/30 dark:text-green-400'
                         : record.quantity_change && record.quantity_change < 0
-                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        ? 'bg-destructive/10 text-destructive/70 dark:bg-red-900/30 dark:text-red-400'
                         : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                     }`}
                   >
@@ -247,22 +247,19 @@ export const StockHistoryTable = memo(function StockHistoryTable({ history, show
                     {record.quantity_change ?? 0}
                   </span>
                 </div>
-                {record.performer && (
-                  <div className="flex-1 text-right">
-                    <div className="text-[10px] text-muted-foreground uppercase">By</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {record.performer.full_name || record.performer.email || '-'}
-                    </div>
-                  </div>
-                )}
               </div>
+              {record.performer && (
+                <div className="mt-1.5 text-xs text-muted-foreground truncate">
+                  By {record.performer.full_name || record.performer.email || '-'}
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
 
       {/* Desktop table view */}
-      <div className="hidden sm:block rounded-md border">
+      <div className="hidden sm:block rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

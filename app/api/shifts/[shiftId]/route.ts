@@ -13,6 +13,9 @@ import { sanitizeNotes } from '@/lib/utils'
 import { Shift } from '@/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { auditLog } from '@/lib/audit'
+import { sendNotification } from '@/lib/services/notifications'
+import { formatShiftDate, formatShiftTime } from '@/lib/utils/format-shift'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ shiftId: string }>
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return apiSuccess(shift as Shift, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error getting shift:', error)
+    logger.error('Error getting shift:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to get shift')
   }
 }
@@ -195,7 +198,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           .gt('end_time', newStartTime)
 
         if (overlapCheckError) {
-          console.error('Error checking for overlapping shifts:', overlapCheckError)
+          logger.error('Error checking for overlapping shifts:', { error: overlapCheckError })
           throw overlapCheckError
         }
 
@@ -245,6 +248,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         action: 'shift.clock_time_correction',
         storeId: existingShift.store_id,
         resourceType: 'shift',
+        resourceId: shiftId,
         details: {
           shiftId,
           employeeId: existingShift.user_id,
@@ -265,11 +269,67 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         },
         request,
       })
+    } else {
+      await auditLog(supabaseAdmin, {
+        userId: context.user.id,
+        userEmail: context.user.email,
+        action: 'shift.update',
+        storeId: existingShift.store_id,
+        resourceType: 'shift',
+        resourceId: shiftId,
+        details: {
+          employeeId: existingShift.user_id,
+          employeeName: existingShift.user?.full_name,
+          employeeEmail: existingShift.user?.email,
+          previousSchedule: {
+            startTime: existingShift.start_time,
+            endTime: existingShift.end_time,
+          },
+          newSchedule: {
+            startTime: shift.start_time,
+            endTime: shift.end_time,
+          },
+          notes: shift.notes || undefined,
+        },
+        request,
+      })
+    }
+
+    // Send shift updated notification if schedule changed (fire-and-forget)
+    const scheduleChanged = !isClockTimeEdit && (
+      existingShift.start_time !== shift.start_time || existingShift.end_time !== shift.end_time
+    )
+    if (scheduleChanged) {
+      // Look up manager's name for the email
+      const { data: managerProfile } = await context.supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', context.user.id)
+        .single()
+
+      const { date, dayOfWeek } = formatShiftDate(shift.start_time)
+      sendNotification({
+        type: 'shift_updated',
+        storeId: existingShift.store_id,
+        recipientUserId: existingShift.user_id,
+        triggeredByUserId: context.user.id,
+        data: {
+          managerName: managerProfile?.full_name || 'Your manager',
+          storeName: shift.store?.name || 'your store',
+          date,
+          dayOfWeek,
+          previousStartTime: formatShiftTime(existingShift.start_time),
+          previousEndTime: formatShiftTime(existingShift.end_time),
+          newStartTime: formatShiftTime(shift.start_time),
+          newEndTime: formatShiftTime(shift.end_time),
+          notes: shift.notes || null,
+        },
+      }).catch(() => {})
     }
 
     return apiSuccess(shift as Shift, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating shift:', error)
+    logger.error('Error updating shift:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update shift')
   }
 }
@@ -291,6 +351,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { context } = auth
 
+    // Fetch shift details before deleting for audit log
+    const adminClient = createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabaseAdmin = adminClient as any
+
+    const { data: existingShift } = await supabaseAdmin
+      .from('shifts')
+      .select('*, user:profiles(id, full_name, email)')
+      .eq('id', shiftId)
+      .single()
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (context.supabase as any)
       .from('shifts')
@@ -299,9 +370,52 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     if (error) throw error
 
+    await auditLog(supabaseAdmin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'shift.delete',
+      storeId: existingShift?.store_id,
+      resourceType: 'shift',
+      resourceId: shiftId,
+      details: {
+        employeeId: existingShift?.user_id,
+        employeeName: existingShift?.user?.full_name,
+        employeeEmail: existingShift?.user?.email,
+        startTime: existingShift?.start_time,
+        endTime: existingShift?.end_time,
+      },
+      request,
+    })
+
+    // Send shift cancelled notification (fire-and-forget)
+    if (existingShift) {
+      // Look up manager's name for the email
+      const { data: cancellerProfile } = await context.supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', context.user.id)
+        .single()
+
+      const { date, dayOfWeek } = formatShiftDate(existingShift.start_time)
+      sendNotification({
+        type: 'shift_cancelled',
+        storeId: existingShift.store_id,
+        recipientUserId: existingShift.user_id,
+        triggeredByUserId: context.user.id,
+        data: {
+          managerName: cancellerProfile?.full_name || 'Your manager',
+          storeName: existingShift.store?.name || 'your store',
+          date,
+          dayOfWeek,
+          startTime: formatShiftTime(existingShift.start_time),
+          endTime: formatShiftTime(existingShift.end_time),
+        },
+      }).catch(() => {})
+    }
+
     return apiSuccess({ deleted: true }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error deleting shift:', error)
+    logger.error('Error deleting shift:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to delete shift')
   }
 }

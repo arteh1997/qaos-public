@@ -11,6 +11,7 @@ import { stockCountSchema } from '@/lib/validations/inventory'
 import { sanitizeNotes } from '@/lib/utils'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 import {
   verifyActiveItems,
   getCurrentInventoryMap,
@@ -64,6 +65,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Verify all inventory items are still active (not deleted)
     const itemIds = items.map(item => item.inventory_item_id)
+
+    // Fetch item names for audit log
+    const { data: itemDetails } = await context.supabase
+      .from('inventory_items')
+      .select('id, name, unit_of_measure')
+      .in('id', itemIds)
+    const itemNameMap = new Map(itemDetails?.map((i: { id: string; name: string; unit_of_measure: string }) => [i.id, i]) || [])
+
     try {
       await verifyActiveItems(context.supabase, itemIds, context.requestId)
     } catch (err) {
@@ -122,6 +131,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       details: {
         itemsUpdated,
         date: today,
+        items: items.map(item => {
+          const info = itemNameMap.get(item.inventory_item_id)
+          const previous = currentInventoryMap.get(item.inventory_item_id) ?? 0
+          return {
+            name: info?.name || 'Unknown Item',
+            previousQuantity: previous,
+            newQuantity: item.quantity,
+            difference: item.quantity - previous,
+          }
+        }),
       },
       request,
     })
@@ -135,7 +154,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId, status: 201 }
     )
   } catch (error) {
-    console.error('Error submitting stock count:', error)
+    logger.error('Error submitting stock count:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to submit stock count')
   }
 }

@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseInsert, supabaseUpdate, supabaseDelete } from '@/lib/supabase/client'
+import { supabaseFetch } from '@/lib/supabase/client'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 import { Shift } from '@/types'
 import { ShiftFormData } from '@/lib/validations/shift'
-import { sanitizeNotes } from '@/lib/utils'
 import { toast } from 'sonner'
 
-export function useShifts(storeId?: string | null, userId?: string | null) {
+export function useShifts(storeId?: string | null, userId?: string | null, dateRange?: { from: string; to: string } | null) {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -27,6 +27,10 @@ export function useShifts(storeId?: string | null, userId?: string | null) {
         filter['user_id'] = `eq.${userId}`
       }
 
+      if (dateRange?.from && dateRange?.to) {
+        filter['and'] = `(start_time.gte.${dateRange.from},start_time.lte.${dateRange.to})`
+      }
+
       const { data, error: fetchError } = await supabaseFetch<Shift>('shifts', {
         select: '*,store:stores!shifts_store_id_fkey(*),user:profiles!shifts_user_id_fkey(*)',
         order: 'start_time.desc',
@@ -34,7 +38,6 @@ export function useShifts(storeId?: string | null, userId?: string | null) {
       })
 
       if (fetchError) {
-        // Table might not exist yet
         if (fetchError.message?.includes('does not exist')) {
           setShifts([])
           return
@@ -48,7 +51,7 @@ export function useShifts(storeId?: string | null, userId?: string | null) {
     } finally {
       setIsLoading(false)
     }
-  }, [storeId, userId])
+  }, [storeId, userId, dateRange?.from, dateRange?.to])
 
   useEffect(() => {
     fetchShifts()
@@ -68,24 +71,24 @@ export function useShifts(storeId?: string | null, userId?: string | null) {
       updated_at: new Date().toISOString(),
     }
 
-    // Optimistic update
     setShifts(prev => [optimisticShift, ...prev])
 
     try {
-      const { error } = await supabaseInsert('shifts', {
-        store_id: data.store_id,
-        user_id: data.user_id,
-        start_time: data.start_time,
-        end_time: data.end_time,
-        notes: sanitizeNotes(data.notes),
+      const response = await fetch('/api/shifts', {
+        method: 'POST',
+        headers: getCSRFHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify(data),
       })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to create shift')
+      }
+
       toast.success('Shift created successfully')
-      // Refetch to get relations
       fetchShifts()
     } catch (err) {
-      // Rollback
       setShifts(prev => prev.filter(s => s.id !== optimisticShift.id))
       toast.error('Failed to create shift: ' + (err instanceof Error ? err.message : 'Unknown error'))
       throw err
@@ -93,20 +96,23 @@ export function useShifts(storeId?: string | null, userId?: string | null) {
   }, [fetchShifts])
 
   const updateShift = useCallback(async ({ id, data }: { id: string; data: Partial<ShiftFormData> }) => {
-    const sanitizedData: Record<string, unknown> = {
-      ...data,
-      notes: data.notes !== undefined ? sanitizeNotes(data.notes) : undefined,
-    }
-
-    // Optimistic update
     setShifts(prev => prev.map(shift =>
-      shift.id === id ? { ...shift, ...sanitizedData, updated_at: new Date().toISOString() } : shift
+      shift.id === id ? { ...shift, ...data, updated_at: new Date().toISOString() } : shift
     ))
 
     try {
-      const { error } = await supabaseUpdate('shifts', id, sanitizedData)
+      const response = await fetch(`/api/shifts/${id}`, {
+        method: 'PATCH',
+        headers: getCSRFHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify(data),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to update shift')
+      }
+
       toast.success('Shift updated successfully')
       fetchShifts()
     } catch (err) {
@@ -117,13 +123,20 @@ export function useShifts(storeId?: string | null, userId?: string | null) {
   }, [fetchShifts])
 
   const deleteShift = useCallback(async (id: string) => {
-    // Optimistic update
     setShifts(prev => prev.filter(shift => shift.id !== id))
 
     try {
-      const { error } = await supabaseDelete('shifts', id)
+      const response = await fetch(`/api/shifts/${id}`, {
+        method: 'DELETE',
+        headers: getCSRFHeaders(),
+        credentials: 'same-origin',
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to delete shift')
+      }
+
       toast.success('Shift deleted successfully')
     } catch (err) {
       fetchShifts()
@@ -135,15 +148,22 @@ export function useShifts(storeId?: string | null, userId?: string | null) {
   const clockIn = useCallback(async (shiftId: string) => {
     const now = new Date().toISOString()
 
-    // Optimistic update
     setShifts(prev => prev.map(shift =>
       shift.id === shiftId ? { ...shift, clock_in_time: now } : shift
     ))
 
     try {
-      const { error } = await supabaseUpdate('shifts', shiftId, { clock_in_time: now })
+      const response = await fetch(`/api/shifts/${shiftId}/clock-in`, {
+        method: 'POST',
+        headers: getCSRFHeaders(),
+        credentials: 'same-origin',
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to clock in')
+      }
+
       toast.success('Clocked in successfully')
     } catch (err) {
       fetchShifts()
@@ -155,15 +175,22 @@ export function useShifts(storeId?: string | null, userId?: string | null) {
   const clockOut = useCallback(async (shiftId: string) => {
     const now = new Date().toISOString()
 
-    // Optimistic update
     setShifts(prev => prev.map(shift =>
       shift.id === shiftId ? { ...shift, clock_out_time: now } : shift
     ))
 
     try {
-      const { error } = await supabaseUpdate('shifts', shiftId, { clock_out_time: now })
+      const response = await fetch(`/api/shifts/${shiftId}/clock-out`, {
+        method: 'POST',
+        headers: getCSRFHeaders(),
+        credentials: 'same-origin',
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to clock out')
+      }
+
       toast.success('Clocked out successfully')
     } catch (err) {
       fetchShifts()

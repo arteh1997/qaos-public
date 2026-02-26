@@ -3,6 +3,10 @@ import {
   BILLING_CONFIG,
   formatPrice,
   getMonthlyPriceDisplay,
+  PRICING_TIERS,
+  COUNTRY_CURRENCY,
+  getCurrencyForCountry,
+  getPricingTier,
 } from '@/lib/stripe/billing-config'
 
 describe('Billing Configuration', () => {
@@ -48,12 +52,13 @@ describe('Billing Configuration', () => {
     })
 
     it('should handle USD currency', () => {
-      // en-GB locale formats USD as US$
-      expect(formatPrice(10000, 'usd')).toBe('US$100.00')
+      // en-US locale formats USD as $
+      expect(formatPrice(10000, 'usd')).toBe('$100.00')
     })
 
     it('should handle EUR currency', () => {
-      expect(formatPrice(5000, 'eur')).toBe('€50.00')
+      // de-DE locale formats EUR as X,XX €
+      expect(formatPrice(5000, 'eur')).toBe('50,00\u00a0€')
     })
 
     it('should default to GBP when currency not specified', () => {
@@ -76,16 +81,61 @@ describe('Billing Configuration', () => {
   })
 
   describe('getMonthlyPriceDisplay', () => {
-    it('should return formatted monthly price', () => {
-      expect(getMonthlyPriceDisplay()).toBe('£299.00')
+    it('should return pricing tier label for GBP', () => {
+      expect(getMonthlyPriceDisplay()).toBe('£299/month')
     })
 
-    it('should use BILLING_CONFIG values', () => {
-      const expected = formatPrice(
-        BILLING_CONFIG.PRICE_AMOUNT_PENCE,
-        BILLING_CONFIG.CURRENCY
+    it('should return pricing tier label for specified currency', () => {
+      expect(getMonthlyPriceDisplay('USD')).toBe('$299/month')
+      expect(getMonthlyPriceDisplay('SAR')).toBe('SAR 1,099/month')
+      expect(getMonthlyPriceDisplay('EUR')).toBe('€279/month')
+    })
+
+    it('should fall back to GBP for unknown currency', () => {
+      expect(getMonthlyPriceDisplay('XYZ')).toBe('£299/month')
+    })
+  })
+
+  describe('Multi-Currency Pricing', () => {
+    it('should have all expected currencies in PRICING_TIERS', () => {
+      expect(Object.keys(PRICING_TIERS)).toEqual(
+        expect.arrayContaining(['GBP', 'USD', 'EUR', 'SAR', 'AED', 'AUD', 'CAD', 'INR'])
       )
-      expect(getMonthlyPriceDisplay()).toBe(expected)
+    })
+
+    it('getCurrencyForCountry should resolve known countries', () => {
+      expect(getCurrencyForCountry('GB')).toBe('GBP')
+      expect(getCurrencyForCountry('US')).toBe('USD')
+      expect(getCurrencyForCountry('SA')).toBe('SAR')
+      expect(getCurrencyForCountry('DE')).toBe('EUR')
+      expect(getCurrencyForCountry('AU')).toBe('AUD')
+    })
+
+    it('getCurrencyForCountry should fall back to GBP for unknown', () => {
+      expect(getCurrencyForCountry('ZZ')).toBe('GBP')
+    })
+
+    it('getCurrencyForCountry should be case insensitive', () => {
+      expect(getCurrencyForCountry('gb')).toBe('GBP')
+      expect(getCurrencyForCountry('us')).toBe('USD')
+    })
+
+    it('getPricingTier should return correct tier', () => {
+      const gbp = getPricingTier('GBP')
+      expect(gbp.amount).toBe(29900)
+      expect(gbp.currency).toBe('gbp')
+      expect(gbp.symbol).toBe('£')
+    })
+
+    it('getPricingTier should fall back to GBP for unknown', () => {
+      expect(getPricingTier('XYZ')).toEqual(PRICING_TIERS.GBP)
+    })
+
+    it('COUNTRY_CURRENCY should map Gulf states to SAR', () => {
+      expect(COUNTRY_CURRENCY.BH).toBe('SAR')
+      expect(COUNTRY_CURRENCY.KW).toBe('SAR')
+      expect(COUNTRY_CURRENCY.OM).toBe('SAR')
+      expect(COUNTRY_CURRENCY.QA).toBe('SAR')
     })
   })
 })

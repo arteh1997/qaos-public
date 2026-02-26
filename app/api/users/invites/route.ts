@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { validateCSRFToken } from '@/lib/csrf'
+import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/users/invites - Get pending invitations
@@ -77,7 +79,7 @@ export async function GET(request: NextRequest) {
     const { data: invites, error } = await query
 
     if (error) {
-      console.error('[Invites] Fetch error:', error)
+      logger.error('[Invites] Fetch error:', { error: error })
       return NextResponse.json(
         { success: false, message: 'Failed to fetch invitations' },
         { status: 500 }
@@ -89,7 +91,7 @@ export async function GET(request: NextRequest) {
       data: invites || [],
     })
   } catch (error) {
-    console.error('[Invites] Error:', error)
+    logger.error('[Invites] Error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'Failed to fetch invitations' },
       { status: 500 }
@@ -139,7 +141,7 @@ export async function DELETE(request: NextRequest) {
 
     const { data: invite, error: fetchError } = await supabaseAdmin
       .from('user_invites')
-      .select('invited_by, store_id')
+      .select('invited_by, store_id, email, role')
       .eq('id', inviteId)
       .is('used_at', null)
       .single()
@@ -192,19 +194,30 @@ export async function DELETE(request: NextRequest) {
       .is('used_at', null) // Only delete unused invites
 
     if (error) {
-      console.error('[Invites] Delete error:', error)
+      logger.error('[Invites] Delete error:', { error: error })
       return NextResponse.json(
         { success: false, message: 'Failed to cancel invitation' },
         { status: 500 }
       )
     }
 
+    await auditLog(supabaseAdmin, {
+      userId: user.id,
+      userEmail: user.email,
+      action: 'user.invite_cancel',
+      storeId: invite.store_id,
+      resourceType: 'invitation',
+      resourceId: inviteId,
+      details: { email: invite.email, role: invite.role },
+      request,
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Invitation cancelled',
     })
   } catch (error) {
-    console.error('[Invites] Error:', error)
+    logger.error('[Invites] Error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'Failed to cancel invitation' },
       { status: 500 }

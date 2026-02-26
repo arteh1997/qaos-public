@@ -23,19 +23,18 @@ import { AppRole } from '@/types'
 
 describe('Constants', () => {
   describe('ROLES', () => {
-    it('should have exactly 4 roles', () => {
-      expect(ROLES).toHaveLength(4)
+    it('should have exactly 3 roles', () => {
+      expect(ROLES).toHaveLength(3)
     })
 
     it('should contain all expected roles', () => {
       expect(ROLES).toContain('Owner')
       expect(ROLES).toContain('Manager')
       expect(ROLES).toContain('Staff')
-      expect(ROLES).toContain('Driver')
     })
 
     it('should have roles in specific order', () => {
-      expect(ROLES).toEqual(['Owner', 'Manager', 'Staff', 'Driver'])
+      expect(ROLES).toEqual(['Owner', 'Manager', 'Staff'])
     })
   })
 
@@ -59,7 +58,6 @@ describe('Constants', () => {
     it('should keep other role names as-is', () => {
       expect(INVITE_ROLE_LABELS['Manager']).toBe('Manager')
       expect(INVITE_ROLE_LABELS['Staff']).toBe('Staff')
-      expect(INVITE_ROLE_LABELS['Driver']).toBe('Driver')
     })
   })
 
@@ -93,9 +91,8 @@ describe('Constants', () => {
         expect(STORE_MANAGEMENT_ROLES).toContain('Manager')
       })
 
-      it('should not include Staff or Driver', () => {
+      it('should not include Staff', () => {
         expect(STORE_MANAGEMENT_ROLES).not.toContain('Staff')
-        expect(STORE_MANAGEMENT_ROLES).not.toContain('Driver')
       })
     })
 
@@ -106,12 +103,11 @@ describe('Constants', () => {
     })
 
     describe('MULTI_STORE_ROLES', () => {
-      it('should include Owner and Driver', () => {
+      it('should only include Owner', () => {
         expect(MULTI_STORE_ROLES).toContain('Owner')
-        expect(MULTI_STORE_ROLES).toContain('Driver')
       })
 
-      it('should not include Manager or Staff', () => {
+      it('should not include Manager, Staff', () => {
         expect(MULTI_STORE_ROLES).not.toContain('Manager')
         expect(MULTI_STORE_ROLES).not.toContain('Staff')
       })
@@ -123,9 +119,8 @@ describe('Constants', () => {
         expect(SINGLE_STORE_ROLES).toContain('Staff')
       })
 
-      it('should not include Owner or Driver', () => {
+      it('should not include Owner', () => {
         expect(SINGLE_STORE_ROLES).not.toContain('Owner')
-        expect(SINGLE_STORE_ROLES).not.toContain('Driver')
       })
     })
   })
@@ -175,23 +170,20 @@ describe('Constants', () => {
         expect(PERMISSIONS.DO_STOCK_COUNT).toContain('Owner')
         expect(PERMISSIONS.DO_STOCK_COUNT).toContain('Manager')
         expect(PERMISSIONS.DO_STOCK_COUNT).toContain('Staff')
-        expect(PERMISSIONS.DO_STOCK_COUNT).not.toContain('Driver')
       })
 
-      it('DO_STOCK_RECEPTION should include Owner, Manager, Driver', () => {
+      it('DO_STOCK_RECEPTION should include Owner, Manager, Staff', () => {
         expect(PERMISSIONS.DO_STOCK_RECEPTION).toContain('Owner')
         expect(PERMISSIONS.DO_STOCK_RECEPTION).toContain('Manager')
-        expect(PERMISSIONS.DO_STOCK_RECEPTION).toContain('Driver')
-        expect(PERMISSIONS.DO_STOCK_RECEPTION).not.toContain('Staff')
+        expect(PERMISSIONS.DO_STOCK_RECEPTION).toContain('Staff')
       })
     })
 
     describe('Reports', () => {
-      it('VIEW_REPORTS should include Owner, Manager, Driver', () => {
+      it('VIEW_REPORTS should include Owner, Manager, Staff', () => {
         expect(PERMISSIONS.VIEW_REPORTS).toContain('Owner')
         expect(PERMISSIONS.VIEW_REPORTS).toContain('Manager')
-        expect(PERMISSIONS.VIEW_REPORTS).toContain('Driver')
-        expect(PERMISSIONS.VIEW_REPORTS).not.toContain('Staff')
+        expect(PERMISSIONS.VIEW_REPORTS).toContain('Staff')
       })
     })
 
@@ -211,22 +203,16 @@ describe('Constants', () => {
       expect(INVITABLE_ROLES_BY_ROLE['Owner']).toContain('Owner')
       expect(INVITABLE_ROLES_BY_ROLE['Owner']).toContain('Manager')
       expect(INVITABLE_ROLES_BY_ROLE['Owner']).toContain('Staff')
-      expect(INVITABLE_ROLES_BY_ROLE['Owner']).toContain('Driver')
     })
 
-    it('Manager can only invite Staff and Driver', () => {
+    it('Manager can only invite Staff', () => {
       expect(INVITABLE_ROLES_BY_ROLE['Manager']).toContain('Staff')
-      expect(INVITABLE_ROLES_BY_ROLE['Manager']).toContain('Driver')
       expect(INVITABLE_ROLES_BY_ROLE['Manager']).not.toContain('Owner')
       expect(INVITABLE_ROLES_BY_ROLE['Manager']).not.toContain('Manager')
     })
 
     it('Staff cannot invite anyone', () => {
       expect(INVITABLE_ROLES_BY_ROLE['Staff']).toHaveLength(0)
-    })
-
-    it('Driver cannot invite anyone', () => {
-      expect(INVITABLE_ROLES_BY_ROLE['Driver']).toHaveLength(0)
     })
   })
 
@@ -275,17 +261,13 @@ describe('Constants', () => {
         expect(ROLE_ROUTES['Manager']).not.toContain('/billing')
       })
 
-      it('Staff should have minimal access', () => {
+      it('Staff should have access to shifts, deliveries, and reports', () => {
         expect(ROLE_ROUTES['Staff']).toContain('/')
         expect(ROLE_ROUTES['Staff']).toContain('/my-shifts')
+        expect(ROLE_ROUTES['Staff']).toContain('/deliveries')
+        expect(ROLE_ROUTES['Staff']).toContain('/reports')
         expect(ROLE_ROUTES['Staff']).not.toContain('/inventory')
         expect(ROLE_ROUTES['Staff']).not.toContain('/users')
-      })
-
-      it('Driver should have access to reports and shifts', () => {
-        expect(ROLE_ROUTES['Driver']).toContain('/reports')
-        expect(ROLE_ROUTES['Driver']).toContain('/my-shifts')
-        expect(ROLE_ROUTES['Driver']).not.toContain('/inventory')
       })
     })
 
@@ -294,8 +276,8 @@ describe('Constants', () => {
         expect(LEGACY_ROLE_ROUTES['Admin']).toEqual(ROLE_ROUTES['Owner'])
       })
 
-      it('Legacy Driver should map to Driver routes', () => {
-        expect(LEGACY_ROLE_ROUTES['Driver']).toEqual(ROLE_ROUTES['Driver'])
+      it('Legacy Driver should map to Staff routes', () => {
+        expect(LEGACY_ROLE_ROUTES['Driver']).toEqual(ROLE_ROUTES['Staff'])
       })
 
       it('Legacy Staff should map to Staff routes', () => {

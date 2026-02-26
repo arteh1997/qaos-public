@@ -38,7 +38,7 @@ export function StockTrendChart({ data }: StockTrendChartProps) {
           <CardTitle className="text-base font-semibold">Total Stock Trend</CardTitle>
           <div className="text-right">
             <div className="text-lg font-bold">{currentTotal.toLocaleString()}</div>
-            <div className={`text-xs ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-xs ${change >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
               {change >= 0 ? '+' : ''}{change.toLocaleString()} ({changePercent >= 0 ? '+' : ''}{changePercent}%)
             </div>
           </div>

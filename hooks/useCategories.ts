@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 
 export interface Category {
   id: string
@@ -50,17 +51,9 @@ export function useCreateCategory(storeId: string) {
 
   return useMutation({
     mutationFn: async (data: CreateCategoryData) => {
-      // Get CSRF token
-      const csrfResponse = await fetch('/api/auth/csrf')
-      const { token } = await csrfResponse.json()
-
       const response = await fetch(`/api/stores/${storeId}/categories`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-csrf-token': token,
-        },
-        credentials: 'include',
+        headers: getCSRFHeaders(),
         body: JSON.stringify(data),
       })
 
@@ -82,17 +75,9 @@ export function useUpdateCategory(storeId: string, categoryId: string) {
 
   return useMutation({
     mutationFn: async (data: UpdateCategoryData) => {
-      // Get CSRF token
-      const csrfResponse = await fetch('/api/auth/csrf')
-      const { token } = await csrfResponse.json()
-
       const response = await fetch(`/api/stores/${storeId}/categories/${categoryId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-csrf-token': token,
-        },
-        credentials: 'include',
+        headers: getCSRFHeaders(),
         body: JSON.stringify(data),
       })
 
@@ -114,16 +99,9 @@ export function useDeleteCategory(storeId: string, categoryId: string) {
 
   return useMutation({
     mutationFn: async () => {
-      // Get CSRF token
-      const csrfResponse = await fetch('/api/auth/csrf')
-      const { token } = await csrfResponse.json()
-
       const response = await fetch(`/api/stores/${storeId}/categories/${categoryId}`, {
         method: 'DELETE',
-        headers: {
-          'x-csrf-token': token,
-        },
-        credentials: 'include',
+        headers: getCSRFHeaders(),
       })
 
       if (!response.ok) {

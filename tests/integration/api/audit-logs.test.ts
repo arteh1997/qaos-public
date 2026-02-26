@@ -140,26 +140,6 @@ describe('Audit Logs API Integration Tests', () => {
     })
 
     describe('Authorization', () => {
-      it('should return 403 for Driver users', async () => {
-        // Driver role is not allowed to access audit logs (only Owner and Manager are)
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
-
-        mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === 'profiles') return profileQuery
-          if (table === 'store_users') return storeUsersQuery
-          return profileQuery
-        })
-
-        const { GET } = await import('@/app/api/audit-logs/route')
-
-        const request = createMockRequest('GET')
-        const response = await GET(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
-      })
-
       it('should return 403 for Staff users', async () => {
         const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
 

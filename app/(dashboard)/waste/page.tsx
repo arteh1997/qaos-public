@@ -25,17 +25,24 @@ import {
 } from '@/components/ui/table'
 import { EmptyState } from '@/components/ui/empty-state'
 import { WasteLogForm } from '@/components/waste/WasteLogForm'
-import { WasteAnalyticsCharts } from '@/components/waste/WasteAnalyticsCharts'
+import dynamic from 'next/dynamic'
+import { Skeleton as ChartSkeleton } from '@/components/ui/skeleton'
+
+const WasteAnalyticsCharts = dynamic(
+  () => import('@/components/waste/WasteAnalyticsCharts').then(mod => ({ default: mod.WasteAnalyticsCharts })),
+  { loading: () => <ChartSkeleton className="h-64 w-full" /> }
+)
 import { Trash2, DollarSign, AlertTriangle, TrendingDown, Plus, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import type { WasteReason } from '@/types'
+import { PageGuide } from '@/components/help/PageGuide'
 
 const REASON_COLORS: Record<string, string> = {
-  spoilage: 'bg-red-100 text-red-800',
+  spoilage: 'bg-destructive/10 text-destructive/80',
   expired: 'bg-orange-100 text-orange-800',
-  damaged: 'bg-yellow-100 text-yellow-800',
+  damaged: 'bg-amber-100 text-amber-700',
   overproduction: 'bg-blue-100 text-blue-800',
-  other: 'bg-gray-100 text-gray-800',
+  other: 'bg-muted text-muted-foreground',
 }
 
 export default function WastePage() {
@@ -68,7 +75,8 @@ export default function WastePage() {
   if (role !== 'Owner' && role !== 'Manager' && role !== 'Staff') {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Waste Tracking</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Waste Tracking</h1>
+        <p className="text-sm text-muted-foreground mt-1">Track and reduce food waste</p>
         <Card>
           <CardContent className="pt-6 text-center text-muted-foreground">
             This feature is not available for your role.
@@ -83,7 +91,8 @@ export default function WastePage() {
   if (!storeId) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Waste Tracking</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Waste Tracking</h1>
+        <p className="text-sm text-muted-foreground mt-1">Track and reduce food waste</p>
         <Card>
           <CardContent className="pt-6 text-center text-muted-foreground">
             Select a store to view waste tracking.
@@ -120,17 +129,19 @@ export default function WastePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
             <Trash2 className="h-6 w-6" />
             Waste Tracking
           </h1>
+          <p className="text-sm text-muted-foreground mt-1">Track and reduce food waste</p>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Monitor and reduce waste across {currentStore?.store?.name ?? 'your store'}
+            {currentStore?.store?.name ?? 'Your store'}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <PageGuide pageKey="waste" />
           <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
             <Printer className="h-4 w-4 mr-2" />
             Print
@@ -147,7 +158,7 @@ export default function WastePage() {
       {isManagement && (
         <>
           {isLoadingAnalytics ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i}>
                   <CardContent className="pt-4">
@@ -158,14 +169,14 @@ export default function WastePage() {
               ))}
             </div>
           ) : analytics ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <DollarSign className="h-4 w-4" />
                     Total Waste Cost
                   </div>
-                  <p className="text-2xl font-bold mt-1 text-red-600">
+                  <p className="text-2xl font-bold mt-1 text-destructive">
                     ${analytics.summary.total_estimated_cost.toFixed(2)}
                   </p>
                 </CardContent>
@@ -221,28 +232,47 @@ export default function WastePage() {
                 <CardTitle className="text-sm font-medium">Top Wasted Items</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>
-                      <TableHead className="text-right">Cost</TableHead>
-                      <TableHead className="text-right">Incidents</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {analytics.top_items.map((item) => (
-                      <TableRow key={item.inventory_item_id}>
-                        <TableCell className="font-medium">{item.item_name}</TableCell>
-                        <TableCell>{item.category ?? '-'}</TableCell>
-                        <TableCell className="text-right">{item.total_quantity} {item.unit_of_measure}</TableCell>
-                        <TableCell className="text-right text-red-600">${item.total_cost.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{item.incident_count}</TableCell>
+                {/* Mobile card view */}
+                <div className="sm:hidden space-y-3">
+                  {analytics.top_items.map((item) => (
+                    <div key={item.inventory_item_id} className="border rounded-lg p-3 space-y-2">
+                      <div>
+                        <p className="font-medium">{item.item_name}</p>
+                        <p className="text-xs text-muted-foreground">{item.category ?? '-'}</p>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{item.total_quantity} {item.unit_of_measure}</span>
+                        <span className="text-destructive font-medium">£{item.total_cost.toFixed(2)}</span>
+                        <span className="text-muted-foreground">{item.incident_count} incidents</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop table view */}
+                <div className="hidden sm:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Quantity</TableHead>
+                        <TableHead className="text-right">Cost</TableHead>
+                        <TableHead className="text-right">Incidents</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {analytics.top_items.map((item) => (
+                        <TableRow key={item.inventory_item_id}>
+                          <TableCell className="font-medium">{item.item_name}</TableCell>
+                          <TableCell>{item.category ?? '-'}</TableCell>
+                          <TableCell className="text-right">{item.total_quantity} {item.unit_of_measure}</TableCell>
+                          <TableCell className="text-right text-destructive">£{item.total_cost.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.incident_count}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -284,38 +314,68 @@ export default function WastePage() {
               action={{ label: 'Log Waste', onClick: () => setShowLogForm(true), icon: Plus }}
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card view */}
+              <div className="sm:hidden space-y-3">
                 {wasteHistory.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="whitespace-nowrap">
-                      {new Date(entry.reported_at).toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', year: 'numeric',
-                      })}
-                    </TableCell>
-                    <TableCell className="font-medium">{entry.inventory_item?.name ?? 'Unknown'}</TableCell>
-                    <TableCell>
+                  <div key={entry.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(entry.reported_at).toLocaleDateString('en-US', {
+                          month: 'short', day: 'numeric', year: 'numeric',
+                        })}
+                      </span>
                       <Badge variant="secondary" className={REASON_COLORS[entry.reason] || ''}>
                         {entry.reason}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{entry.quantity}</TableCell>
-                    <TableCell className="text-right text-red-600">${entry.estimated_cost.toFixed(2)}</TableCell>
-                    <TableCell className="text-muted-foreground max-w-[200px] truncate">{entry.notes ?? '-'}</TableCell>
-                  </TableRow>
+                    </div>
+                    <p className="font-medium">{entry.inventory_item?.name ?? 'Unknown'}</p>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Qty: {entry.quantity}</span>
+                      <span className="text-destructive font-medium">£{entry.estimated_cost.toFixed(2)}</span>
+                    </div>
+                    {entry.notes && (
+                      <p className="text-xs text-muted-foreground">{entry.notes}</p>
+                    )}
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              {/* Desktop table view */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead className="text-right">Quantity</TableHead>
+                      <TableHead className="text-right">Cost</TableHead>
+                      <TableHead>Notes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {wasteHistory.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {new Date(entry.reported_at).toLocaleDateString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                          })}
+                        </TableCell>
+                        <TableCell className="font-medium">{entry.inventory_item?.name ?? 'Unknown'}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className={REASON_COLORS[entry.reason] || ''}>
+                            {entry.reason}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{entry.quantity}</TableCell>
+                        <TableCell className="text-right text-destructive">£{entry.estimated_cost.toFixed(2)}</TableCell>
+                        <TableCell className="text-muted-foreground max-w-[200px] truncate">{entry.notes ?? '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

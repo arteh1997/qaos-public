@@ -27,7 +27,7 @@ import {
  */
 
 export interface AuthContext {
-  user: { id: string; email?: string }
+  user: { id: string; email?: string; fullName?: string }
   profile: {
     role: AppRole | null
     store_id: string | null
@@ -134,12 +134,12 @@ export async function withApiAuth(
   const [profileResult, storesResult] = await Promise.all([
     supabaseAny
       .from('profiles')
-      .select('role, store_id, is_platform_admin, default_store_id')
+      .select('role, store_id, is_platform_admin, default_store_id, full_name')
       .eq('id', user.id)
       .single(),
     supabaseAny
       .from('store_users')
-      .select('*, store:stores(*)')
+      .select('*, store:stores(id, name, is_active, subscription_status, opening_time, closing_time, created_at, updated_at)')
       .eq('user_id', user.id),
   ])
 
@@ -244,7 +244,7 @@ export async function withApiAuth(
   return {
     success: true,
     context: {
-      user: { id: user.id, email: user.email },
+      user: { id: user.id, email: user.email, fullName: profile.full_name || undefined },
       profile: {
         role: normalizeRole(profile.role as AppRole | LegacyAppRole),
         store_id: profile.store_id,

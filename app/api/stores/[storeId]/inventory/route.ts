@@ -8,6 +8,7 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { StoreInventory } from '@/types'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       pagination: createPaginationMeta(page, pageSize, count ?? 0),
     })
   } catch (error) {
-    console.error('Error getting store inventory:', error)
+    logger.error('Error getting store inventory:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to get inventory')
   }
 }

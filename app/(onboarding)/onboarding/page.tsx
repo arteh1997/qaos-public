@@ -105,13 +105,13 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: storeName.trim(),
-          address: storeAddress.trim() || null,
+          address: storeAddress.trim() || undefined,
         }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || 'Failed to create store')
+        throw new Error(error.message || 'Failed to create store')
       }
 
       toast.success('Store created successfully!')

@@ -124,7 +124,7 @@ describe('Public API v1', () => {
             quantity: 25,
             par_level: 10,
             unit_cost: 5.99,
-            cost_currency: 'USD',
+            cost_currency: 'GBP',
             last_updated_at: '2026-02-10',
             inventory_item: { id: 'item-1', name: 'Tomatoes', category: 'Produce', unit_of_measure: 'kg', is_active: true },
           },
@@ -280,8 +280,8 @@ describe('Public API v1', () => {
 
       mockAdminFrom.mockImplementation((table: string) => {
         if (table === 'store_inventory') {
-          // Return different mocks for select vs upsert
-          const mock = createChainableMock({ data: { quantity: 20 }, error: null })
+          // Batch query returns array; upsert accepts array
+          const mock = createChainableMock({ data: [{ inventory_item_id: 'item-1', quantity: 20 }], error: null })
           mock.upsert = vi.fn().mockResolvedValue({ data: null, error: null })
           return mock
         }

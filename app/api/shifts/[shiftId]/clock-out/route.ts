@@ -8,7 +8,10 @@ import {
   apiForbidden,
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 import { Shift } from '@/types'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ shiftId: string }>
@@ -90,6 +93,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const clockIn = new Date(shift.clock_in_time)
     const hoursWorked = (now.getTime() - clockIn.getTime()) / (1000 * 60 * 60)
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'shift.clock_out',
+      storeId: shift.store_id,
+      resourceType: 'shift',
+      resourceId: shiftId,
+      details: {
+        employeeId: shift.user_id,
+        clockInTime: shift.clock_in_time,
+        clockOutTime: now.toISOString(),
+        hoursWorked: Math.round(hoursWorked * 100) / 100,
+        scheduledStart: shift.start_time,
+        scheduledEnd: shift.end_time,
+      },
+      request,
+    })
+
     return apiSuccess(
       {
         shift: updatedShift as Shift,
@@ -98,7 +120,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error clocking out:', error)
+    logger.error('Error clocking out:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to clock out')
   }
 }

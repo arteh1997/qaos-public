@@ -10,6 +10,8 @@ import {
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { wasteReportSchema } from '@/lib/validations/inventory'
 import { sanitizeNotes } from '@/lib/utils'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 import {
   verifyActiveItems,
   getCurrentInventoryMap,
@@ -19,6 +21,7 @@ import {
   executeStockOperation,
 } from '@/lib/services/stockOperations'
 import { parsePaginationParams } from '@/lib/api/middleware'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -73,6 +76,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Verify all inventory items are still active
     const itemIds = validItems.map(item => item.inventory_item_id)
+
+    // Fetch item names for audit log
+    const { data: itemDetails } = await context.supabase
+      .from('inventory_items')
+      .select('id, name, unit_of_measure')
+      .in('id', itemIds)
+    const itemNameMap = new Map(itemDetails?.map((i: { id: string; name: string; unit_of_measure: string }) => [i.id, i]) || [])
+
     try {
       await verifyActiveItems(context.supabase, itemIds, context.requestId)
     } catch (err) {
@@ -140,9 +151,33 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .insert(wasteLogEntries)
 
     if (wasteLogError) {
-      console.error('Failed to insert waste log entries:', wasteLogError)
+      logger.error('Failed to insert waste log entries:', { error: wasteLogError })
       // Don't fail the whole operation - inventory is already updated
     }
+
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'waste.submit',
+      storeId,
+      resourceType: 'waste_log',
+      details: {
+        itemCount: validItems.length,
+        totalWasted: validItems.reduce((sum, item) => sum + item.quantity, 0),
+        notes: sanitizedNotes || undefined,
+        items: validItems.map(item => {
+          const info = itemNameMap.get(item.inventory_item_id)
+          return {
+            name: info?.name || 'Unknown Item',
+            quantity: item.quantity,
+            unit: info?.unit_of_measure || '',
+            reason: item.reason || 'other',
+          }
+        }),
+      },
+      request,
+    })
 
     return apiSuccess(
       {
@@ -153,7 +188,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId, status: 201 }
     )
   } catch (error) {
-    console.error('Error recording waste report:', error)
+    logger.error('Error recording waste report:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to record waste report')
   }
 }
@@ -225,7 +260,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       pagination,
     })
   } catch (error) {
-    console.error('Error fetching waste history:', error)
+    logger.error('Error fetching waste history:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch waste history')
   }
 }

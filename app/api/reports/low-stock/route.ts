@@ -2,11 +2,12 @@ import { NextRequest } from 'next/server'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth } from '@/lib/api/middleware'
 import { apiSuccess, apiError } from '@/lib/api/response'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Owner', 'Manager', 'Driver'],
+      allowedRoles: ['Owner', 'Manager', 'Staff'],
       rateLimit: { key: 'reports', config: RATE_LIMITS.reports },
     })
 
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error fetching low stock report:', error)
+    logger.error('Error fetching low stock report:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch report')
   }
 }

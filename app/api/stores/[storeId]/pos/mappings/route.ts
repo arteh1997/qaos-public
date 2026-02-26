@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth, canManageStore } from '@/lib/api/middleware'
 import { apiSuccess, apiError, apiBadRequest, apiForbidden } from '@/lib/api/response'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 
 type RouteParams = { params: Promise<{ storeId: string }> }
 
@@ -101,6 +103,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (error) throw error
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'settings.pos_mapping_create',
+      storeId,
+      resourceType: 'pos_item_mapping',
+      resourceId: data.id,
+      details: {
+        posItemName: pos_item_name,
+        posItemId: pos_item_id,
+        inventoryItemId: inventory_item_id,
+        quantityPerSale: quantity_per_sale ?? 1,
+      },
+      request,
+    })
+
     return apiSuccess(data, { requestId: context.requestId, status: 201 })
   } catch (error) {
     return apiError(error instanceof Error ? error.message : 'Failed to save mapping')
@@ -138,6 +157,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .eq('store_id', storeId)
 
     if (error) throw error
+
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'settings.pos_mapping_delete',
+      storeId,
+      resourceType: 'pos_item_mapping',
+      resourceId: mappingId,
+      details: {},
+      request,
+    })
 
     return apiSuccess({ deleted: true }, { requestId: context.requestId })
   } catch (error) {

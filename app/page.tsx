@@ -9,8 +9,11 @@ import {
   MarketingHeader,
   Hero,
   PainPoints,
+  ProductShowcase,
   Features,
+  Integrations,
   Pricing,
+  FAQ,
   CTA,
   Footer,
 } from '@/components/marketing'
@@ -22,7 +25,6 @@ import { GlobalKeyboardShortcuts } from '@/components/GlobalKeyboardShortcuts'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OwnerDashboard } from '@/components/dashboard/OwnerDashboard'
-import { DriverDashboard } from '@/components/dashboard/DriverDashboard'
 import { StaffDashboard } from '@/components/dashboard/StaffDashboard'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -83,8 +85,11 @@ export default function HomePage() {
         <main>
           <Hero />
           <PainPoints />
+          <ProductShowcase />
           <Features />
+          <Integrations />
           <Pricing />
+          <FAQ />
           <CTA />
         </main>
         <Footer />
@@ -141,8 +146,6 @@ function DashboardContent({ role }: { role: string }) {
     case 'Owner':
     case 'Manager':
       return <OwnerDashboard key="owner-dashboard" />
-    case 'Driver':
-      return <DriverDashboard key="driver-dashboard" />
     case 'Staff':
       return <StaffDashboard key="staff-dashboard" />
     default:

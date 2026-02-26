@@ -8,7 +8,10 @@ import {
   apiNotFound,
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog, computeFieldChanges } from '@/lib/audit'
 import { supplierItemSchema, updateSupplierItemSchema } from '@/lib/validations/suppliers'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; supplierId: string }>
@@ -53,7 +56,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return apiSuccess(data, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error fetching supplier items:', error)
+    logger.error('Error fetching supplier items:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch supplier items')
   }
 }
@@ -123,9 +126,27 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to add supplier item')
     }
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'supplier.item_add',
+      storeId,
+      resourceType: 'supplier_item',
+      resourceId: data.id,
+      details: {
+        supplierId,
+        inventoryItemId: validation.data.inventory_item_id,
+        itemName: data.inventory_item?.name ?? null,
+        unitCost: validation.data.unit_cost,
+        currency: validation.data.currency,
+      },
+      request,
+    })
+
     return apiSuccess(data, { requestId: context.requestId, status: 201 })
   } catch (error) {
-    console.error('Error adding supplier item:', error)
+    logger.error('Error adding supplier item:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to add supplier item')
   }
 }
@@ -165,6 +186,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Fetch current state for before/after tracking
+    const { data: beforeItem } = await context.supabase
+      .from('supplier_items')
+      .select('*')
+      .eq('id', itemId)
+      .eq('supplier_id', supplierId)
+      .single()
+
     const { data, error } = await context.supabase
       .from('supplier_items')
       .update(validation.data)
@@ -177,9 +206,29 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Supplier item', context.requestId)
     }
 
+    const admin = createAdminClient()
+    const fieldChanges = beforeItem
+      ? computeFieldChanges(beforeItem, validation.data)
+      : []
+    void auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'supplier.item_update',
+      storeId,
+      resourceType: 'supplier_item',
+      resourceId: itemId,
+      details: {
+        supplierId,
+        updatedFields: Object.keys(validation.data),
+        fieldChanges,
+        ...validation.data,
+      },
+      request,
+    }).catch(err => logger.error('Audit log error:', { error: err }))
+
     return apiSuccess(data, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating supplier item:', error)
+    logger.error('Error updating supplier item:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update supplier item')
   }
 }
@@ -219,9 +268,23 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to remove supplier item')
     }
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'supplier.item_remove',
+      storeId,
+      resourceType: 'supplier_item',
+      resourceId: itemId,
+      details: {
+        supplierId,
+      },
+      request,
+    })
+
     return apiSuccess({ message: 'Supplier item removed successfully' }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error removing supplier item:', error)
+    logger.error('Error removing supplier item:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to remove supplier item')
   }
 }

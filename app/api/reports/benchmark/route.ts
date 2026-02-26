@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth, canAccessStore } from '@/lib/api/middleware'
 import { apiSuccess, apiError, apiBadRequest } from '@/lib/api/response'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/reports/benchmark - Multi-store comparative analytics
@@ -9,6 +10,8 @@ import { apiSuccess, apiError, apiBadRequest } from '@/lib/api/response'
  * Query params:
  *   - store_ids (required): Comma-separated store IDs to compare
  *   - days (optional): Number of days to look back (default: 30, max: 90)
+ *   - start_date (optional): ISO start date (overrides days)
+ *   - end_date (optional): ISO end date (overrides days)
  *
  * Returns:
  *   - stores[]: Per-store analytics with KPIs
@@ -27,7 +30,9 @@ export async function GET(request: NextRequest) {
     const { context } = auth
     const searchParams = request.nextUrl.searchParams
     const storeIdsParam = searchParams.get('store_ids')
-    const days = Math.min(parseInt(searchParams.get('days') ?? '30', 10) || 30, 90)
+    const startDateParam = searchParams.get('start_date')
+    const endDateParam = searchParams.get('end_date')
+    let days = Math.min(parseInt(searchParams.get('days') ?? '30', 10) || 30, 90)
 
     if (!storeIdsParam) {
       return apiBadRequest('store_ids is required (comma-separated)', context.requestId)
@@ -51,8 +56,20 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date()
-    const startDate = new Date(now)
-    startDate.setDate(startDate.getDate() - days)
+    let startDate: Date
+    let endDate: Date
+
+    if (startDateParam && endDateParam) {
+      startDate = new Date(startDateParam)
+      endDate = new Date(endDateParam)
+      endDate.setHours(23, 59, 59, 999)
+      days = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+    } else {
+      startDate = new Date(now)
+      startDate.setDate(startDate.getDate() - days)
+      endDate = now
+    }
+
     const startDateStr = startDate.toISOString()
     const startDateDay = startDate.toISOString().split('T')[0]
 
@@ -226,7 +243,7 @@ export async function GET(request: NextRequest) {
       averages,
     }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error fetching benchmark data:', error)
+    logger.error('Error fetching benchmark data:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch benchmark data')
   }
 }

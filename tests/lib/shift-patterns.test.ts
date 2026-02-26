@@ -28,6 +28,7 @@ function createMockStore(options: Partial<Store> = {}): Store {
     weekly_hours: null,
     billing_user_id: null,
     subscription_status: 'active',
+    setup_completed_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...options,

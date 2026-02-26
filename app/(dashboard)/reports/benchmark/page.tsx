@@ -6,32 +6,40 @@ import { useBenchmark } from '@/hooks/useBenchmark'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { StoreComparisonChart, StoreActivityTrendChart } from '@/components/charts/StoreComparisonChart'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import dynamic from 'next/dynamic'
+import { Skeleton as ChartSkeleton } from '@/components/ui/skeleton'
+
+const StoreComparisonChart = dynamic(
+  () => import('@/components/charts/StoreComparisonChart').then(mod => ({ default: mod.StoreComparisonChart })),
+  { loading: () => <ChartSkeleton className="h-64 w-full" /> }
+)
+const StoreActivityTrendChart = dynamic(
+  () => import('@/components/charts/StoreComparisonChart').then(mod => ({ default: mod.StoreActivityTrendChart })),
+  { loading: () => <ChartSkeleton className="h-64 w-full" /> }
+)
 import {
   BarChart3,
-  TrendingUp,
   Trophy,
   Activity,
   Package,
   ClipboardCheck,
   Heart,
-  DollarSign,
   Trash2,
   ArrowLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { DateRange } from 'react-day-picker'
+import { PageGuide } from '@/components/help/PageGuide'
+import { subDays, startOfDay } from 'date-fns'
 
 export default function BenchmarkPage() {
   const { stores, role } = useAuth()
-  const [days, setDays] = useState<string>('30')
+  const [dateRange, setDateRange] = useState<DateRange>(() => ({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+  }))
 
   // Only Owners with multiple stores should see this
   const accessibleStores = useMemo(() => {
@@ -42,12 +50,20 @@ export default function BenchmarkPage() {
     return accessibleStores.map(s => s.store_id)
   }, [accessibleStores])
 
-  const { data, isLoading, error } = useBenchmark(storeIds, parseInt(days))
+  const dateRangeParam = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) return null
+    return {
+      startDate: startOfDay(dateRange.from).toISOString(),
+      endDate: (() => { const end = new Date(dateRange.to); end.setHours(23, 59, 59, 999); return end.toISOString() })(),
+    }
+  }, [dateRange])
+
+  const { data, isLoading, error } = useBenchmark(storeIds, 30, dateRangeParam)
 
   if (role !== 'Owner' && role !== 'Manager') {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Store Benchmarking</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Store Benchmarking</h1>
         <p className="text-muted-foreground">Only Owners and Managers can access benchmarking analytics.</p>
       </div>
     )
@@ -64,7 +80,7 @@ export default function BenchmarkPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">Store Benchmarking</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Store Benchmarking</h1>
             <p className="text-sm text-muted-foreground">Compare performance across your stores</p>
           </div>
         </div>
@@ -86,33 +102,32 @@ export default function BenchmarkPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/reports">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Store Benchmarking</h1>
-            <p className="text-sm text-muted-foreground">
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
+              <div className="rounded-lg p-1.5 bg-blue-500/10">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+              </div>
+              Store Benchmarking
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
               Compare performance across {accessibleStores.length} stores
             </p>
           </div>
+          <PageGuide pageKey="benchmark" />
         </div>
-        <Select value={days} onValueChange={setDays}>
-          <SelectTrigger className="w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Last 7 days</SelectItem>
-            <SelectItem value="14">Last 14 days</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="60">Last 60 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateRangePicker
+          value={dateRange}
+          onChange={(range) => setDateRange(range || { from: subDays(new Date(), 29), to: new Date() })}
+          presets={['last7days', 'last14days', 'last30days', 'last60days', 'last90days']}
+          align="start"
+        />
       </div>
 
       {/* Loading */}
@@ -128,7 +143,7 @@ export default function BenchmarkPage() {
       {error && (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-red-600">Failed to load benchmark data: {error.message}</p>
+            <p className="text-sm text-destructive">Failed to load benchmark data: {error.message}</p>
           </CardContent>
         </Card>
       )}
@@ -137,58 +152,35 @@ export default function BenchmarkPage() {
       {data && (
         <>
           {/* KPI Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Avg Health Score</CardTitle>
-                <Heart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.averages.healthScore}%</div>
-                <p className="text-xs text-muted-foreground">
-                  Across {data.stores.length} stores
-                </p>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Avg Health</p>
+                <p className="text-2xl font-bold mt-1">{data.averages.healthScore}%</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">across {data.stores.length} stores</p>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Avg Count Completion</CardTitle>
-                <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.averages.countCompletionRate}%</div>
-                <p className="text-xs text-muted-foreground">
-                  Daily count consistency
-                </p>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Count Rate</p>
+                <p className="text-2xl font-bold mt-1">{data.averages.countCompletionRate}%</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">daily consistency</p>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Avg Daily Activity</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.averages.avgDailyActivity}</div>
-                <p className="text-xs text-muted-foreground">
-                  Stock changes/day
-                </p>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Activity</p>
+                <p className="text-2xl font-bold mt-1">{data.averages.avgDailyActivity}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">stock changes/day</p>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Avg Inventory Value</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${data.averages.totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Per store average
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Avg Value</p>
+                <p className="text-2xl font-bold mt-1">
+                  £{data.averages.totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">per store average</p>
               </CardContent>
             </Card>
           </div>
@@ -342,7 +334,7 @@ export default function BenchmarkPage() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Out of Stock</p>
-                        <p className={`font-medium ${store.inventoryHealth.outOfStock > 0 ? 'text-red-600' : ''}`}>
+                        <p className={`font-medium ${store.inventoryHealth.outOfStock > 0 ? 'text-destructive' : ''}`}>
                           {store.inventoryHealth.outOfStock}
                         </p>
                       </div>
@@ -359,12 +351,12 @@ export default function BenchmarkPage() {
                       <div>
                         <p className="text-xs text-muted-foreground">Inventory Value</p>
                         <p className="font-medium">
-                          ${store.inventory.totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          £{store.inventory.totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Waste</p>
-                        <p className={`font-medium ${store.waste.totalUnits > 0 ? 'text-red-600' : ''}`}>
+                        <p className={`font-medium ${store.waste.totalUnits > 0 ? 'text-destructive' : ''}`}>
                           {store.waste.totalUnits} units
                         </p>
                       </div>

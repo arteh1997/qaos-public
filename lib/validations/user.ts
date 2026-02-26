@@ -1,25 +1,23 @@
 import { z } from 'zod'
 
-// New role system: Owner, Manager, Staff, Driver
+// Role system: Owner, Manager, Staff
 // Owner: Full access to owned stores, billing, invite users
 // Manager: Full operational access to assigned store
-// Staff: Clock in/out, stock counts at assigned store
-// Driver: Deliveries/receptions across assigned stores
+// Staff: Clock in/out, stock counts, deliveries, reports at assigned store
 
 // New invite schema - email-based invitation flow
-// User only enters email and role, optionally store(s)
+// User only enters email and role, plus assigned store
 // The invitee completes their profile during onboarding
 export const inviteUserSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  role: z.enum(['Owner', 'Manager', 'Staff', 'Driver'], {
+  role: z.enum(['Owner', 'Manager', 'Staff'], {
     message: 'Please select a role',
   }),
-  storeId: z.string().optional(), // For single-store roles
-  storeIds: z.array(z.string()).optional(), // For Driver role - multiple stores
+  storeId: z.string().optional(),
+  storeIds: z.array(z.string()).optional(), // Legacy field
 }).refine((data) => {
-  // Owner (Co-Owner), Staff, and Manager must have a store assigned
-  // Drivers can have multiple stores or none initially
-  if ((data.role === 'Owner' || data.role === 'Staff' || data.role === 'Manager') && !data.storeId) {
+  // All roles must have a store assigned
+  if (!data.storeId) {
     return false
   }
   return true
@@ -32,12 +30,12 @@ export const inviteUserSchema = z.object({
 export const legacyInviteUserSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-  role: z.enum(['Owner', 'Manager', 'Staff', 'Driver'], {
+  role: z.enum(['Owner', 'Manager', 'Staff'], {
     message: 'Please select a role',
   }),
   storeId: z.string().optional(),
 }).refine((data) => {
-  if ((data.role === 'Owner' || data.role === 'Staff' || data.role === 'Manager') && !data.storeId) {
+  if (!data.storeId) {
     return false
   }
   return true
@@ -66,9 +64,8 @@ export const onboardingSchema = z.object({
 
 export const updateUserSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
-  role: z.enum(['Owner', 'Manager', 'Staff', 'Driver']).optional(),
+  role: z.enum(['Owner', 'Manager', 'Staff']).optional(),
   storeId: z.string().nullable().optional(),
-  storeIds: z.array(z.string()).optional(), // For Driver role - multiple stores
   status: z.enum(['Invited', 'Active', 'Inactive']).optional(),
 })
 
@@ -76,7 +73,7 @@ export const updateUserSchema = z.object({
 export const addUserToStoreSchema = z.object({
   userId: z.string().uuid('Invalid user ID'),
   storeId: z.string().uuid('Invalid store ID'),
-  role: z.enum(['Owner', 'Manager', 'Staff', 'Driver'], {
+  role: z.enum(['Owner', 'Manager', 'Staff'], {
     message: 'Please select a role',
   }),
   isBillingOwner: z.boolean().default(false),

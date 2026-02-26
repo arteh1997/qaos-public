@@ -23,7 +23,7 @@ export default function StockReceptionPage({ params }: StockReceptionPageProps) 
 
   // Check permissions
   if (!canDoStockReception(role)) {
-    router.push(`/stores/${storeId}`)
+    router.push('/')
     return null
   }
 

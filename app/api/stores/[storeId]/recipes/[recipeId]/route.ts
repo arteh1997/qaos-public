@@ -9,6 +9,10 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { updateRecipeSchema } from '@/lib/validations/recipes'
+import { convertQuantity, normalizeUnit } from '@/lib/utils/units'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog, computeFieldChanges } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; recipeId: string }>
@@ -45,11 +49,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Recipe', context.requestId)
     }
 
-    // Fetch ingredients with inventory item details
+    // Fetch ingredients with inventory item details (only active items)
     const { data: ingredients } = await context.supabase
       .from('recipe_ingredients')
-      .select('*, inventory_item:inventory_items(id, name, category, unit_of_measure)')
+      .select('*, inventory_item:inventory_items!inner(id, name, category, unit_of_measure)')
       .eq('recipe_id', recipeId)
+      .eq('inventory_item.is_active', true)
 
     // Get unit costs from store_inventory
     const itemIds = (ingredients || []).map((i: { inventory_item_id: string }) => i.inventory_item_id)
@@ -70,7 +75,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Calculate per-ingredient costs
+    // Calculate per-ingredient costs with unit conversion
     const ingredientsWithCosts = (ingredients || []).map((ing: {
       inventory_item_id: string
       quantity: number
@@ -79,11 +84,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       inventory_item: { id: string; name: string; category: string | null; unit_of_measure: string } | null
     }) => {
       const unitCost = costMap.get(ing.inventory_item_id) || 0
-      const lineCost = Number(ing.quantity) * unitCost
+      const recipeUnit = ing.unit_of_measure || ''
+      const inventoryUnit = ing.inventory_item?.unit_of_measure || ''
+
+      // Convert recipe quantity to inventory units for accurate cost calculation
+      const convertedQty = convertQuantity(Number(ing.quantity), recipeUnit, inventoryUnit)
+      const effectiveQty = convertedQty !== null ? convertedQty : Number(ing.quantity)
+      const lineCost = effectiveQty * unitCost
+
       return {
         ...ing,
         unit_cost: Math.round(unitCost * 100) / 100,
         line_cost: Math.round(lineCost * 100) / 100,
+        unit_mismatch: convertedQty === null && normalizeUnit(recipeUnit) !== normalizeUnit(inventoryUnit),
       }
     })
 
@@ -104,7 +117,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error fetching recipe:', error)
+    logger.error('Error fetching recipe:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch recipe')
   }
 }
@@ -139,6 +152,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Fetch current state for before/after tracking
+    const { data: beforeRecipe } = await context.supabase
+      .from('recipes')
+      .select('*')
+      .eq('id', recipeId)
+      .eq('store_id', storeId)
+      .single()
+
     const { data, error } = await context.supabase
       .from('recipes')
       .update(validation.data)
@@ -158,9 +179,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Recipe', context.requestId)
     }
 
+    const admin = createAdminClient()
+    const fieldChanges = beforeRecipe
+      ? computeFieldChanges(beforeRecipe, validation.data)
+      : []
+    void auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'inventory.recipe_update',
+      storeId,
+      resourceType: 'recipe',
+      resourceId: recipeId,
+      details: { recipeName: data.name, updatedFields: Object.keys(validation.data), fieldChanges },
+      request,
+    }).catch(err => logger.error('Audit log error:', { error: err }))
+
     return apiSuccess(data, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating recipe:', error)
+    logger.error('Error updating recipe:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update recipe')
   }
 }
@@ -185,6 +221,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiForbidden('You do not have permission to delete recipes', context.requestId)
     }
 
+    // Fetch recipe name before deleting for audit log
+    const { data: recipeToDelete } = await context.supabase
+      .from('recipes')
+      .select('name')
+      .eq('id', recipeId)
+      .eq('store_id', storeId)
+      .single()
+
     const { error } = await context.supabase
       .from('recipes')
       .delete()
@@ -195,9 +239,21 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to delete recipe')
     }
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'inventory.recipe_delete',
+      storeId,
+      resourceType: 'recipe',
+      resourceId: recipeId,
+      details: { recipeName: recipeToDelete?.name || recipeId },
+      request,
+    })
+
     return apiSuccess({ message: 'Recipe deleted successfully' }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error deleting recipe:', error)
+    logger.error('Error deleting recipe:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to delete recipe')
   }
 }

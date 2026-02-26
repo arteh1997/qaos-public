@@ -83,12 +83,15 @@ export function useStores(filters: StoresFilters = {}) {
       id: crypto.randomUUID(),
       name: formData.name,
       address: formData.address ?? null,
+      country: 'GB',
+      currency: 'GBP',
       is_active: true,
       opening_time: formData.opening_time ?? null,
       closing_time: formData.closing_time ?? null,
       weekly_hours: formData.weekly_hours ?? null,
       billing_user_id: formData.billing_user_id ?? null,
       subscription_status: 'active', // Default to active (billing deferred)
+      setup_completed_at: null,
       created_at: now,
       updated_at: now,
     }

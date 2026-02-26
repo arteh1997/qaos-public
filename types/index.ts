@@ -1,9 +1,8 @@
-// Application role types - 4 roles: Owner, Manager, Staff, Driver
+// Application role types - 3 roles: Owner, Manager, Staff
 // Owner: Full access to owned/co-owned stores, billing, invite users
 // Manager: Full operational access to assigned store
-// Staff: Clock in/out, stock counts at assigned store
-// Driver: Deliveries/receptions across assigned stores
-export type AppRole = 'Owner' | 'Manager' | 'Staff' | 'Driver';
+// Staff: Clock in/out, stock counts, deliveries/receptions, reports at assigned store
+export type AppRole = 'Owner' | 'Manager' | 'Staff';
 
 // Legacy role type for backward compatibility during migration
 export type LegacyAppRole = 'Admin' | 'Driver' | 'Staff';
@@ -48,12 +47,15 @@ export interface Store {
   id: string;
   name: string;
   address: string | null;
+  country: string; // ISO 3166-1 alpha-2 country code (e.g., 'GB', 'US', 'SA')
+  currency: string; // ISO 4217 currency code (e.g., 'GBP', 'USD', 'SAR')
   is_active: boolean;
   opening_time: string | null; // Default HH:MM format (e.g., "06:00") - kept for backwards compatibility
   closing_time: string | null; // Default HH:MM format (e.g., "23:00") - kept for backwards compatibility
   weekly_hours: WeeklyHours | null; // Per-day operating hours
   billing_user_id: string | null; // User responsible for paying for this store
   subscription_status: string | null; // Current subscription status
+  setup_completed_at: string | null; // When the store setup wizard was completed (null = not yet)
   created_at: string;
   updated_at: string;
 }
@@ -91,6 +93,7 @@ export interface StoreUser {
   user_id: string;
   role: AppRole;
   is_billing_owner: boolean; // True if this user pays for this store
+  hourly_rate: number | null;
   invited_by: string | null;
   created_at: string;
   updated_at: string;
@@ -110,7 +113,7 @@ export interface UserInvite {
   email: string;
   role: AppRole;
   store_id: string | null;
-  store_ids: string[]; // For Driver role - multiple stores
+  store_ids: string[]; // Legacy field for multi-store assignment
   token: string;
   invited_by: string;
   expires_at: string;
@@ -284,11 +287,6 @@ export interface ManagerDashboardStats {
   low_stock_alerts: number;
 }
 
-export interface DriverDashboardStats {
-  total_stores: number;
-  recent_deliveries: StockHistory[];
-}
-
 export interface StaffDashboardStats {
   store: Store | null;
   today_count_completed: boolean;
@@ -399,7 +397,7 @@ export interface MenuItem {
 }
 
 // Purchase order types
-export type PurchaseOrderStatus = 'draft' | 'submitted' | 'acknowledged' | 'shipped' | 'partial' | 'received' | 'cancelled';
+export type PurchaseOrderStatus = 'open' | 'awaiting_delivery' | 'partial' | 'received' | 'cancelled';
 
 export interface Supplier {
   id: string;
@@ -466,8 +464,92 @@ export interface PurchaseOrderItem {
   inventory_item?: InventoryItem;
 }
 
-// Alert types
-export type AlertType = 'low_stock' | 'critical_stock' | 'missing_count' | 'digest';
+// Invoice OCR types
+export type InvoiceStatus = 'pending' | 'processing' | 'review' | 'approved' | 'applied' | 'rejected';
+export type InvoiceMatchStatus = 'unmatched' | 'auto_matched' | 'manually_matched' | 'skipped';
+
+export interface InvoiceRecord {
+  id: string;
+  store_id: string;
+  supplier_id: string | null;
+  purchase_order_id: string | null;
+  file_path: string;
+  file_name: string;
+  file_type: string;
+  file_size_bytes: number | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  due_date: string | null;
+  subtotal: number | null;
+  tax_amount: number | null;
+  total_amount: number | null;
+  currency: string;
+  extracted_data: Record<string, unknown>;
+  ocr_provider: string | null;
+  ocr_confidence: number | null;
+  ocr_processed_at: string | null;
+  status: InvoiceStatus;
+  applied_reception_id: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  notes: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  supplier?: Supplier;
+  purchase_order?: PurchaseOrder;
+  line_items?: InvoiceLineItem[];
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  invoice_id: string;
+  description: string | null;
+  quantity: number | null;
+  unit_price: number | null;
+  total_price: number | null;
+  unit_of_measure: string | null;
+  inventory_item_id: string | null;
+  match_confidence: number | null;
+  match_status: InvoiceMatchStatus;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  inventory_item?: InventoryItem;
+}
+
+// Notification types (transactional emails for shifts, payroll, POs, account)
+export type NotificationType =
+  | 'shift_assigned'
+  | 'shift_updated'
+  | 'shift_cancelled'
+  | 'payslip_available'
+  | 'po_supplier_update'
+  | 'delivery_received'
+  | 'removed_from_store'
+  | 'payment_succeeded'
+  | 'subscription_cancelled'
+  | 'supplier_portal_invite';
+
+export interface NotificationPreference {
+  id: string;
+  user_id: string;
+  store_id: string;
+  shift_assigned: boolean;
+  shift_updated: boolean;
+  shift_cancelled: boolean;
+  payslip_available: boolean;
+  po_supplier_update: boolean;
+  delivery_received: boolean;
+  removed_from_store: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Alert types (inventory alerts — separate from notification preferences)
+export type AlertType =
+  | 'low_stock' | 'critical_stock' | 'missing_count' | 'digest'
+  | NotificationType;
 export type AlertFrequency = 'daily' | 'weekly' | 'never';
 export type AlertChannel = 'email' | 'in_app';
 export type AlertStatus = 'sent' | 'failed' | 'acknowledged';
@@ -500,4 +582,305 @@ export interface AlertHistory {
   metadata: Record<string, unknown>;
   sent_at: string;
   acknowledged_at: string | null;
+}
+
+// Payroll types
+export type PayRunStatus = 'draft' | 'approved' | 'paid';
+
+export interface PayRun {
+  id: string;
+  store_id: string;
+  period_start: string;
+  period_end: string;
+  status: PayRunStatus;
+  notes: string | null;
+  total_amount: number;
+  currency: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  paid_by: string | null;
+  paid_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: PayRunItem[];
+  approver?: Profile;
+  creator?: Profile;
+}
+
+export interface PayRunItem {
+  id: string;
+  pay_run_id: string;
+  user_id: string;
+  hourly_rate: number;
+  total_hours: number;
+  overtime_hours: number;
+  adjustments: number;
+  adjustment_notes: string | null;
+  gross_pay: number;
+  shift_ids: string[];
+  created_at: string;
+  updated_at: string;
+  user?: Profile;
+}
+
+export interface ShiftEarning {
+  shift_id: string;
+  date: string;
+  clock_in: string;
+  clock_out: string;
+  hours: number;
+  pay: number;
+}
+
+export interface EarningsSummary {
+  user_id: string;
+  user_name: string;
+  hourly_rate: number | null;
+  total_hours: number;
+  gross_pay: number;
+  shift_count: number;
+  shifts: ShiftEarning[];
+}
+
+// ── Accounting Integration Types ──
+
+export type AccountingProvider = 'xero' | 'quickbooks' | 'sage' | 'myob' | 'freshbooks' | 'zoho_books' | 'wave';
+
+export type AccountingSyncStatus = 'idle' | 'syncing' | 'error';
+
+export type AccountingSyncDirection = 'push' | 'pull';
+
+export type AccountingSyncEntityType = 'invoice' | 'bill' | 'payment' | 'contact' | 'purchase_order';
+
+export type AccountingSyncResultStatus = 'pending' | 'success' | 'failed';
+
+export interface AccountingConnection {
+  id: string;
+  store_id: string;
+  provider: AccountingProvider;
+  credentials: Record<string, unknown>;
+  config: AccountingConfig;
+  is_active: boolean;
+  last_synced_at: string | null;
+  sync_status: AccountingSyncStatus;
+  sync_error: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountingConfig {
+  gl_mappings?: Record<string, string>; // category name -> GL account code
+  auto_sync?: boolean;
+  sync_invoices?: boolean;
+  sync_purchase_orders?: boolean;
+}
+
+export interface AccountingSyncLog {
+  id: string;
+  connection_id: string;
+  store_id: string;
+  entity_type: AccountingSyncEntityType;
+  entity_id: string;
+  external_id: string | null;
+  direction: AccountingSyncDirection;
+  status: AccountingSyncResultStatus;
+  error_message: string | null;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface XeroAccount {
+  account_id: string;
+  code: string;
+  name: string;
+  type: string;
+  class: string;
+  status: string;
+}
+
+export interface IntegrationOAuthState {
+  id: string;
+  store_id: string;
+  provider: string;
+  state_token: string;
+  redirect_data: Record<string, unknown>;
+  expires_at: string;
+  used_at: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+// ── Supplier Portal Types ──
+
+export interface SupplierPortalToken {
+  id: string;
+  supplier_id: string;
+  store_id: string;
+  token_hash: string;
+  token_prefix: string;
+  can_view_orders: boolean;
+  can_upload_invoices: boolean;
+  can_update_catalog: boolean;
+  can_update_order_status: boolean;
+  name: string;
+  is_active: boolean;
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  supplier?: Supplier;
+}
+
+export type SupplierPortalPermission =
+  | 'can_view_orders'
+  | 'can_upload_invoices'
+  | 'can_update_catalog'
+  | 'can_update_order_status';
+
+export interface SupplierPortalActivity {
+  id: string;
+  supplier_id: string;
+  store_id: string;
+  token_id: string | null;
+  action: string;
+  details: Record<string, unknown>;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+// ── Food Cost Report Types ──
+
+export interface FoodCostSummary {
+  theoretical_cost: number;
+  actual_cost: number;
+  variance: number;
+  variance_percentage: number;
+  total_revenue: number;
+  theoretical_food_cost_pct: number;
+  actual_food_cost_pct: number;
+  waste_cost: number;
+  unaccounted_variance: number;
+  period_start: string;
+  period_end: string;
+}
+
+export interface FoodCostItem {
+  menu_item_id: string;
+  name: string;
+  category: string | null;
+  units_sold: number;
+  theoretical_cost_per_unit: number;
+  theoretical_cost_total: number;
+  waste_attributed: number;
+  selling_price: number;
+  revenue: number;
+  food_cost_pct: number;
+}
+
+export interface FoodCostCategory {
+  category: string;
+  item_count: number;
+  theoretical_cost: number;
+  revenue: number;
+  food_cost_pct: number;
+}
+
+export interface FoodCostTrend {
+  date: string;
+  theoretical: number;
+  actual: number;
+}
+
+export interface FoodCostReport {
+  summary: FoodCostSummary;
+  items: FoodCostItem[];
+  categories: FoodCostCategory[];
+  trends: FoodCostTrend[];
+}
+
+// ── HACCP / Food Safety Types ──
+
+export type HACCPCheckFrequency = 'daily' | 'weekly' | 'shift';
+export type HACCPCheckStatus = 'pass' | 'fail' | 'partial';
+
+export interface HACCPCheckTemplateItem {
+  id: string;
+  label: string;
+  description?: string;
+  type: 'yes_no' | 'temperature' | 'text';
+  required: boolean;
+}
+
+export interface HACCPCheckTemplate {
+  id: string;
+  store_id: string;
+  name: string;
+  description: string | null;
+  frequency: HACCPCheckFrequency;
+  items: HACCPCheckTemplateItem[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HACCPCheckResultItem {
+  template_item_id: string;
+  label: string;
+  value: string | boolean | number;
+  passed: boolean;
+  notes?: string;
+}
+
+export interface HACCPCheck {
+  id: string;
+  store_id: string;
+  template_id: string | null;
+  completed_by: string;
+  completed_at: string;
+  status: HACCPCheckStatus;
+  items: HACCPCheckResultItem[];
+  notes: string | null;
+  created_at: string;
+  template?: HACCPCheckTemplate;
+}
+
+export interface HACCPTemperatureLog {
+  id: string;
+  store_id: string;
+  location_name: string;
+  temperature_celsius: number;
+  recorded_by: string;
+  recorded_at: string;
+  is_in_range: boolean;
+  min_temp: number | null;
+  max_temp: number | null;
+  corrective_action: string | null;
+  created_at: string;
+}
+
+export interface HACCPCorrectiveAction {
+  id: string;
+  store_id: string;
+  check_id: string | null;
+  temp_log_id: string | null;
+  description: string;
+  action_taken: string | null;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface HACCPDashboard {
+  total_checks_today: number;
+  passed_checks_today: number;
+  failed_checks_today: number;
+  compliance_score: number;
+  out_of_range_temps_today: number;
+  unresolved_corrective_actions: number;
+  recent_checks: HACCPCheck[];
+  recent_temp_alerts: HACCPTemperatureLog[];
 }

@@ -12,6 +12,7 @@ import { User } from '@supabase/supabase-js'
 import { createClient, supabaseFetch } from '@/lib/supabase/client'
 import { Profile, AppRole, StoreUserWithStore } from '@/types'
 import { debugLog } from '@/lib/debug'
+import { safeGetItem, safeSetItem, safeRemoveItem } from '@/lib/utils/storage'
 import {
   hasGlobalAccess as checkGlobalAccess,
   isStoreScopedRole as checkStoreScopedRole,
@@ -78,6 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Prevent concurrent refreshProfile calls
   const refreshInProgressRef = useRef(false)
 
+  // Track intentional sign-out to prevent flash of content
+  const isSigningOutRef = useRef(false)
+
   // Fetch profile and stores for a user
   // Accepts partial user (just id) for cookie-based auth, or full User from Supabase
   // Returns null if request was cancelled (not latest)
@@ -119,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Determine current store
       let currentStore: StoreUserWithStore | null = null
       const savedStoreId = typeof window !== 'undefined'
-        ? localStorage.getItem(CURRENT_STORE_KEY)
+        ? safeGetItem(CURRENT_STORE_KEY)
         : null
 
       if (savedStoreId) {
@@ -257,10 +261,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (event === 'SIGNED_OUT') {
           const requestId = ++latestRequestIdRef.current
           if (typeof window !== 'undefined') {
-            localStorage.removeItem(CURRENT_STORE_KEY)
+            safeRemoveItem(CURRENT_STORE_KEY)
           }
           if (mounted && requestId === latestRequestIdRef.current) {
-            setAuthState(emptyState)
+            // If we're deliberately signing out, keep isLoading true
+            // to prevent flash of unauthenticated content before redirect
+            if (isSigningOutRef.current) {
+              setAuthState({ ...emptyState, isLoading: true })
+            } else {
+              setAuthState(emptyState)
+            }
           }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Just update the user object, don't re-fetch everything
@@ -283,14 +293,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
+    // Cross-tab sync: when another tab changes the current store, update this tab
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === CURRENT_STORE_KEY && e.newValue) {
+        debugLog('AuthProvider', '[AuthProvider] Store changed in another tab, syncing...')
+        setAuthState(prev => {
+          const newStore = prev.stores.find(s => s.store_id === e.newValue)
+          if (!newStore) return prev
+          return {
+            ...prev,
+            currentStore: newStore,
+            role: newStore.role,
+            storeId: newStore.store_id,
+            hasGlobalAccess: checkGlobalAccess(newStore.role),
+            isStoreScopedRole: checkStoreScopedRole(newStore.role),
+          }
+        })
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+
     return () => {
       mounted = false
       subscription.unsubscribe()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [supabase, fetchUserData])
 
   const signOut = useCallback(async () => {
+    // Mark as intentional sign-out to prevent flash of content
+    isSigningOutRef.current = true
+
     // Cancel any in-flight requests by incrementing the request ID
     ++latestRequestIdRef.current
     debugLog("AuthProvider", `[AuthProvider] Sign out - invalidating in-flight requests (new latest: ${latestRequestIdRef.current})`)
@@ -300,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Clear stored selection
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(CURRENT_STORE_KEY)
+      safeRemoveItem(CURRENT_STORE_KEY)
     }
 
     // Sign out and redirect
@@ -342,7 +376,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!newStore) return
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem(CURRENT_STORE_KEY, storeId)
+      safeSetItem(CURRENT_STORE_KEY, storeId)
     }
 
     setAuthState(prev => ({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withApiKey } from '@/lib/api/with-api-key'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { dispatchWebhookEvent } from '@/lib/services/webhooks'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/v1/stock - Get stock history
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Public API stock history error:', error)
+    logger.error('Public API stock history error:', { error: error })
     return NextResponse.json(
       { success: false, error: 'Failed to fetch stock history' },
       { status: 500 }
@@ -130,53 +131,70 @@ export async function POST(request: NextRequest) {
 
     const adminClient = createAdminClient()
     const actionType = action === 'count' ? 'Count' : 'Reception'
-    const results: { inventory_item_id: string; success: boolean; error?: string }[] = []
+    const itemIds = items.map((i: { inventory_item_id: string }) => i.inventory_item_id)
+
+    // Batch-fetch all current quantities in one query (avoids N+1)
+    const { data: currentInventory } = await adminClient
+      .from('store_inventory')
+      .select('inventory_item_id, quantity')
+      .eq('store_id', auth.storeId)
+      .in('inventory_item_id', itemIds)
+
+    const currentQtyMap = new Map(
+      (currentInventory || []).map((inv: { inventory_item_id: string; quantity: number }) => [
+        inv.inventory_item_id,
+        Number(inv.quantity ?? 0),
+      ])
+    )
+
+    // Prepare batch upsert and history records
+    const upsertRecords: Array<Record<string, unknown>> = []
+    const historyRecords: Array<Record<string, unknown>> = []
+    const now = new Date().toISOString()
 
     for (const item of items) {
-      // Get current quantity
-      const { data: current } = await adminClient
-        .from('store_inventory')
-        .select('quantity')
-        .eq('store_id', auth.storeId)
-        .eq('inventory_item_id', item.inventory_item_id)
-        .single()
-
-      const currentQty = current?.quantity ?? 0
+      const currentQty = currentQtyMap.get(item.inventory_item_id) ?? 0
       const newQty = action === 'count' ? item.quantity : currentQty + item.quantity
 
-      // Upsert store_inventory
-      const { error: upsertError } = await adminClient
-        .from('store_inventory')
-        .upsert({
-          store_id: auth.storeId,
-          inventory_item_id: item.inventory_item_id,
-          quantity: newQty,
-          last_updated_at: new Date().toISOString(),
-          last_updated_by: null, // API key operations have no user
-        }, {
-          onConflict: 'store_id,inventory_item_id',
-        })
+      upsertRecords.push({
+        store_id: auth.storeId,
+        inventory_item_id: item.inventory_item_id,
+        quantity: newQty,
+        last_updated_at: now,
+        last_updated_by: null,
+      })
 
-      if (upsertError) {
+      historyRecords.push({
+        store_id: auth.storeId,
+        inventory_item_id: item.inventory_item_id,
+        action_type: actionType,
+        quantity_before: currentQty,
+        quantity_after: newQty,
+        quantity_change: newQty - currentQty,
+        notes: notes || `Via API (${action})`,
+        performed_by: null,
+      })
+    }
+
+    // Batch upsert all inventory records
+    const { error: upsertError } = await adminClient
+      .from('store_inventory')
+      .upsert(upsertRecords, { onConflict: 'store_id,inventory_item_id' })
+
+    const results: { inventory_item_id: string; success: boolean; error?: string }[] = []
+
+    if (upsertError) {
+      // If batch fails, mark all as failed
+      for (const item of items) {
         results.push({ inventory_item_id: item.inventory_item_id, success: false, error: 'Update failed' })
-        continue
       }
+    } else {
+      // Batch insert all history records
+      await adminClient.from('stock_history').insert(historyRecords)
 
-      // Record stock history
-      await adminClient
-        .from('stock_history')
-        .insert({
-          store_id: auth.storeId,
-          inventory_item_id: item.inventory_item_id,
-          action_type: actionType,
-          quantity_before: currentQty,
-          quantity_after: newQty,
-          quantity_change: newQty - currentQty,
-          notes: notes || `Via API (${action})`,
-          performed_by: null,
-        })
-
-      results.push({ inventory_item_id: item.inventory_item_id, success: true })
+      for (const item of items) {
+        results.push({ inventory_item_id: item.inventory_item_id, success: true })
+      }
     }
 
     // Dispatch webhook event (fire and forget)
@@ -201,7 +219,7 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 201 })
   } catch (error) {
-    console.error('Public API stock operation error:', error)
+    logger.error('Public API stock operation error:', { error: error })
     return NextResponse.json(
       { success: false, error: 'Failed to process stock operation' },
       { status: 500 }

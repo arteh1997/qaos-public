@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { withApiAuth } from '@/lib/api/middleware'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { RATE_LIMITS } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 import {
   apiSuccess,
   apiError,
@@ -78,7 +79,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (category) {
-      query = query.eq('action_category', category)
+      const categories = category.split(',').map(c => c.trim()).filter(Boolean)
+      if (categories.length === 1) {
+        query = query.eq('action_category', categories[0])
+      } else if (categories.length > 1) {
+        query = query.in('action_category', categories)
+      }
     }
 
     if (action) {
@@ -100,13 +106,83 @@ export async function GET(request: NextRequest) {
     const { data: logs, error, count } = await query
 
     if (error) {
-      console.error('[AuditLogs] Query error:', error)
+      logger.error('[AuditLogs] Query error:', { error: error })
       throw error
+    }
+
+    // Resolve missing user_name from profiles for older entries
+    // user_name column added in migration 047, may not be in generated types yet
+    interface AuditLogRow {
+      id: string
+      user_id: string
+      store_id: string | null
+      action: string
+      action_category: string | null
+      details: Record<string, unknown> | null
+      user_name?: string | null
+      created_at: string
+      [key: string]: unknown
+    }
+    const logsWithNames: AuditLogRow[] = (logs || []) as AuditLogRow[]
+
+    const missingNameUserIds = [
+      ...new Set(
+        logsWithNames
+          .filter(log => !log.user_name && log.user_id)
+          .map(log => log.user_id as string)
+      ),
+    ]
+
+    if (missingNameUserIds.length > 0) {
+      const { data: profiles } = await adminClient
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', missingNameUserIds)
+
+      if (profiles && profiles.length > 0) {
+        const profileMap = new Map(
+          profiles.map((p: { id: string; full_name: string | null }) => [p.id, p.full_name])
+        )
+        for (const log of logsWithNames) {
+          if (!log.user_name && log.user_id && profileMap.has(log.user_id)) {
+            log.user_name = profileMap.get(log.user_id) || null
+          }
+        }
+      }
+    }
+
+    // Resolve missing itemName in details for inventory/stock entries
+    const missingItemNameLogs = logsWithNames.filter(
+      log =>
+        log.resource_type === 'inventory_item' &&
+        log.resource_id &&
+        log.details &&
+        typeof log.details === 'object' &&
+        !(log.details as Record<string, unknown>).itemName &&
+        !(log.details as Record<string, unknown>).item_name
+    )
+
+    if (missingItemNameLogs.length > 0) {
+      const itemIds = [...new Set(missingItemNameLogs.map(log => log.resource_id as string))]
+      const { data: items } = await adminClient
+        .from('inventory_items')
+        .select('id, name')
+        .in('id', itemIds)
+
+      if (items && items.length > 0) {
+        const itemMap = new Map(items.map((i: { id: string; name: string }) => [i.id, i.name]))
+        for (const log of missingItemNameLogs) {
+          const name = itemMap.get(log.resource_id as string)
+          if (name && typeof log.details === 'object') {
+            ;(log.details as Record<string, unknown>).itemName = name
+          }
+        }
+      }
     }
 
     return apiSuccess(
       {
-        logs: logs || [],
+        logs: logsWithNames,
         pagination: {
           total: count || 0,
           limit,
@@ -117,7 +193,7 @@ export async function GET(request: NextRequest) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('[AuditLogs] Error:', error)
+    logger.error('[AuditLogs] Error:', { error: error })
     return apiError(
       error instanceof Error ? error.message : 'Failed to fetch audit logs'
     )

@@ -9,6 +9,7 @@ import {
   apiNotFound,
 } from '@/lib/api/response'
 import { updateTagSchema } from '@/lib/validations/categories-tags'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; tagId: string }>
@@ -109,7 +110,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error updating tag:', error)
+    logger.error('Error updating tag:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update tag')
   }
 }
@@ -176,7 +177,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error deleting tag:', error)
+    logger.error('Error deleting tag:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to delete tag')
   }
 }

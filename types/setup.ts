@@ -6,7 +6,7 @@ import type { LucideIcon } from 'lucide-react'
  */
 
 // Unique identifier for each setup step
-export type SetupStepId = 'inventory' | 'hours' | 'team'
+export type SetupStepId = 'inventory' | 'hours' | 'suppliers' | 'menu' | 'team'
 
 // Individual setup step configuration
 export interface SetupStep {
@@ -33,4 +33,6 @@ export interface SetupStatusData {
   hasOpeningTime: boolean
   hasClosingTime: boolean
   teamMemberCount: number // Excludes current user
+  supplierCount: number
+  menuItemCount: number
 }

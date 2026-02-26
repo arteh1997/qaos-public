@@ -9,6 +9,9 @@ import {
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { stockReceptionSchema } from '@/lib/validations/inventory'
 import { sanitizeNotes } from '@/lib/utils'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 import {
   verifyActiveItems,
   getCurrentInventoryMap,
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { storeId } = await params
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Owner', 'Manager', 'Driver'],
+      allowedRoles: ['Owner', 'Manager', 'Staff'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
       requireCSRF: true,
     })
@@ -72,6 +75,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Verify all inventory items are still active (not deleted)
     const itemIds = validItems.map(item => item.inventory_item_id)
+
+    // Fetch item names for audit log
+    const { data: itemDetails } = await context.supabase
+      .from('inventory_items')
+      .select('id, name, unit_of_measure')
+      .in('id', itemIds)
+    const itemNameMap = new Map(itemDetails?.map((i: { id: string; name: string; unit_of_measure: string }) => [i.id, i]) || [])
+
     try {
       await verifyActiveItems(context.supabase, itemIds, context.requestId)
     } catch (err) {
@@ -123,6 +134,45 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       false // Don't mark daily count for receptions
     )
 
+    // Update unit costs for items with cost data (separate from quantity upsert)
+    const costItems = validItems.filter(
+      item => item.total_cost !== undefined && item.total_cost !== null && item.quantity > 0
+    )
+    for (const item of costItems) {
+      const unitCost = Math.round((item.total_cost! / item.quantity) * 10000) / 10000
+      await context.supabase
+        .from('store_inventory')
+        .update({ unit_cost: unitCost, cost_currency: 'GBP' })
+        .eq('store_id', storeId)
+        .eq('inventory_item_id', item.inventory_item_id)
+    }
+
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'stock.reception_submit',
+      storeId,
+      resourceType: 'stock_reception',
+      details: {
+        itemCount: validItems.length,
+        totalQuantity: validItems.reduce((sum, item) => sum + item.quantity, 0),
+        totalCost: costItems.reduce((sum, item) => sum + (item.total_cost ?? 0), 0) || undefined,
+        notes: sanitizedNotes || undefined,
+        supplierName: body.supplier_name || undefined,
+        items: validItems.map(item => {
+          const info = itemNameMap.get(item.inventory_item_id)
+          return {
+            name: info?.name || 'Unknown Item',
+            quantity: item.quantity,
+            unit: info?.unit_of_measure || '',
+            totalCost: item.total_cost ?? null,
+          }
+        }),
+      },
+      request,
+    })
+
     return apiSuccess(
       {
         message: 'Stock reception recorded successfully',
@@ -132,7 +182,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId, status: 201 }
     )
   } catch (error) {
-    console.error('Error recording stock reception:', error)
+    logger.error('Error recording stock reception:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to record stock reception')
   }
 }

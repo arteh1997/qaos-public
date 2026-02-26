@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Store } from '@/types'
 import { StoreFormData } from '@/lib/validations/store'
 import { sanitizeSearchInput, sanitizeErrorMessage } from '@/lib/utils'
+import { useCSRF } from './useCSRF'
+import { useAuth } from './useAuth'
 import { toast } from 'sonner'
 
 const PAGE_SIZE = 20
@@ -48,7 +50,7 @@ async function fetchStores(filters: StoresFilters = {}): Promise<PaginatedStores
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.error || 'Failed to fetch stores')
+    throw new Error(error.message || 'Failed to fetch stores')
   }
 
   const data = await response.json()
@@ -96,10 +98,12 @@ export function useStoresQuery(filters: StoresFilters = {}) {
  */
 export function useCreateStore() {
   const queryClient = useQueryClient()
+  const { csrfFetch } = useCSRF()
+  const { refreshProfile } = useAuth()
 
   return useMutation({
     mutationFn: async (formData: StoreFormData) => {
-      const response = await fetch('/api/stores', {
+      const response = await csrfFetch('/api/stores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -107,7 +111,7 @@ export function useCreateStore() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create store')
+        throw new Error(errorData.message || 'Failed to create store')
       }
 
       return response.json()
@@ -130,12 +134,15 @@ export function useCreateStore() {
             id: crypto.randomUUID(),
             name: formData.name,
             address: formData.address ?? null,
+            country: (formData as Record<string, unknown>).country as string || 'GB',
+            currency: (formData as Record<string, unknown>).currency as string || 'GBP',
             is_active: true,
             opening_time: formData.opening_time ?? null,
             closing_time: formData.closing_time ?? null,
             weekly_hours: formData.weekly_hours ?? null,
             billing_user_id: formData.billing_user_id ?? null,
             subscription_status: 'active',
+            setup_completed_at: null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }
@@ -166,6 +173,7 @@ export function useCreateStore() {
     // Refetch on success to get server-side data
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
+      refreshProfile()
       toast.success('Store created successfully')
     },
   })
@@ -176,10 +184,12 @@ export function useCreateStore() {
  */
 export function useUpdateStore() {
   const queryClient = useQueryClient()
+  const { csrfFetch } = useCSRF()
+  const { refreshProfile } = useAuth()
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<StoreFormData> }) => {
-      const response = await fetch(`/api/stores/${id}`, {
+      const response = await csrfFetch(`/api/stores/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -187,7 +197,7 @@ export function useUpdateStore() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update store')
+        throw new Error(errorData.message || 'Failed to update store')
       }
 
       return response.json()
@@ -223,6 +233,7 @@ export function useUpdateStore() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
+      refreshProfile()
       toast.success('Store updated successfully')
     },
   })
@@ -233,16 +244,18 @@ export function useUpdateStore() {
  */
 export function useDeleteStore() {
   const queryClient = useQueryClient()
+  const { csrfFetch } = useCSRF()
+  const { refreshProfile } = useAuth()
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/stores/${id}`, {
+      const response = await csrfFetch(`/api/stores/${id}`, {
         method: 'DELETE',
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete store')
+        throw new Error(errorData.message || 'Failed to delete store')
       }
 
       return response.json()
@@ -278,6 +291,7 @@ export function useDeleteStore() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
+      refreshProfile()
       toast.success('Store deleted successfully')
     },
   })
@@ -306,9 +320,9 @@ export function useStores(filters: StoresFilters = {}) {
     error: query.error,
 
     // Mutations
-    createStore: createMutation.mutate,
-    updateStore: updateMutation.mutate,
-    deleteStore: deleteMutation.mutate,
+    createStore: createMutation.mutateAsync,
+    updateStore: updateMutation.mutateAsync,
+    deleteStore: deleteMutation.mutateAsync,
 
     // Additional mutation states
     isCreating: createMutation.isPending,

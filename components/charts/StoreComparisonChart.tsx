@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { StoreAnalytics } from '@/hooks/useBenchmark'
@@ -28,6 +29,15 @@ function getMetricValue(store: StoreAnalytics, metric: StoreComparisonChartProps
 }
 
 export function StoreComparisonChart({ stores, metric, title, unit = '', color = '#303030' }: StoreComparisonChartProps) {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 639px)')
+    const onChange = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches)
+    onChange(mql)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
   const data = stores.map(store => ({
     name: store.storeName.length > 15 ? store.storeName.slice(0, 15) + '...' : store.storeName,
     fullName: store.storeName,
@@ -45,7 +55,7 @@ export function StoreComparisonChart({ stores, metric, title, unit = '', color =
             <BarChart data={data} layout="vertical" margin={{ left: 10, right: 20 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tickFormatter={(v) => `${v}${unit}`} />
-              <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
+              <YAxis type="category" dataKey="name" width={isMobile ? 70 : 120} tick={{ fontSize: isMobile ? 10 : 12 }} />
               <Tooltip
                 formatter={(value: unknown) => [`${Number(value).toLocaleString()}${unit}`, title]}
                 labelFormatter={(label: unknown) => {

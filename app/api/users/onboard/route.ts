@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { onboardingSchema } from '@/lib/validations/user'
 import { sendEmail, getWelcomeEmailHtml } from '@/lib/email'
 import { validateCSRFToken } from '@/lib/csrf'
+import { logger } from '@/lib/logger'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (createError) {
-      console.error('[Onboard] Create user error:', createError)
+      logger.error('[Onboard] Create user error:', { error: createError })
       return NextResponse.json(
         { success: false, message: createError.message },
         { status: 400 }
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
       .eq('id', userData.user.id)
 
     if (profileError) {
-      console.error('[Onboard] Profile update error:', profileError)
+      logger.error('[Onboard] Profile update error:', { error: profileError })
       // Don't fail - user is created, profile can be updated manually
     }
 
@@ -131,25 +132,7 @@ export async function POST(request: NextRequest) {
         })
 
       if (storeUserError) {
-        console.error('[Onboard] Store user insert error:', storeUserError)
-      }
-    }
-
-    // Handle Driver multi-store assignment
-    if (invite.role === 'Driver' && invite.store_ids && invite.store_ids.length > 0) {
-      for (const storeId of invite.store_ids) {
-        const { error: driverStoreError } = await supabaseAdmin
-          .from('store_users')
-          .insert({
-            store_id: storeId,
-            user_id: userData.user.id,
-            role: 'Driver',
-            is_billing_owner: false,
-          })
-
-        if (driverStoreError) {
-          console.error('[Onboard] Driver store insert error:', driverStoreError)
-        }
+        logger.error('[Onboard] Store user insert error:', { error: storeUserError })
       }
     }
 
@@ -182,7 +165,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[Onboard] Error:', error)
+    logger.error('[Onboard] Error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'Failed to complete registration' },
       { status: 500 }

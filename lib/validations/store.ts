@@ -99,26 +99,30 @@ export const DAY_SHORT_LABELS: Record<DayOfWeek, string> = {
   sunday: 'Sun',
 }
 
+// Clamp hour to valid 24h range (0-23)
+function clampHour(hour: number): number {
+  return Math.max(0, Math.min(23, hour))
+}
+
 // Calculate default shift patterns based on opening/closing times
 export function calculateDefaultShiftPatterns(openingTime: string, closingTime: string): DayHours['shifts'] {
   const [openHour, openMin] = openingTime.split(':').map(Number)
   const [closeHour, closeMin] = closingTime.split(':').map(Number)
 
-  // Opening shift: starts at opening time, 8 hours
+  // Opening shift: starts at opening time, ends at closing or +8h (whichever is earlier)
   const openingStart = openingTime
-  const openingEndHour = openHour + 8
+  const openingEndHour = clampHour(openHour + 8)
   const openingEnd = `${String(openingEndHour).padStart(2, '0')}:${String(openMin).padStart(2, '0')}`
 
-  // Mid shift: starts 4 hours after opening, 8 hours
-  const midStartHour = openHour + 4
+  // Mid shift: starts 4 hours after opening, 8 hours long (clamped)
+  const midStartHour = clampHour(openHour + 4)
   const midStart = `${String(midStartHour).padStart(2, '0')}:${String(openMin).padStart(2, '0')}`
-  const midEndHour = midStartHour + 8
+  const midEndHour = clampHour(midStartHour + 8)
   const midEnd = `${String(midEndHour).padStart(2, '0')}:${String(openMin).padStart(2, '0')}`
 
-  // Closing shift: ends at closing time, 8 hours before
-  const closingEndHour = closeHour
+  // Closing shift: ends at closing time, 8 hours before (clamped)
   const closingEnd = closingTime
-  const closingStartHour = closeHour - 8
+  const closingStartHour = clampHour(closeHour - 8)
   const closingStart = `${String(closingStartHour).padStart(2, '0')}:${String(closeMin).padStart(2, '0')}`
 
   return {

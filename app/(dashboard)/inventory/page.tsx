@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useCallback, useMemo } from 'react'
+import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useInventory } from '@/hooks/useInventory'
 import { useUrlFilters } from '@/hooks/useUrlFilters'
@@ -32,34 +32,46 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
 import { InventoryItem, StoreInventory } from '@/types'
 import { InventoryItemFormData } from '@/lib/validations/inventory'
-import { Plus, Search, Download, MoreVertical, MoreHorizontal, Edit, Trash2, Package, X, FileUp, FileDown } from 'lucide-react'
+import { Plus, Search, MoreVertical, MoreHorizontal, Edit, Trash2, Package, X, FileUp, FileDown, Save, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
 import { supabaseFetch } from '@/lib/supabase/client'
+import { useCSRF } from '@/hooks/useCSRF'
+import { PageGuide } from '@/components/help/PageGuide'
 
 const FILTER_DEFAULTS = {
   search: '',
   category: '',
 }
 
-// Skeleton for Shopify-style table
+// Pending change for a single item
+interface PendingChange {
+  quantity?: number
+  par_level?: number | null
+  unit_cost?: number
+  // Original values for comparison
+  originalQuantity: number
+  originalPar: number | null
+  originalCost: number
+}
+
+// Skeleton for table
 function InventoryTableSkeleton() {
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-lg border overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="w-[40px]"><Skeleton className="h-4 w-4" /></TableHead>
             <TableHead><Skeleton className="h-4 w-20" /></TableHead>
-            <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-16" /></TableHead>
-            <TableHead className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableHead>
-            <TableHead className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableHead>
-            <TableHead className="w-[50px]"></TableHead>
+            <TableHead className="text-right"><Skeleton className="h-4 w-14 ml-auto" /></TableHead>
+            <TableHead className="text-right"><Skeleton className="h-4 w-14 ml-auto" /></TableHead>
+            <TableHead className="text-right"><Skeleton className="h-4 w-14 ml-auto" /></TableHead>
+            <TableHead className="w-[40px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -67,14 +79,14 @@ function InventoryTableSkeleton() {
             <TableRow key={i}>
               <TableCell><Skeleton className="h-4 w-4" /></TableCell>
               <TableCell>
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded" />
+                <div>
                   <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20 mt-1" />
                 </div>
               </TableCell>
-              <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
               <TableCell className="text-right"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
               <TableCell className="text-right"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
+              <TableCell className="text-right"><Skeleton className="h-4 w-10 ml-auto" /></TableCell>
               <TableCell><Skeleton className="h-8 w-8" /></TableCell>
             </TableRow>
           ))}
@@ -88,12 +100,14 @@ function InventoryTableSkeleton() {
 interface InventoryWithQuantity extends InventoryItem {
   quantity: number
   par_level: number | null
+  unit_cost: number
 }
 
 function InventoryPageContent() {
-  const { currentStore } = useAuth()
+  const { currentStore, refreshProfile } = useAuth()
   const currentStoreId = currentStore?.store_id
-  const { items, isLoading, error, createItem, updateItem, deleteItem } = useInventory()
+  const { items, isLoading, error, createItem, updateItem, refetch: refetchItems } = useInventory()
+  const { csrfFetch } = useCSRF()
 
   // URL-based filter state
   const { filters, setFilter } = useUrlFilters({ defaults: FILTER_DEFAULTS })
@@ -108,6 +122,15 @@ function InventoryPageContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [csvImportOpen, setCsvImportOpen] = useState(false)
+
+  // Pending changes system - track all unsaved edits
+  const [pendingChanges, setPendingChanges] = useState<Map<string, PendingChange>>(new Map())
+  const [isSavingBatch, setIsSavingBatch] = useState(false)
+
+  // Inline editing state (one field at a time)
+  const [editingCell, setEditingCell] = useState<{ itemId: string; field: 'stock' | 'par' | 'cost' } | null>(null)
+  const [editingValue, setEditingValue] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Store inventory data (quantities)
   const [storeInventoryMap, setStoreInventoryMap] = useState<Map<string, StoreInventory>>(new Map())
@@ -165,41 +188,63 @@ function InventoryPageContent() {
     return () => clearTimeout(timer)
   }, [searchInput, filters.search, setFilter])
 
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editingCell && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [editingCell])
+
   // Filter and enrich items with quantities
   const inventoryWithQuantities = useMemo((): InventoryWithQuantity[] => {
     return items
       .filter((item) => {
-        // Only show items that are in this store's inventory
-        if (currentStoreId && !storeInventoryMap.has(item.id)) {
-          return false
-        }
-
+        if (!item.is_active) return false
+        if (currentStoreId && !storeInventoryMap.has(item.id)) return false
         const matchesSearch = filters.search
           ? item.name.toLowerCase().includes(filters.search.toLowerCase())
           : true
-
         const matchesCategory = filters.category && filters.category !== 'all'
           ? item.category === filters.category
           : true
-
         return matchesSearch && matchesCategory
       })
       .map((item) => {
         const storeInv = storeInventoryMap.get(item.id)
+        const pending = pendingChanges.get(item.id)
         return {
           ...item,
-          quantity: storeInv?.quantity ?? 0,
-          par_level: storeInv?.par_level ?? null,
+          quantity: pending?.quantity ?? storeInv?.quantity ?? 0,
+          par_level: pending?.par_level !== undefined ? pending.par_level : (storeInv?.par_level ?? null),
+          unit_cost: pending?.unit_cost ?? Number(storeInv?.unit_cost ?? 0),
         }
       })
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [items, filters, currentStoreId, storeInventoryMap])
+  }, [items, filters, currentStoreId, storeInventoryMap, pendingChanges])
 
   // Get unique categories from current store's inventory
   const existingCategories = useMemo(() => {
     const categories = inventoryWithQuantities.map(item => item.category).filter((c): c is string => c !== null && c !== undefined)
     return [...new Set(categories)].sort()
   }, [inventoryWithQuantities])
+
+  // Count pending changes
+  const pendingCount = pendingChanges.size
+  const totalFieldChanges = useMemo(() => {
+    let count = 0
+    for (const change of pendingChanges.values()) {
+      if (change.quantity !== undefined && change.quantity !== change.originalQuantity) count++
+      if (change.par_level !== undefined && change.par_level !== change.originalPar) count++
+      if (change.unit_cost !== undefined && change.unit_cost !== change.originalCost) count++
+    }
+    return count
+  }, [pendingChanges])
+
+  // Check if a specific item has pending changes
+  const hasItemChange = useCallback((itemId: string) => {
+    return pendingChanges.has(itemId)
+  }, [pendingChanges])
 
   // Selection handlers
   const allSelected = inventoryWithQuantities.length > 0 && selectedIds.size === inventoryWithQuantities.length
@@ -216,23 +261,169 @@ function InventoryPageContent() {
   const handleSelectItem = useCallback((itemId: string, checked: boolean) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
-      if (checked) {
-        next.add(itemId)
-      } else {
-        next.delete(itemId)
-      }
+      if (checked) next.add(itemId)
+      else next.delete(itemId)
       return next
     })
   }, [])
 
-  const handleSubmit = async (data: InventoryItemFormData) => {
+  // Start editing a cell
+  const startEdit = useCallback((itemId: string, field: 'stock' | 'par' | 'cost', currentValue: number | null) => {
+    if (field === 'cost') {
+      setEditingValue(currentValue && currentValue > 0 ? currentValue.toFixed(2) : '')
+    } else if (field === 'par') {
+      setEditingValue(currentValue !== null ? String(currentValue) : '')
+    } else {
+      setEditingValue(String(currentValue ?? 0))
+    }
+    setEditingCell({ itemId, field })
+  }, [])
+
+  // Commit the current inline edit to pending changes
+  const commitEdit = useCallback(() => {
+    if (!editingCell) return
+
+    const { itemId, field } = editingCell
+    const storeInv = storeInventoryMap.get(itemId)
+    const originalQuantity = storeInv?.quantity ?? 0
+    const originalPar = storeInv?.par_level ?? null
+    const originalCost = Number(storeInv?.unit_cost ?? 0)
+
+    const existing = pendingChanges.get(itemId) || {
+      originalQuantity,
+      originalPar,
+      originalCost,
+    }
+
+    let newChange: PendingChange | null = null
+
+    if (field === 'stock') {
+      const parsed = parseInt(editingValue)
+      if (!isNaN(parsed) && parsed >= 0 && parsed !== originalQuantity) {
+        newChange = { ...existing, quantity: parsed }
+      } else if (parsed === originalQuantity) {
+        // Value reverted to original - remove this field from pending
+        newChange = { ...existing }
+        delete newChange.quantity
+      }
+    } else if (field === 'par') {
+      const parsed = editingValue === '' ? null : parseInt(editingValue)
+      if (parsed === null || (!isNaN(parsed) && parsed >= 0)) {
+        if (parsed !== originalPar) {
+          newChange = { ...existing, par_level: parsed }
+        } else {
+          newChange = { ...existing }
+          delete newChange.par_level
+        }
+      }
+    } else if (field === 'cost') {
+      const parsed = parseFloat(editingValue)
+      if (!isNaN(parsed) && parsed >= 0 && parsed !== originalCost) {
+        newChange = { ...existing, unit_cost: parsed }
+      } else if (parsed === originalCost) {
+        newChange = { ...existing }
+        delete newChange.unit_cost
+      }
+    }
+
+    if (newChange) {
+      // Check if the change actually has any real changes
+      const hasRealChanges =
+        (newChange.quantity !== undefined && newChange.quantity !== newChange.originalQuantity) ||
+        (newChange.par_level !== undefined && newChange.par_level !== newChange.originalPar) ||
+        (newChange.unit_cost !== undefined && newChange.unit_cost !== newChange.originalCost)
+
+      setPendingChanges(prev => {
+        const next = new Map(prev)
+        if (hasRealChanges) {
+          next.set(itemId, newChange)
+        } else {
+          next.delete(itemId)
+        }
+        return next
+      })
+    }
+
+    setEditingCell(null)
+  }, [editingCell, editingValue, storeInventoryMap, pendingChanges])
+
+  // Handle keyboard in inline edit
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      commitEdit()
+    } else if (e.key === 'Escape') {
+      setEditingCell(null)
+    }
+  }, [commitEdit])
+
+  // Save all pending changes via batch API
+  const handleSaveAll = useCallback(async () => {
+    if (!currentStoreId || pendingChanges.size === 0) return
+
+    setIsSavingBatch(true)
+    try {
+      const updates = Array.from(pendingChanges.entries()).map(([itemId, change]) => {
+        const update: Record<string, unknown> = { itemId }
+        if (change.quantity !== undefined) update.quantity = change.quantity
+        if (change.par_level !== undefined) update.par_level = change.par_level
+        if (change.unit_cost !== undefined) update.unit_cost = change.unit_cost
+        return update
+      })
+
+      const response = await csrfFetch(`/api/stores/${currentStoreId}/inventory/batch`, {
+        method: 'PATCH',
+        body: JSON.stringify({ updates }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || 'Failed to save changes')
+      }
+
+      const result = await response.json()
+      toast.success(`Saved ${result.data?.changes || totalFieldChanges} changes across ${pendingCount} items`)
+      setPendingChanges(new Map())
+      fetchStoreInventory(currentStoreId)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save changes')
+    } finally {
+      setIsSavingBatch(false)
+    }
+  }, [currentStoreId, pendingChanges, totalFieldChanges, pendingCount, csrfFetch, fetchStoreInventory])
+
+  // Discard all pending changes
+  const handleDiscardAll = useCallback(() => {
+    setPendingChanges(new Map())
+    setEditingCell(null)
+  }, [])
+
+  const handleSubmit = async (data: InventoryItemFormData, options?: { costPerUnit?: number }) => {
     setIsSubmitting(true)
     try {
+      let itemId: string | undefined
+
       if (editItem) {
         await updateItem({ id: editItem.id, data })
+        itemId = editItem.id
       } else {
-        await createItem(data)
+        const createdItem = await createItem(data)
+        itemId = createdItem?.id
       }
+
+      // Set cost via PATCH API if provided
+      if (options?.costPerUnit !== undefined && itemId && currentStoreId) {
+        try {
+          await csrfFetch(`/api/stores/${currentStoreId}/inventory/${itemId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ unit_cost: options.costPerUnit }),
+          })
+          fetchStoreInventory(currentStoreId)
+        } catch {
+          toast.error('Item saved but failed to set cost')
+        }
+      }
+
       setFormOpen(false)
       setEditItem(null)
     } finally {
@@ -245,29 +436,74 @@ function InventoryPageContent() {
     setFormOpen(true)
   }
 
-  const handleDelete = () => {
-    if (deleteItemState) {
-      deleteItem(deleteItemState.id)
+  const handleDelete = async () => {
+    if (!deleteItemState || !currentStoreId) return
+    try {
+      const response = await csrfFetch(`/api/stores/${currentStoreId}/inventory/${deleteItemState.id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || 'Failed to delete item')
+      }
+      const result = await response.json()
+      toast.success('Item deleted')
+
+      // If setup was reset (all inventory gone), refresh auth so sidebar locks
+      if (result.data?.setupReset) {
+        await refreshProfile()
+      }
+
+      refetchItems()
+      fetchStoreInventory(currentStoreId)
+      // Remove from pending changes if exists
+      setPendingChanges(prev => {
+        const next = new Map(prev)
+        next.delete(deleteItemState.id)
+        return next
+      })
+    } catch {
+      toast.error('Failed to delete item')
+    } finally {
       setDeleteItemState(null)
     }
   }
 
   const handleBulkDelete = async () => {
-    const itemsToDelete = Array.from(selectedIds)
-    let successCount = 0
+    if (!currentStoreId) return
+    try {
+      const response = await csrfFetch(`/api/stores/${currentStoreId}/inventory/batch`, {
+        method: 'DELETE',
+        body: JSON.stringify({ itemIds: Array.from(selectedIds) }),
+      })
 
-    for (const id of itemsToDelete) {
-      try {
-        await deleteItem(id)
-        successCount++
-      } catch {
-        // Continue with remaining items
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || 'Failed to delete items')
       }
-    }
 
-    toast.success(`Deleted ${successCount} item${successCount !== 1 ? 's' : ''}`)
-    setSelectedIds(new Set())
-    setBulkDeleteOpen(false)
+      const result = await response.json()
+      const deletedCount = result.data?.deleted ?? selectedIds.size
+      toast.success(`Deleted ${deletedCount} item${deletedCount !== 1 ? 's' : ''}`)
+
+      // If setup was reset (all inventory gone), refresh auth so sidebar locks
+      if (result.data?.setupReset) {
+        await refreshProfile()
+      }
+
+      setSelectedIds(new Set())
+      setBulkDeleteOpen(false)
+      refetchItems()
+      fetchStoreInventory(currentStoreId)
+      // Clear pending changes for deleted items
+      setPendingChanges(prev => {
+        const next = new Map(prev)
+        for (const id of selectedIds) next.delete(id)
+        return next
+      })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete items')
+    }
   }
 
   const clearSelection = useCallback(() => {
@@ -276,36 +512,36 @@ function InventoryPageContent() {
 
   const handleExport = () => {
     const columns = [
-      { key: 'name', header: 'Name' },
+      { key: 'name', header: 'Item Name' },
       { key: 'category', header: 'Category', transform: (v: unknown) => String(v || '') },
-      { key: 'unit_of_measure', header: 'Unit' },
-      { key: 'quantity', header: 'On Hand' },
-      { key: 'par_level', header: 'PAR Level', transform: (v: unknown) => v ? String(v) : '' },
+      { key: 'quantity', header: 'Current Stock' },
+      { key: 'par_level', header: 'Minimum Stock Level', transform: (v: unknown) => v ? String(v) : '' },
+      { key: 'unit_cost', header: 'Unit Cost (£)', transform: (v: unknown) => Number(v) > 0 ? Number(v).toFixed(2) : '' },
     ]
-
     exportToCSV(inventoryWithQuantities, columns, generateExportFilename('inventory'))
     toast.success(`Exported ${inventoryWithQuantities.length} items`)
   }
 
   const handleCSVImportSuccess = () => {
     setCsvImportOpen(false)
-    // Inventory will auto-refresh via useInventory hook
+    refetchItems()
+    if (currentStoreId) fetchStoreInventory(currentStoreId)
   }
 
   if (error) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-xl font-semibold">Inventory</h1>
-        <p className="text-red-500">Error loading inventory. Please try again.</p>
+      <div className="space-y-6">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Inventory</h1>
+        <p className="text-destructive">Error loading inventory. Please try again.</p>
       </div>
     )
   }
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-7 w-24" />
+          <Skeleton className="h-8 w-32" />
           <Skeleton className="h-9 w-24" />
         </div>
         <div className="flex gap-3">
@@ -319,22 +555,25 @@ function InventoryPageContent() {
 
   if (!currentStore) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-xl font-semibold">Inventory</h1>
+      <div className="space-y-6">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Inventory</h1>
         <p className="text-muted-foreground">Please select a store from the sidebar to view inventory.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Inventory</h1>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Inventory</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage your store&apos;s items and stock levels</p>
+        </div>
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-white">
+              <Button variant="outline" size="sm" className="bg-card">
                 <MoreVertical className="h-4 w-4 mr-2" />
                 More actions
               </Button>
@@ -354,6 +593,7 @@ function InventoryPageContent() {
             <Plus className="h-4 w-4 mr-2" />
             Add item
           </Button>
+          <PageGuide pageKey="inventory" />
         </div>
       </div>
 
@@ -365,14 +605,14 @@ function InventoryPageContent() {
             placeholder="Search items"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9 h-9 bg-white"
+            className="pl-9 h-9 bg-card"
           />
         </div>
         <Select
           value={filters.category || 'all'}
           onValueChange={(value) => setFilter('category', value === 'all' ? '' : value)}
         >
-          <SelectTrigger className="w-full sm:w-44 h-9 bg-white">
+          <SelectTrigger className="w-full sm:w-44 h-9 bg-card">
             <SelectValue placeholder="All categories" />
           </SelectTrigger>
           <SelectContent>
@@ -388,7 +628,7 @@ function InventoryPageContent() {
 
       {/* Bulk Actions Bar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between gap-4 p-3 bg-white rounded-lg border shadow-sm">
+        <div className="flex items-center justify-between gap-4 p-3 bg-card rounded-lg border shadow-sm">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">
               {selectedIds.size} item{selectedIds.size !== 1 ? 's' : ''} selected
@@ -413,9 +653,9 @@ function InventoryPageContent() {
       {storeInventoryLoading ? (
         <InventoryTableSkeleton />
       ) : inventoryWithQuantities.length === 0 ? (
-        <div className="rounded-lg border bg-white shadow-sm">
+        <div className="rounded-lg border bg-card shadow-sm">
           <div className="flex flex-col items-center justify-center py-16 px-4">
-            <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center mb-4">
+            <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center mb-4">
               <Package className="h-6 w-6 text-muted-foreground" />
             </div>
             <h3 className="text-sm font-medium mb-1">No items found</h3>
@@ -439,11 +679,11 @@ function InventoryPageContent() {
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border bg-white shadow-sm">
+        <div className="rounded-lg border bg-card shadow-sm overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-b">
-                <TableHead className="w-[40px] h-12 bg-white">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[40px]">
                   <Checkbox
                     checked={allSelected}
                     data-indeterminate={someSelected ? true : undefined}
@@ -451,20 +691,30 @@ function InventoryPageContent() {
                     aria-label="Select all"
                   />
                 </TableHead>
-                <TableHead className="h-12 font-semibold bg-white">Item</TableHead>
-                <TableHead className="hidden md:table-cell h-12 font-semibold bg-white">Category</TableHead>
-                <TableHead className="text-right w-[100px] h-12 font-semibold bg-white">On hand</TableHead>
-                <TableHead className="text-right w-[100px] h-12 font-semibold bg-white">PAR level</TableHead>
-                <TableHead className="w-[50px] h-12 bg-white"></TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead className="text-right w-[100px]">In Stock</TableHead>
+                <TableHead className="text-right w-[100px]">PAR</TableHead>
+                <TableHead className="text-right w-[100px]">Unit Cost</TableHead>
+                <TableHead className="w-[40px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {inventoryWithQuantities.map((item) => {
-                const isLowStock = item.par_level !== null && item.quantity < item.par_level
+                const isLow = item.par_level !== null && item.quantity > 0 && item.quantity < item.par_level
+                const isNoStock = item.quantity === 0
+                const isPending = hasItemChange(item.id)
+                const isEditingThis = editingCell?.itemId === item.id
+
                 return (
                   <TableRow
                     key={item.id}
-                    className={selectedIds.has(item.id) ? 'bg-blue-50' : undefined}
+                    className={
+                      selectedIds.has(item.id)
+                        ? 'bg-primary/5'
+                        : isPending
+                          ? 'bg-amber-50/50 dark:bg-amber-950/10'
+                          : undefined
+                    }
                   >
                     <TableCell>
                       <Checkbox
@@ -474,35 +724,116 @@ function InventoryPageContent() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        {/* Item thumbnail placeholder */}
-                        <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center flex-shrink-0">
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
+                      <div className="min-w-0 flex items-center gap-2">
+                        <div>
                           <p className="font-medium text-sm truncate">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">{item.unit_of_measure}</p>
+                          {item.category && (
+                            <p className="text-xs text-muted-foreground truncate">{item.category}</p>
+                          )}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">
-                      {item.category || '—'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {isLowStock && (
-                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                            Low
-                          </Badge>
+                        {isPending && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" title="Unsaved changes" />
                         )}
-                        <span className={isLowStock ? 'text-red-600 font-medium' : ''}>
-                          {item.quantity}
-                        </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {item.par_level ?? '—'}
+
+                    {/* In Stock */}
+                    <TableCell className="text-right">
+                      {isEditingThis && editingCell.field === 'stock' ? (
+                        <Input
+                          ref={inputRef}
+                          type="number"
+                          min="0"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={handleEditKeyDown}
+                          onBlur={commitEdit}
+                          className="h-7 w-16 text-right text-sm ml-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => startEdit(item.id, 'stock', item.quantity)}
+                          className="flex items-center justify-end gap-1.5 w-full cursor-pointer hover:underline"
+                        >
+                          {isNoStock && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              No Stock
+                            </Badge>
+                          )}
+                          {isLow && (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                              Low
+                            </Badge>
+                          )}
+                          <span className={isLow ? 'text-destructive font-medium' : isNoStock ? 'text-muted-foreground' : ''}>
+                            {item.quantity}
+                          </span>
+                        </button>
+                      )}
                     </TableCell>
+
+                    {/* PAR */}
+                    <TableCell className="text-right">
+                      {isEditingThis && editingCell.field === 'par' ? (
+                        <Input
+                          ref={inputRef}
+                          type="number"
+                          min="0"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={handleEditKeyDown}
+                          onBlur={commitEdit}
+                          className="h-7 w-16 text-right text-sm ml-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      ) : item.par_level !== null ? (
+                        <button
+                          onClick={() => startEdit(item.id, 'par', item.par_level)}
+                          className="text-sm hover:underline cursor-pointer"
+                        >
+                          {item.par_level}
+                        </button>
+                      ) : (
+                        <button onClick={() => startEdit(item.id, 'par', null)}>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 cursor-pointer hover:bg-muted">
+                            Set
+                          </Badge>
+                        </button>
+                      )}
+                    </TableCell>
+
+                    {/* Unit Cost */}
+                    <TableCell className="text-right">
+                      {isEditingThis && editingCell.field === 'cost' ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-xs text-muted-foreground">£</span>
+                          <Input
+                            ref={inputRef}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            onBlur={commitEdit}
+                            className="h-7 w-16 text-right text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        </div>
+                      ) : item.unit_cost > 0 ? (
+                        <button
+                          onClick={() => startEdit(item.id, 'cost', item.unit_cost)}
+                          className="text-sm hover:underline cursor-pointer"
+                        >
+                          £{item.unit_cost.toFixed(2)}
+                        </button>
+                      ) : (
+                        <button onClick={() => startEdit(item.id, 'cost', 0)}>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-300 cursor-pointer hover:bg-amber-50">
+                            Set
+                          </Badge>
+                        </button>
+                      )}
+                    </TableCell>
+
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -518,7 +849,7 @@ function InventoryPageContent() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => setDeleteItemState(item)}
-                            className="text-red-600"
+                            className="text-destructive"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
@@ -539,6 +870,38 @@ function InventoryPageContent() {
         {inventoryWithQuantities.length} item{inventoryWithQuantities.length !== 1 ? 's' : ''}
       </p>
 
+      {/* Floating Save Bar */}
+      {pendingCount > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 print:hidden">
+          <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-card border rounded-xl shadow-lg max-w-[calc(100vw-2rem)]">
+            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-sm font-medium">
+              {totalFieldChanges} unsaved change{totalFieldChanges !== 1 ? 's' : ''} across {pendingCount} item{pendingCount !== 1 ? 's' : ''}
+            </span>
+            <div className="h-4 w-px bg-border" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDiscardAll}
+              disabled={isSavingBatch}
+              className="h-8"
+            >
+              <Undo2 className="h-3.5 w-3.5 mr-1.5" />
+              Discard
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveAll}
+              disabled={isSavingBatch}
+              className="h-8"
+            >
+              <Save className="h-3.5 w-3.5 mr-1.5" />
+              {isSavingBatch ? 'Saving...' : 'Save All'}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Forms and Dialogs */}
       <InventoryItemForm
         open={formOpen}
@@ -550,6 +913,7 @@ function InventoryPageContent() {
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
         existingCategories={existingCategories}
+        currentCost={editItem ? (storeInventoryMap.get(editItem.id)?.unit_cost ?? null) : null}
       />
 
       <ConfirmDialog
@@ -562,7 +926,6 @@ function InventoryPageContent() {
         onConfirm={handleDelete}
       />
 
-      {/* Bulk Delete Confirmation */}
       <ConfirmDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
@@ -573,7 +936,6 @@ function InventoryPageContent() {
         onConfirm={handleBulkDelete}
       />
 
-      {/* CSV Import Dialog */}
       <Dialog open={csvImportOpen} onOpenChange={setCsvImportOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

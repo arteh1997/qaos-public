@@ -49,7 +49,7 @@ describe('POS Service', () => {
         { pos_item_id: 'burger-1', pos_item_name: 'Classic Burger', quantity: 2, unit_price: 12.99 },
       ],
       total_amount: 25.98,
-      currency: 'USD',
+      currency: 'GBP',
       occurred_at: '2026-02-10T14:30:00Z',
     }
 
@@ -249,15 +249,31 @@ describe('POS Service', () => {
   })
 
   describe('validateWebhookSignature', () => {
-    it('should return true for all supported providers', async () => {
+    it('should return true for valid signatures from supported providers', async () => {
+      const crypto = await import('crypto')
       const { validateWebhookSignature } = await import('@/lib/services/pos')
 
-      const providers = ['square', 'toast', 'clover', 'lightspeed', 'custom'] as const
+      const payload = '{"event":"sale"}'
+      const secret = 'test_secret'
 
-      for (const provider of providers) {
-        const result = validateWebhookSignature(provider, 'payload', 'sig', 'secret')
-        expect(result).toBe(true)
+      // Hex providers: toast, lightspeed, custom, zettle, sumup, epos_now, tevalis
+      const hexSig = crypto.createHmac('sha256', secret).update(payload).digest('hex')
+      for (const provider of ['toast', 'lightspeed', 'custom', 'zettle', 'sumup', 'epos_now', 'tevalis'] as const) {
+        expect(validateWebhookSignature(provider, payload, hexSig, secret)).toBe(true)
       }
+
+      // Base64 providers: square (without URL), clover
+      const base64Sig = crypto.createHmac('sha256', secret).update(payload).digest('base64')
+      expect(validateWebhookSignature('square', payload, base64Sig, secret)).toBe(true)
+      expect(validateWebhookSignature('clover', payload, base64Sig, secret)).toBe(true)
+    })
+
+    it('should return false for invalid signatures', async () => {
+      const { validateWebhookSignature } = await import('@/lib/services/pos')
+      // Hex digest of different payload will be same length but different content
+      const crypto = await import('crypto')
+      const wrongSig = crypto.createHmac('sha256', 'secret').update('wrong').digest('hex')
+      expect(validateWebhookSignature('toast', '{"event":"sale"}', wrongSig, 'secret')).toBe(false)
     })
   })
 })

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { TimePicker } from '@/components/ui/time-picker'
 import {
   Dialog,
   DialogContent,
@@ -20,8 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Plus, Trash2, Sun, Sunset, Moon, Clock, MoonStar } from 'lucide-react'
+import { Loader2, Plus, Trash2, Sun, Sunset, Moon, Clock, MoonStar, CalendarDays } from 'lucide-react'
 import { format, parseISO, addDays } from 'date-fns'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ShiftFormData } from '@/lib/validations/shift'
 import {
   DEFAULT_SHIFT_PATTERNS,
@@ -87,6 +90,7 @@ export function ShiftForm({
   const [shifts, setShifts] = useState<ShiftEntry[]>([])
   const [notes, setNotes] = useState('')
   const [submittingIndex, setSubmittingIndex] = useState<number | null>(null)
+  const [openDatePickerId, setOpenDatePickerId] = useState<string | null>(null)
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -294,12 +298,33 @@ export function ShiftForm({
                   {/* Date for this shift */}
                   <div className="space-y-1">
                     <Label className="text-xs">Date</Label>
-                    <Input
-                      type="date"
-                      value={entry.date}
-                      onChange={(e) => updateShiftEntry(entry.id, { date: e.target.value })}
-                      className="w-full"
-                    />
+                    <Popover
+                      open={openDatePickerId === entry.id}
+                      onOpenChange={(isOpen) => setOpenDatePickerId(isOpen ? entry.id : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={`w-full justify-start text-left font-normal ${!entry.date ? 'text-muted-foreground' : ''}`}
+                        >
+                          <CalendarDays className="mr-2 h-4 w-4" />
+                          {entry.date ? format(parseISO(entry.date), 'EEE, MMM d, yyyy') : 'Select date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={entry.date ? parseISO(entry.date) : undefined}
+                          onSelect={(date) => {
+                            if (date) updateShiftEntry(entry.id, { date: format(date, 'yyyy-MM-dd') })
+                            setOpenDatePickerId(null)
+                          }}
+                          disabled={{ before: new Date() }}
+                          weekStartsOn={1}
+                        />
+                      </PopoverContent>
+                    </Popover>
                     {entry.date && dayOfWeek && (
                       <p className="text-xs text-muted-foreground">
                         {DAY_NAMES[dayOfWeek]}
@@ -384,20 +409,18 @@ export function ShiftForm({
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <Label className="text-xs">Start Time</Label>
-                              <Input
-                                type="time"
-                                step="3600"
+                              <TimePicker
                                 value={entry.startTime}
-                                onChange={(e) => updateShiftEntry(entry.id, { startTime: e.target.value })}
+                                onChange={(v) => updateShiftEntry(entry.id, { startTime: v })}
+                                placeholder="Start"
                               />
                             </div>
                             <div className="space-y-1">
                               <Label className="text-xs">End Time</Label>
-                              <Input
-                                type="time"
-                                step="3600"
+                              <TimePicker
                                 value={entry.endTime}
-                                onChange={(e) => updateShiftEntry(entry.id, { endTime: e.target.value })}
+                                onChange={(v) => updateShiftEntry(entry.id, { endTime: v })}
+                                placeholder="End"
                               />
                             </div>
                           </div>

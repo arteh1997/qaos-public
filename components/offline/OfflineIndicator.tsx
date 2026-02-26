@@ -43,13 +43,13 @@ export function OfflineIndicator() {
           <div className="flex items-center gap-2">
             {online ? (
               <>
-                <Wifi className="h-4 w-4 text-green-600" />
+                <Wifi className="h-4 w-4 text-emerald-600" />
                 <span className="text-sm font-medium">Online</span>
               </>
             ) : (
               <>
-                <WifiOff className="h-4 w-4 text-red-500" />
-                <span className="text-sm font-medium text-red-600">Offline</span>
+                <WifiOff className="h-4 w-4 text-destructive" />
+                <span className="text-sm font-medium text-destructive">Offline</span>
               </>
             )}
           </div>
@@ -89,15 +89,15 @@ export function OfflineIndicator() {
           {lastSyncResult && (
             <div className="text-xs text-muted-foreground border-t pt-2">
               {lastSyncResult.synced > 0 && (
-                <p className="text-green-600">{lastSyncResult.synced} synced successfully</p>
+                <p className="text-emerald-600">{lastSyncResult.synced} synced successfully</p>
               )}
               {lastSyncResult.failed > 0 && (
-                <p className="text-red-600">{lastSyncResult.failed} failed to sync</p>
+                <p className="text-destructive">{lastSyncResult.failed} failed to sync</p>
               )}
               {lastSyncResult.errors.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
                   {lastSyncResult.errors.slice(0, 3).map((err, i) => (
-                    <li key={i} className="text-red-500 truncate">{err}</li>
+                    <li key={i} className="text-destructive truncate">{err}</li>
                   ))}
                 </ul>
               )}

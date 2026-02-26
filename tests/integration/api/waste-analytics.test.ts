@@ -58,6 +58,7 @@ vi.mock('@/lib/rate-limit', () => ({
 
 vi.mock('@/lib/audit', () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
 }))
 
 vi.mock('@/lib/csrf', () => ({

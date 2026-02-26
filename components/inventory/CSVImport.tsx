@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -19,8 +20,9 @@ interface ImportError {
   data: {
     name: string
     category: string
-    unit: string
+    current_stock?: string
     par_level?: string
+    cost_per_unit?: string
   }
 }
 
@@ -78,8 +80,12 @@ export function CSVImport({ storeId, onSuccess, showCard = true }: CSVImportProp
       const formData = new FormData()
       formData.append('file', file)
 
+      // Get CSRF headers but omit Content-Type — browser must set it for FormData (multipart boundary)
+      const { 'Content-Type': _, ...csrfHeaders } = getCSRFHeaders()
+
       const response = await fetch(`/api/stores/${storeId}/inventory/import`, {
         method: 'POST',
+        headers: csrfHeaders,
         body: formData,
       })
 
@@ -133,7 +139,7 @@ export function CSVImport({ storeId, onSuccess, showCard = true }: CSVImportProp
         <h4 className="text-sm font-medium">How to import:</h4>
         <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
           <li>Download the CSV template</li>
-          <li>Fill in your inventory items with their categories, units, and par levels</li>
+          <li>Fill in your items with categories, stock levels, and costs</li>
           <li>Upload the completed CSV file</li>
         </ol>
       </div>
@@ -142,11 +148,11 @@ export function CSVImport({ storeId, onSuccess, showCard = true }: CSVImportProp
       <Alert>
         <FileSpreadsheet className="h-4 w-4" />
         <AlertDescription className="text-xs">
-          <strong>Required columns:</strong> name, category, unit, par_level (optional)
+          <strong>Required:</strong> Item Name, Category
           <br />
-          <strong>Suggested units:</strong> kg, g, lb, oz, liter, gallon, each, case, box, bag, bottle, can, pack
+          <strong>Optional:</strong> Current Stock, Minimum Stock Level, Unit Cost (£)
           <br />
-          <span className="text-muted-foreground">You can use any unit that works for your restaurant!</span>
+          <span className="text-muted-foreground">Download the template to see the expected format with examples.</span>
         </AlertDescription>
       </Alert>
 

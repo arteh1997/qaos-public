@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withApiAuth, canAccessStore } from '@/lib/api/middleware'
 import { apiError, apiForbidden, apiBadRequest } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
+// SECURITY NOTE: xlsx@0.18.5 has known prototype pollution (GHSA-4r6h-8v6p-xvw6)
+// and ReDoS (GHSA-5pgg-2g8v-p4x9) vulnerabilities with no upstream fix.
+// Accepted risk: this endpoint is auth-gated (Owner only), rate-limited, and only
+// processes trusted data from our own database — no user-supplied spreadsheet parsing.
 import * as XLSX from 'xlsx'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -156,7 +161,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     })
   } catch (error) {
-    console.error('Error exporting store data:', error)
+    logger.error('Error exporting store data:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to export data')
   }
 }

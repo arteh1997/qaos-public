@@ -8,6 +8,9 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { recipeIngredientSchema } from '@/lib/validations/recipes'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; recipeId: string }>
@@ -71,9 +74,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to add ingredient')
     }
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'inventory.recipe_ingredient_add',
+      storeId,
+      resourceType: 'recipe_ingredient',
+      resourceId: data.id,
+      details: {
+        recipeId,
+        ingredientName: data.inventory_item?.name || validation.data.inventory_item_id,
+        quantity: validation.data.quantity,
+        unitOfMeasure: validation.data.unit_of_measure,
+      },
+      request,
+    })
+
     return apiSuccess(data, { requestId: context.requestId, status: 201 })
   } catch (error) {
-    console.error('Error adding ingredient:', error)
+    logger.error('Error adding ingredient:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to add ingredient')
   }
 }
@@ -127,9 +147,21 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to remove ingredient')
     }
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'inventory.recipe_ingredient_remove',
+      storeId,
+      resourceType: 'recipe_ingredient',
+      resourceId: ingredientId,
+      details: { recipeId, ingredientId },
+      request,
+    })
+
     return apiSuccess({ message: 'Ingredient removed successfully' }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error removing ingredient:', error)
+    logger.error('Error removing ingredient:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to remove ingredient')
   }
 }

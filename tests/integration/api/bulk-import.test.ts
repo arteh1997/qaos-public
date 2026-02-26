@@ -79,6 +79,7 @@ vi.mock('@/lib/email', () => ({
 // Mock audit log
 vi.mock('@/lib/audit', () => ({
   auditLog: vi.fn(() => Promise.resolve()),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
 }))
 
 // Mock rate limit
@@ -222,27 +223,6 @@ describe('Bulk Import API Tests', () => {
         expect(data.code).toBe('FORBIDDEN')
       })
 
-      it('should return 403 for Driver users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
-
-        mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === 'profiles') return profileQuery
-          if (table === 'store_users') return storeUsersQuery
-          return profileQuery
-        })
-
-        const { POST } = await import('@/app/api/users/bulk-import/route')
-
-        const request = createMockRequest({
-          users: [{ email: 'test@example.com', role: 'Staff' }],
-          defaultStoreId: STORE_UUID,
-        })
-        const response = await POST(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
-      })
     })
 
     describe('Validation', () => {

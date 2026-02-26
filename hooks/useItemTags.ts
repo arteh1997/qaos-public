@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 
 export function useItemTags(storeId: string, itemId: string) {
   return useQuery({
@@ -25,19 +26,11 @@ export function useUpdateItemTags(storeId: string, itemId: string) {
 
   return useMutation({
     mutationFn: async (tagIds: string[]) => {
-      // Get CSRF token
-      const csrfResponse = await fetch('/api/auth/csrf')
-      const { token } = await csrfResponse.json()
-
       const response = await fetch(
         `/api/stores/${storeId}/inventory/${itemId}/tags`,
         {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-csrf-token': token,
-          },
-          credentials: 'include',
+          headers: getCSRFHeaders(),
           body: JSON.stringify({ tag_ids: tagIds }),
         }
       )

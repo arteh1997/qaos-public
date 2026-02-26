@@ -31,7 +31,7 @@ export function useAnalytics(storeId: string | null, days: number = 30) {
       const json = await response.json()
 
       if (!response.ok) {
-        throw new Error(json.error || 'Failed to fetch analytics')
+        throw new Error(json.message || 'Failed to fetch analytics')
       }
 
       setData(json.data)

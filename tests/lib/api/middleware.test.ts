@@ -109,19 +109,12 @@ describe('API Middleware Helpers', () => {
       })
     })
 
-    describe('Driver Role', () => {
-      it('should allow access to their assigned stores', () => {
-        const context = createAuthContext({
-          stores: [createStoreMembership(targetStoreId, 'Driver')],
-        })
-        expect(canAccessStore(context, targetStoreId)).toBe(true)
-      })
-
-      it('should allow access to multiple stores', () => {
+    describe('Staff Role (multi-membership)', () => {
+      it('should allow access when member of multiple stores', () => {
         const context = createAuthContext({
           stores: [
-            createStoreMembership(targetStoreId, 'Driver'),
-            createStoreMembership(userStoreId, 'Driver'),
+            createStoreMembership(targetStoreId, 'Staff'),
+            createStoreMembership(userStoreId, 'Staff'),
           ],
         })
         expect(canAccessStore(context, targetStoreId)).toBe(true)
@@ -191,13 +184,6 @@ describe('API Middleware Helpers', () => {
     it('should return false for Staff', () => {
       const context = createAuthContext({
         stores: [createStoreMembership(targetStoreId, 'Staff')],
-      })
-      expect(canManageStore(context, targetStoreId)).toBe(false)
-    })
-
-    it('should return false for Driver', () => {
-      const context = createAuthContext({
-        stores: [createStoreMembership(targetStoreId, 'Driver')],
       })
       expect(canManageStore(context, targetStoreId)).toBe(false)
     })

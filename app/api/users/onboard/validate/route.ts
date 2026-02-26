@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[Onboard Validate] Error:', error)
+    logger.error('[Onboard Validate] Error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'Failed to validate invitation' },
       { status: 500 }

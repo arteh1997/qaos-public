@@ -22,6 +22,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { HelpCircle } from 'lucide-react'
 import type { Supplier } from '@/types'
 
 interface SupplierFormProps {
@@ -54,7 +56,7 @@ export function SupplierForm({ open, onOpenChange, onSubmit, isSubmitting, suppl
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{supplier ? 'Edit Supplier' : 'Add Supplier'}</DialogTitle>
           <DialogDescription>
@@ -71,14 +73,14 @@ export function SupplierForm({ open, onOpenChange, onSubmit, isSubmitting, suppl
                 <FormItem>
                   <FormLabel>Supplier Name *</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Sysco Foods" {...field} />
+                    <Input placeholder="e.g., Brakes Foodservice" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="contact_person"
@@ -86,7 +88,7 @@ export function SupplierForm({ open, onOpenChange, onSubmit, isSubmitting, suppl
                   <FormItem>
                     <FormLabel>Contact Person</FormLabel>
                     <FormControl>
-                      <Input placeholder="John Smith" {...field} />
+                      <Input placeholder="e.g., James Wilson" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -99,7 +101,7 @@ export function SupplierForm({ open, onOpenChange, onSubmit, isSubmitting, suppl
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="orders@supplier.com" {...field} />
+                      <Input type="email" placeholder="e.g., orders@supplier.co.uk" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -107,7 +109,7 @@ export function SupplierForm({ open, onOpenChange, onSubmit, isSubmitting, suppl
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="phone"
@@ -115,7 +117,7 @@ export function SupplierForm({ open, onOpenChange, onSubmit, isSubmitting, suppl
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
-                      <Input placeholder="+1 (555) 123-4567" {...field} />
+                      <Input placeholder="e.g., 020 7946 0958" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,9 +128,25 @@ export function SupplierForm({ open, onOpenChange, onSubmit, isSubmitting, suppl
                 name="payment_terms"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Payment Terms</FormLabel>
+                    <FormLabel className="inline-flex items-center gap-1">
+                      Payment Terms
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button type="button" className="inline-flex" aria-label="What are payment terms?">
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent side="top" className="w-64 text-xs leading-relaxed p-3">
+                          <p className="font-medium mb-1">When you pay this supplier:</p>
+                          <p><strong>COD</strong> — Cash on delivery</p>
+                          <p><strong>Net 7/14/30</strong> — Pay within 7, 14, or 30 days</p>
+                          <p><strong>EOM</strong> — Pay by end of month</p>
+                          <p className="mt-1 text-muted-foreground">Helps you plan cash flow and compare supplier deals.</p>
+                        </PopoverContent>
+                      </Popover>
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder="Net 30" {...field} />
+                      <Input placeholder="e.g., Net 30, COD, EOM" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -143,7 +161,7 @@ export function SupplierForm({ open, onOpenChange, onSubmit, isSubmitting, suppl
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="123 Supplier Ave, City, State" {...field} />
+                    <Textarea placeholder="e.g., Unit 4, Covent Garden Market, London SW8 5EL" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -131,7 +131,7 @@ export function useStockHistoryRange(storeId?: string | null, dateRange?: DateRa
   }
 }
 
-export function useLowStockReport() {
+export function useLowStockReport(storeId?: string | null) {
   const [data, setData] = useState<LowStockItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -141,6 +141,11 @@ export function useLowStockReport() {
     setError(null)
 
     try {
+      const filter: Record<string, string> = { 'par_level': 'not.is.null' }
+      if (storeId) {
+        filter['store_id'] = `eq.${storeId}`
+      }
+
       const { data: inventoryData, error: fetchError } = await supabaseFetch<{
         store_id: string
         inventory_item_id: string
@@ -150,7 +155,7 @@ export function useLowStockReport() {
         inventory_item: { id: string; name: string; unit_of_measure: string } | null
       }>('store_inventory', {
         select: '*,store:stores(id,name),inventory_item:inventory_items(id,name,unit_of_measure)',
-        filter: { 'par_level': 'not.is.null' },
+        filter,
       })
 
       if (fetchError) throw fetchError
@@ -175,7 +180,7 @@ export function useLowStockReport() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [storeId])
 
   useEffect(() => {
     fetchLowStock()
@@ -189,7 +194,7 @@ export function useLowStockReport() {
   }
 }
 
-export function useDailyCounts(date?: string) {
+export function useDailyCounts(storeId?: string | null, date?: string) {
   const [data, setData] = useState<DailyCount[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -201,9 +206,14 @@ export function useDailyCounts(date?: string) {
     try {
       const targetDate = date ?? new Date().toISOString().split('T')[0]
 
+      const filter: Record<string, string> = { count_date: `eq.${targetDate}` }
+      if (storeId) {
+        filter['store_id'] = `eq.${storeId}`
+      }
+
       const { data: countsData, error: fetchError } = await supabaseFetch<DailyCount>('daily_counts', {
         select: '*,store:stores!daily_counts_store_id_fkey(*),submitter:profiles!daily_counts_submitted_by_fkey(*)',
-        filter: { count_date: `eq.${targetDate}` },
+        filter,
       })
 
       if (fetchError) {
@@ -221,7 +231,7 @@ export function useDailyCounts(date?: string) {
     } finally {
       setIsLoading(false)
     }
-  }, [date])
+  }, [storeId, date])
 
   useEffect(() => {
     fetchDailyCounts()
@@ -237,7 +247,7 @@ export function useDailyCounts(date?: string) {
 
 type MissingStore = { id: string; name: string }
 
-export function useMissingCounts(date?: string) {
+export function useMissingCounts(storeId?: string | null, date?: string) {
   const [data, setData] = useState<MissingStore[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -249,10 +259,16 @@ export function useMissingCounts(date?: string) {
     try {
       const targetDate = date ?? new Date().toISOString().split('T')[0]
 
-      // Get all active stores
+      // If storeId provided, only check that single store
+      const storeFilter: Record<string, string> = { is_active: 'eq.true' }
+      if (storeId) {
+        storeFilter['id'] = `eq.${storeId}`
+      }
+
+      // Get active stores (scoped to storeId if provided)
       const { data: storesData, error: storesError } = await supabaseFetch<MissingStore>('stores', {
         select: 'id,name',
-        filter: { is_active: 'eq.true' },
+        filter: storeFilter,
       })
 
       if (storesError) throw storesError
@@ -260,9 +276,14 @@ export function useMissingCounts(date?: string) {
       const stores = storesData ?? []
 
       // Get stores that have completed setup (have at least one inventory item)
-      // Only these stores should be included in "missing counts"
+      const invFilter: Record<string, string> = {}
+      if (storeId) {
+        invFilter['store_id'] = `eq.${storeId}`
+      }
+
       const { data: inventoryData, error: invError } = await supabaseFetch<{ store_id: string }>('store_inventory', {
         select: 'store_id',
+        filter: invFilter,
       })
 
       if (invError && !invError.message?.includes('does not exist')) {
@@ -276,9 +297,14 @@ export function useMissingCounts(date?: string) {
       const setupCompleteStores = stores.filter(store => setupCompleteStoreIds.has(store.id))
 
       // Get stores that submitted counts
+      const countsFilter: Record<string, string> = { count_date: `eq.${targetDate}` }
+      if (storeId) {
+        countsFilter['store_id'] = `eq.${storeId}`
+      }
+
       const { data: countsData, error: countsError } = await supabaseFetch<{ store_id: string }>('daily_counts', {
         select: 'store_id',
-        filter: { count_date: `eq.${targetDate}` },
+        filter: countsFilter,
       })
 
       // If daily_counts table doesn't exist, return all setup-complete stores as missing
@@ -300,7 +326,7 @@ export function useMissingCounts(date?: string) {
     } finally {
       setIsLoading(false)
     }
-  }, [date])
+  }, [storeId, date])
 
   useEffect(() => {
     fetchMissingCounts()

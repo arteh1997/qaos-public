@@ -6,6 +6,8 @@ import {
   apiForbidden,
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
+import { convertQuantity } from '@/lib/utils/units'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -67,16 +69,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         if (item.recipe_id && item.recipe) {
           const { data: ingredients } = await context.supabase
             .from('recipe_ingredients')
-            .select('quantity, inventory_item_id')
+            .select('quantity, inventory_item_id, unit_of_measure')
             .eq('recipe_id', item.recipe_id)
 
           if (ingredients && ingredients.length > 0) {
             const itemIds = ingredients.map((i: { inventory_item_id: string }) => i.inventory_item_id)
+
+            // Fetch unit costs and inventory unit_of_measure for conversion
             const { data: inventoryData } = await context.supabase
               .from('store_inventory')
               .select('inventory_item_id, unit_cost')
               .eq('store_id', storeId)
               .in('inventory_item_id', itemIds)
+
+            const { data: itemData } = await context.supabase
+              .from('inventory_items')
+              .select('id, unit_of_measure')
+              .in('id', itemIds)
 
             const costMap = new Map(
               (inventoryData || []).map((inv: { inventory_item_id: string; unit_cost: number }) => [
@@ -85,9 +94,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
               ])
             )
 
+            const unitMap = new Map(
+              (itemData || []).map((item: { id: string; unit_of_measure: string }) => [
+                item.id,
+                item.unit_of_measure,
+              ])
+            )
+
             const totalCost = ingredients.reduce(
-              (sum: number, ing: { inventory_item_id: string; quantity: number }) =>
-                sum + (Number(ing.quantity) * (costMap.get(ing.inventory_item_id) || 0)),
+              (sum: number, ing: { inventory_item_id: string; quantity: number; unit_of_measure: string | null }) => {
+                const unitCost = costMap.get(ing.inventory_item_id) || 0
+                const recipeUnit = ing.unit_of_measure || ''
+                const inventoryUnit = unitMap.get(ing.inventory_item_id) || ''
+
+                // Convert recipe quantity to inventory units for accurate cost
+                const convertedQty = convertQuantity(Number(ing.quantity), recipeUnit, inventoryUnit)
+                const effectiveQty = convertedQty !== null ? convertedQty : Number(ing.quantity)
+
+                return sum + (effectiveQty * unitCost)
+              },
               0
             )
 
@@ -212,7 +237,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error fetching menu analysis:', error)
+    logger.error('Error fetching menu analysis:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch menu analysis')
   }
 }

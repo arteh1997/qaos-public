@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { sendEmail, getInviteEmailHtml } from '@/lib/email'
 import crypto from 'crypto'
 import { validateCSRFToken } from '@/lib/csrf'
+import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Restaurant Inventory'
@@ -110,7 +112,7 @@ export async function POST(request: NextRequest) {
       .eq('id', inviteId)
 
     if (updateError) {
-      console.error('[Resend] Update error:', updateError)
+      logger.error('[Resend] Update error:', { error: updateError })
       return NextResponse.json(
         { success: false, message: 'Failed to update invitation' },
         { status: 500 }
@@ -136,19 +138,30 @@ export async function POST(request: NextRequest) {
     })
 
     if (!emailResult.success) {
-      console.error('[Resend] Email error:', emailResult.error)
+      logger.error('[Resend] Email error:', { error: emailResult.error })
       return NextResponse.json(
         { success: false, message: 'Failed to send invitation email' },
         { status: 500 }
       )
     }
 
+    await auditLog(supabaseAdmin, {
+      userId: user.id,
+      userEmail: user.email,
+      action: 'user.invite_resend',
+      storeId: invite.store_id,
+      resourceType: 'invitation',
+      resourceId: inviteId,
+      details: { email: invite.email, role: invite.role },
+      request,
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Invitation resent successfully',
     })
   } catch (error) {
-    console.error('[Resend] Error:', error)
+    logger.error('[Resend] Error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'Failed to resend invitation' },
       { status: 500 }

@@ -20,9 +20,9 @@ export function StatsCard({
 }: StatsCardProps) {
   const variantStyles = {
     default: '',
-    warning: 'border-yellow-500/50 bg-yellow-500/10',
-    success: 'border-green-500/50 bg-green-500/10',
-    danger: 'border-red-500/50 bg-red-500/10',
+    warning: 'border-amber-500/50 bg-amber-500/10',
+    success: 'border-emerald-500/50 bg-emerald-500/10',
+    danger: 'border-destructive/50 bg-destructive/10',
   }
 
   return (

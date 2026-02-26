@@ -56,6 +56,7 @@ vi.mock('@/lib/rate-limit', () => ({
 // Mock audit logging
 vi.mock('@/lib/audit', () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
 }))
 
 // Mock CSRF validation

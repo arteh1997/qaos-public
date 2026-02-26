@@ -163,7 +163,7 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
 }
 ```
 
-### File Organization
+### File Organisation
 
 ```
 components/

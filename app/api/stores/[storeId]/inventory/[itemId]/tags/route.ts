@@ -9,6 +9,7 @@ import {
   apiNotFound,
 } from '@/lib/api/response'
 import { addTagsToItemSchema, removeTagsFromItemSchema } from '@/lib/validations/categories-tags'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; itemId: string }>
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { storeId, itemId } = await params
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Owner', 'Manager', 'Staff', 'Driver'],
+      allowedRoles: ['Owner', 'Manager', 'Staff'],
       rateLimit: { key: 'api', config: RATE_LIMITS.api },
       requireCSRF: false,
     })
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error fetching item tags:', error)
+    logger.error('Error fetching item tags:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch item tags')
   }
 }
@@ -201,7 +202,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error adding item tags:', error)
+    logger.error('Error adding item tags:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to add item tags')
   }
 }
@@ -312,7 +313,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error removing item tags:', error)
+    logger.error('Error removing item tags:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to remove item tags')
   }
 }

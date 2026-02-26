@@ -3,8 +3,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Store, Profile } from '@/types'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { TimePicker } from '@/components/ui/time-picker'
 import {
   Dialog,
   DialogContent,
@@ -376,20 +376,18 @@ export function QuickShiftModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Start Time</Label>
-                    <Input
-                      type="time"
-                      step="3600"
+                    <TimePicker
                       value={customStartTime}
-                      onChange={e => setCustomStartTime(e.target.value)}
+                      onChange={(v) => setCustomStartTime(v)}
+                      placeholder="Start"
                     />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">End Time</Label>
-                    <Input
-                      type="time"
-                      step="3600"
+                    <TimePicker
                       value={customEndTime}
-                      onChange={e => setCustomEndTime(e.target.value)}
+                      onChange={(v) => setCustomEndTime(v)}
+                      placeholder="End"
                     />
                   </div>
                 </div>

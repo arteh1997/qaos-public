@@ -14,11 +14,12 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { PageGuide } from '@/components/help/PageGuide'
 
 export default function StockCountPage() {
   const { user, storeId, role } = useAuth()
   const { data: store, isLoading: storeLoading } = useStore(storeId)
-  const { data: dailyCounts, isLoading: countsLoading } = useDailyCounts()
+  const { data: dailyCounts, isLoading: countsLoading } = useDailyCounts(storeId)
 
   const isLoading = storeLoading || countsLoading
 
@@ -57,14 +58,18 @@ export default function StockCountPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ClipboardList className="h-6 w-6" />
-          Stock Count
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
+            <ClipboardList className="h-6 w-6" />
+            Stock Count
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Record today&apos;s inventory counts</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          </p>
+        </div>
+        <PageGuide pageKey="stock-count" />
       </div>
 
       {/* Status banner */}
@@ -72,31 +77,31 @@ export default function StockCountPage() {
         <Card className="border-green-500/50 bg-green-50/50">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
               <div>
                 <p className="font-semibold text-green-900">Today&apos;s Count Complete</p>
-                <p className="text-sm text-green-700">
+                <p className="text-sm text-emerald-700">
                   Great work! You can still update your count below if needed.
                 </p>
               </div>
-              <Badge variant="outline" className="ml-auto border-green-500 text-green-700">
+              <Badge variant="outline" className="ml-auto border-green-500 text-emerald-700">
                 Done
               </Badge>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-yellow-500/50 bg-yellow-50/50">
+        <Card className="border-amber-500/40/50 bg-amber-50/50">
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
               <div>
-                <p className="font-semibold text-yellow-900">Count Not Submitted Yet</p>
-                <p className="text-sm text-yellow-700">
+                <p className="font-semibold text-amber-800">Count Not Submitted Yet</p>
+                <p className="text-sm text-amber-700">
                   Please count all items below and submit when ready.
                 </p>
               </div>
-              <Badge variant="outline" className="ml-auto border-yellow-500 text-yellow-700">
+              <Badge variant="outline" className="ml-auto border-amber-500/40 text-amber-700">
                 <Clock className="h-3 w-3 mr-1" />
                 Pending
               </Badge>

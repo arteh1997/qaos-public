@@ -54,7 +54,7 @@ export function ReceiveDeliveryDialog({ open, onOpenChange, order, onReceive, is
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Receive Delivery</DialogTitle>
           <DialogDescription>
@@ -62,35 +62,78 @@ export function ReceiveDeliveryDialog({ open, onOpenChange, order, onReceive, is
           </DialogDescription>
         </DialogHeader>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Item</TableHead>
-              <TableHead className="text-right">Ordered</TableHead>
-              <TableHead className="text-right">Already Received</TableHead>
-              <TableHead className="text-right">Receiving Now</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {order.items?.map(item => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.inventory_item?.name ?? item.inventory_item_id}</TableCell>
-                <TableCell className="text-right">{item.quantity_ordered}</TableCell>
-                <TableCell className="text-right">{item.quantity_received ?? 0}</TableCell>
-                <TableCell className="text-right">
-                  <Input
-                    type="number"
-                    min="0"
-                    max={item.quantity_ordered - (item.quantity_received ?? 0)}
-                    className="w-20 ml-auto"
-                    value={quantities[item.id] ?? 0}
-                    onChange={e => setQuantities(prev => ({ ...prev, [item.id]: parseFloat(e.target.value) || 0 }))}
-                  />
-                </TableCell>
+        {/* Mobile card view */}
+        <div className="sm:hidden space-y-2">
+          {order.items?.map(item => (
+            <div key={item.id} className="border rounded-lg p-3 space-y-2">
+              <p className="font-medium text-sm">{item.inventory_item?.name ?? item.inventory_item_id}</p>
+              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                <div>Ordered: <span className="font-medium text-foreground">{item.quantity_ordered}</span></div>
+                <div>Received: <span className="font-medium text-foreground">{item.quantity_received ?? 0}</span></div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Receiving Now</label>
+                <Input
+                  type="number"
+                  min="0"
+                  max={item.quantity_ordered - (item.quantity_received ?? 0)}
+                  className="h-9 mt-1"
+                  value={quantities[item.id] || ''}
+                  onChange={e => setQuantities(prev => ({ ...prev, [item.id]: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead className="text-right">Ordered</TableHead>
+                <TableHead className="text-right">Already Received</TableHead>
+                <TableHead className="text-right">Receiving Now</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {order.items?.map(item => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.inventory_item?.name ?? item.inventory_item_id}</TableCell>
+                  <TableCell className="text-right">{item.quantity_ordered}</TableCell>
+                  <TableCell className="text-right">{item.quantity_received ?? 0}</TableCell>
+                  <TableCell className="text-right">
+                    <Input
+                      type="number"
+                      min="0"
+                      max={item.quantity_ordered - (item.quantity_received ?? 0)}
+                      className="w-20 ml-auto"
+                      value={quantities[item.id] || ''}
+                      onChange={e => setQuantities(prev => ({ ...prev, [item.id]: e.target.value === '' ? 0 : parseFloat(e.target.value) || 0 }))}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Value summary */}
+        <div className="space-y-1 pt-2 border-t">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Order value</span>
+            <span className="font-medium">
+              £{(order.items?.reduce((sum, item) => sum + (item.quantity_ordered * item.unit_price), 0) ?? 0).toFixed(2)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Receiving now</span>
+            <span className="font-semibold">
+              £{(order.items?.reduce((sum, item) => sum + ((quantities[item.id] ?? 0) * item.unit_price), 0) ?? 0).toFixed(2)}
+            </span>
+          </div>
+        </div>
 
         <div className="space-y-2">
           <Label>Notes</Label>

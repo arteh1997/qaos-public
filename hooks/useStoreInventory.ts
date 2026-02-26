@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { StoreInventory, InventoryItem } from '@/types'
 import { toast } from 'sonner'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 
 /**
  * Fetch store inventory with joined inventory_item data
@@ -13,20 +14,25 @@ async function fetchStoreInventory(storeId: string): Promise<StoreInventory[]> {
     return []
   }
 
-  // Fetch inventory items for this store (NEW: filtered by store_id)
-  const itemsResponse = await fetch(`/api/inventory?store_id=${storeId}`)
+  // Fetch inventory items and store_inventory records in parallel
+  const [itemsResponse, storeInvResponse] = await Promise.all([
+    fetch(`/api/inventory?store_id=${storeId}&pageSize=100`),
+    fetch(`/api/stores/${storeId}/inventory?pageSize=100`),
+  ])
+
   if (!itemsResponse.ok) {
     throw new Error('Failed to fetch inventory items')
   }
-  const itemsData = await itemsResponse.json()
-  const items: InventoryItem[] = itemsData.data || []
-
-  // Fetch store_inventory records (quantities and PAR levels)
-  const storeInvResponse = await fetch(`/api/stores/${storeId}/inventory`)
   if (!storeInvResponse.ok) {
     throw new Error('Failed to fetch store inventory')
   }
-  const storeInvData = await storeInvResponse.json()
+
+  const [itemsData, storeInvData] = await Promise.all([
+    itemsResponse.json(),
+    storeInvResponse.json(),
+  ])
+
+  const items: InventoryItem[] = itemsData.data || []
   const storeInventoryRecords: StoreInventory[] = storeInvData.data || []
 
   // Create a map for quick lookup
@@ -50,7 +56,7 @@ async function fetchStoreInventory(storeId: string): Promise<StoreInventory[]> {
       quantity: 0,
       par_level: null,
       unit_cost: 0,
-      cost_currency: 'USD',
+      cost_currency: 'GBP',
       last_updated_at: new Date().toISOString(),
       last_updated_by: null,
       inventory_item: item,
@@ -105,13 +111,13 @@ export function useUpdateInventoryQuantity(storeId: string | null) {
 
       const response = await fetch(`/api/stores/${storeId}/inventory/${inventoryItemId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getCSRFHeaders(),
         body: JSON.stringify({ quantity, par_level: parLevel }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update inventory')
+        throw new Error(errorData.message || 'Failed to update inventory')
       }
 
       return response.json()
@@ -176,13 +182,13 @@ export function useSetParLevel(storeId: string | null) {
 
       const response = await fetch(`/api/stores/${storeId}/inventory/${inventoryItemId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getCSRFHeaders(),
         body: JSON.stringify({ par_level: parLevel }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update PAR level')
+        throw new Error(errorData.message || 'Failed to update PAR level')
       }
 
       return response.json()

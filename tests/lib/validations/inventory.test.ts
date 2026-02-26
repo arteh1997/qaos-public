@@ -72,17 +72,14 @@ describe('Inventory Validation Schemas', () => {
         expect(result.success).toBe(false)
       })
 
-      it('should reject empty unit_of_measure', () => {
+      it('should accept empty unit_of_measure', () => {
         const result = inventoryItemSchema.safeParse({
           store_id: validUuid,
           name: 'Tomatoes',
           unit_of_measure: '',
           is_active: true,
         })
-        expect(result.success).toBe(false)
-        if (!result.success) {
-          expect(result.error.issues[0].message).toBe('Unit of measure is required')
-        }
+        expect(result.success).toBe(true)
       })
 
       it('should reject missing is_active', () => {
@@ -293,6 +290,36 @@ describe('Inventory Validation Schemas', () => {
         })
         expect(result.success).toBe(true)
       })
+
+      it('should accept items with optional total_cost', () => {
+        const result = stockReceptionSchema.safeParse({
+          store_id: validUuid,
+          items: [
+            { inventory_item_id: validUuid, quantity: 50, total_cost: 20 },
+          ],
+        })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept items without total_cost (optional)', () => {
+        const result = stockReceptionSchema.safeParse({
+          store_id: validUuid,
+          items: [
+            { inventory_item_id: validUuid, quantity: 10 },
+          ],
+        })
+        expect(result.success).toBe(true)
+      })
+
+      it('should accept total_cost of zero (free items)', () => {
+        const result = stockReceptionSchema.safeParse({
+          store_id: validUuid,
+          items: [
+            { inventory_item_id: validUuid, quantity: 5, total_cost: 0 },
+          ],
+        })
+        expect(result.success).toBe(true)
+      })
     })
 
     describe('Invalid Inputs', () => {
@@ -328,6 +355,19 @@ describe('Inventory Validation Schemas', () => {
           items: [{ inventory_item_id: validUuid, quantity: 10 }],
         })
         expect(result.success).toBe(false)
+      })
+
+      it('should reject negative total_cost', () => {
+        const result = stockReceptionSchema.safeParse({
+          store_id: validUuid,
+          items: [
+            { inventory_item_id: validUuid, quantity: 10, total_cost: -5 },
+          ],
+        })
+        expect(result.success).toBe(false)
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe('Cost cannot be negative')
+        }
       })
     })
   })

@@ -9,6 +9,9 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { updatePurchaseOrderSchema } from '@/lib/validations/suppliers'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog, computeFieldChanges } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; poId: string }>
@@ -16,11 +19,9 @@ interface RouteParams {
 
 // Valid status transitions
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  draft: ['submitted', 'cancelled'],
-  submitted: ['acknowledged', 'shipped', 'cancelled'],
-  acknowledged: ['shipped', 'cancelled'],
-  shipped: ['partial', 'received'],
-  partial: ['received'],
+  open: ['awaiting_delivery', 'cancelled'],
+  awaiting_delivery: ['partial', 'received', 'cancelled'],
+  partial: ['received', 'cancelled'],
   received: [],
   cancelled: [],
 }
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error fetching purchase order:', error)
+    logger.error('Error fetching purchase order:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch purchase order')
   }
 }
@@ -102,23 +103,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Fetch current state (used for both status validation and before/after tracking)
+    const { data: beforePO } = await context.supabase
+      .from('purchase_orders')
+      .select('*')
+      .eq('id', poId)
+      .eq('store_id', storeId)
+      .single()
+
     // If status transition, validate it
     if (validation.data.status) {
-      const { data: currentPO } = await context.supabase
-        .from('purchase_orders')
-        .select('status')
-        .eq('id', poId)
-        .eq('store_id', storeId)
-        .single()
-
-      if (!currentPO) {
+      if (!beforePO) {
         return apiNotFound('Purchase order', context.requestId)
       }
 
-      const allowedTransitions = STATUS_TRANSITIONS[currentPO.status] || []
+      const allowedTransitions = STATUS_TRANSITIONS[beforePO.status] || []
       if (!allowedTransitions.includes(validation.data.status)) {
         return apiBadRequest(
-          `Cannot transition from '${currentPO.status}' to '${validation.data.status}'. Allowed: ${allowedTransitions.join(', ') || 'none'}`,
+          `Cannot transition from '${beforePO.status}' to '${validation.data.status}'. Allowed: ${allowedTransitions.join(', ') || 'none'}`,
           context.requestId
         )
       }
@@ -144,15 +146,36 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Purchase order', context.requestId)
     }
 
+    // Audit log
+    const admin = createAdminClient()
+    const fieldChanges = beforePO
+      ? computeFieldChanges(beforePO, updateData)
+      : []
+    void auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'purchase_order.update',
+      storeId,
+      resourceType: 'purchase_order',
+      resourceId: poId,
+      details: {
+        poNumber: data.po_number,
+        status: data.status,
+        updatedFields: Object.keys(validation.data),
+        fieldChanges,
+      },
+      request,
+    }).catch(err => logger.error('Audit log error:', { error: err }))
+
     return apiSuccess(data, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating purchase order:', error)
+    logger.error('Error updating purchase order:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update purchase order')
   }
 }
 
 /**
- * DELETE /api/stores/:storeId/purchase-orders/:poId - Delete a draft PO
+ * DELETE /api/stores/:storeId/purchase-orders/:poId - Delete an open PO
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
@@ -171,10 +194,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiForbidden('You do not have permission to delete purchase orders', context.requestId)
     }
 
-    // Only draft POs can be deleted
+    // Only open POs can be deleted
     const { data: po } = await context.supabase
       .from('purchase_orders')
-      .select('status')
+      .select('status, po_number')
       .eq('id', poId)
       .eq('store_id', storeId)
       .single()
@@ -183,9 +206,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Purchase order', context.requestId)
     }
 
-    if (po.status !== 'draft') {
+    if (po.status !== 'open') {
       return apiBadRequest(
-        'Only draft purchase orders can be deleted. Cancel non-draft orders instead.',
+        'Only open purchase orders can be deleted. Cancel non-open orders instead.',
         context.requestId
       )
     }
@@ -200,9 +223,22 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to delete purchase order')
     }
 
+    // Audit log
+    const adminDelete = createAdminClient()
+    await auditLog(adminDelete, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'purchase_order.delete',
+      storeId,
+      resourceType: 'purchase_order',
+      resourceId: poId,
+      details: { poNumber: po.po_number },
+      request,
+    })
+
     return apiSuccess({ message: 'Purchase order deleted successfully' }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error deleting purchase order:', error)
+    logger.error('Error deleting purchase order:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to delete purchase order')
   }
 }

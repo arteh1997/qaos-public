@@ -9,10 +9,16 @@ import {
 
 // Mock Supabase client
 const mockInsert = vi.fn()
+const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }))
+const mockSelect = vi.fn(() => ({ eq: mockEq }))
 const mockSupabase = {
-  from: vi.fn(() => ({
-    insert: mockInsert,
-  })),
+  from: vi.fn((table: string) => {
+    if (table === 'profiles') {
+      return { select: mockSelect }
+    }
+    return { insert: mockInsert }
+  }),
 }
 
 // Helper to create mock NextRequest

@@ -15,6 +15,10 @@ import {
   prepareHistoryInserts,
   executeStockOperation,
 } from '@/lib/services/stockOperations'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
+import { notifyStoreManagement } from '@/lib/services/notifications'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; poId: string }>
@@ -46,7 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Verify PO exists and is in receivable status
     const { data: po } = await context.supabase
       .from('purchase_orders')
-      .select('id, status, store_id')
+      .select('id, status, store_id, po_number')
       .eq('id', poId)
       .eq('store_id', storeId)
       .single()
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Purchase order', context.requestId)
     }
 
-    const receivableStatuses = ['submitted', 'acknowledged', 'shipped', 'partial']
+    const receivableStatuses = ['open', 'awaiting_delivery', 'partial']
     if (!receivableStatuses.includes(po.status)) {
       return apiBadRequest(
         `Cannot receive items for a purchase order with status '${po.status}'`,
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Fetch existing PO items
     const { data: poItems } = await context.supabase
       .from('purchase_order_items')
-      .select('id, inventory_item_id, quantity_ordered, quantity_received')
+      .select('id, inventory_item_id, quantity_ordered, quantity_received, unit_price')
       .eq('purchase_order_id', poId)
 
     if (!poItems || poItems.length === 0) {
@@ -163,6 +167,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .eq('id', update.id)
     }
 
+    // Update unit costs from PO line item prices (latest price method)
+    for (const received of receivedItems) {
+      if (received.quantity_received <= 0) continue
+      const poItem = poItemMap.get(received.purchase_order_item_id)
+      if (!poItem || !poItem.unit_price || poItem.unit_price <= 0) continue
+
+      await context.supabase
+        .from('store_inventory')
+        .update({
+          unit_cost: poItem.unit_price,
+          cost_currency: 'GBP',
+        })
+        .eq('store_id', storeId)
+        .eq('inventory_item_id', poItem.inventory_item_id)
+    }
+
     // Determine new PO status
     const { data: updatedItems } = await context.supabase
       .from('purchase_order_items')
@@ -192,6 +212,61 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .update(updateData)
       .eq('id', poId)
 
+    // Audit log
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'purchase_order.receive',
+      storeId,
+      resourceType: 'purchase_order',
+      resourceId: poId,
+      details: {
+        poNumber: po.po_number,
+        itemsReceived: inventoryUpdates.length,
+        newStatus,
+      },
+      request,
+    })
+
+    // Send delivery received notification to Owners/Managers (fire-and-forget)
+    // Get supplier name
+    const { data: poWithSupplier } = await context.supabase
+      .from('purchase_orders')
+      .select('supplier:suppliers(name), total_amount, currency')
+      .eq('id', poId)
+      .single()
+
+    // Get store name
+    const { data: store } = await context.supabase
+      .from('stores')
+      .select('name')
+      .eq('id', storeId)
+      .single()
+
+    // Get receiver's name
+    const { data: receiverProfile } = await admin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', context.user.id)
+      .single()
+
+    notifyStoreManagement({
+      type: 'delivery_received',
+      storeId,
+      triggeredByUserId: context.user.id,
+      data: {
+        storeName: store?.name || 'your store',
+        poNumber: po.po_number,
+        supplierName: (poWithSupplier?.supplier as { name: string } | null)?.name || 'Supplier',
+        receivedByName: receiverProfile?.full_name || 'A team member',
+        itemsReceived: inventoryUpdates.length,
+        totalItems: poItems.length,
+        totalValue: poWithSupplier?.total_amount || 0,
+        currency: poWithSupplier?.currency || 'GBP',
+      },
+    }).catch(() => {})
+
     return apiSuccess(
       {
         message: 'Items received successfully',
@@ -201,7 +276,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId, status: 201 }
     )
   } catch (error) {
-    console.error('Error receiving purchase order:', error)
+    logger.error('Error receiving purchase order:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to receive purchase order')
   }
 }

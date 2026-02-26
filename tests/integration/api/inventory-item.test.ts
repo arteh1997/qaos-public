@@ -65,6 +65,16 @@ vi.mock('@/lib/csrf', () => ({
   getCSRFToken: vi.fn().mockResolvedValue('test-csrf-token'),
 }))
 
+// Mock admin client and audit log
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: vi.fn(() => ({ from: vi.fn() })),
+}))
+
+vi.mock('@/lib/audit', () => ({
+  auditLog: vi.fn().mockResolvedValue(undefined),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
+}))
+
 // Helper to create mock NextRequest
 function createMockRequest(
   method: string,
@@ -151,6 +161,7 @@ describe('Inventory Item API Tests', () => {
             unit_of_measure: 'kg',
             category: 'Produce',
             is_active: true,
+            store_id: 'store-1',
           },
           error: null,
         }),
@@ -240,29 +251,10 @@ describe('Inventory Item API Tests', () => {
       expect(data.code).toBe('FORBIDDEN')
     })
 
-    it('should return 403 for Driver users', async () => {
-      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
-
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') return profileQuery
-        if (table === 'store_users') return storeUsersQuery
-        return profileQuery
-      })
-
-      const { PATCH } = await import('@/app/api/inventory/[itemId]/route')
-
-      const request = createMockRequest('PATCH', { name: 'Updated Tomatoes' })
-      const response = await PATCH(request, { params: Promise.resolve({ itemId: 'item-123' }) })
-      const data = await response.json()
-
-      expect(response.status).toBe(403)
-      expect(data.code).toBe('FORBIDDEN')
-    })
-
     it('should update inventory item for Owner', async () => {
       const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
 
-      // Track calls to return different responses for duplicate check vs update
+      // Track calls to return different responses: ownership check, duplicate check, update
       let singleCallCount = 0
       const inventoryItemQuery = {
         select: vi.fn().mockReturnThis(),
@@ -273,13 +265,19 @@ describe('Inventory Item API Tests', () => {
         single: vi.fn().mockImplementation(() => {
           singleCallCount++
           if (singleCallCount === 1) {
-            // First call: duplicate check - no duplicate found
+            // First call: ownership check
+            return Promise.resolve({
+              data: { id: 'item-123', store_id: 'store-1' },
+              error: null,
+            })
+          } else if (singleCallCount === 2) {
+            // Second call: duplicate check - no duplicate found
             return Promise.resolve({
               data: null,
               error: null,
             })
           } else {
-            // Second call: update result
+            // Third call: update result
             return Promise.resolve({
               data: {
                 id: 'item-123',
@@ -287,6 +285,7 @@ describe('Inventory Item API Tests', () => {
                 unit_of_measure: 'kg',
                 category: 'Produce',
                 is_active: true,
+                store_id: 'store-1',
               },
               error: null,
             })
@@ -315,13 +314,28 @@ describe('Inventory Item API Tests', () => {
     it('should return 400 for duplicate name', async () => {
       const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
 
+      // Track calls: first is ownership check, second is duplicate check
+      let singleCallCount = 0
       const duplicateCheckQuery = {
         select: vi.fn().mockReturnThis(),
         ilike: vi.fn().mockReturnThis(),
         neq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'existing-item' }, // Duplicate found
-          error: null,
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockImplementation(() => {
+          singleCallCount++
+          if (singleCallCount === 1) {
+            // First call: ownership check
+            return Promise.resolve({
+              data: { id: 'item-123', store_id: 'store-1' },
+              error: null,
+            })
+          } else {
+            // Second call: duplicate check — duplicate found
+            return Promise.resolve({
+              data: { id: 'existing-item' },
+              error: null,
+            })
+          }
         }),
       }
 
@@ -346,27 +360,34 @@ describe('Inventory Item API Tests', () => {
     it('should allow Manager users', async () => {
       const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Manager')
 
+      // Body has no 'name', so duplicate check is skipped — 2 .single() calls: ownership check, then update
+      let singleCallCount = 0
       const updateQuery = {
         select: vi.fn().mockReturnThis(),
-        ilike: vi.fn().mockReturnThis(),
-        neq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: null,
-          error: null,
-        }),
         update: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockImplementation(() => {
+          singleCallCount++
+          if (singleCallCount === 1) {
+            // First call: ownership check
+            return Promise.resolve({
+              data: { id: 'item-123', store_id: 'store-1' },
+              error: null,
+            })
+          } else {
+            // Second call: update result
+            return Promise.resolve({
+              data: { id: 'item-123', name: 'Test Item', store_id: 'store-1', unit_of_measure: 'lbs' },
+              error: null,
+            })
+          }
+        }),
       }
 
       mockSupabaseClient.from.mockImplementation((table: string) => {
         if (table === 'profiles') return profileQuery
         if (table === 'store_users') return storeUsersQuery
-        if (table === 'inventory_items') return {
-          ...updateQuery,
-          single: vi.fn()
-            .mockResolvedValueOnce({ data: null, error: null }) // duplicate check
-            .mockResolvedValueOnce({ data: { id: 'item-123', name: 'Updated' }, error: null }), // update
-        }
+        if (table === 'inventory_items') return updateQuery
         return updateQuery
       })
 
@@ -418,17 +439,32 @@ describe('Inventory Item API Tests', () => {
     it('should soft delete inventory item for Owner', async () => {
       const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
 
+      // 2 single() calls: ownership check, then soft delete
+      let singleCallCount = 0
       const deleteQuery = {
         update: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: {
-            id: 'item-123',
-            name: 'Tomatoes',
-            is_active: false,
-          },
-          error: null,
+        single: vi.fn().mockImplementation(() => {
+          singleCallCount++
+          if (singleCallCount === 1) {
+            // First call: ownership check
+            return Promise.resolve({
+              data: { id: 'item-123', store_id: 'store-1' },
+              error: null,
+            })
+          } else {
+            // Second call: soft delete result
+            return Promise.resolve({
+              data: {
+                id: 'item-123',
+                name: 'Tomatoes',
+                is_active: false,
+                store_id: 'store-1',
+              },
+              error: null,
+            })
+          }
         }),
       }
 

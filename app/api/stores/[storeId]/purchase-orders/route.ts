@@ -9,6 +9,9 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { createPurchaseOrderSchema } from '@/lib/validations/suppliers'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -91,7 +94,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       pagination,
     })
   } catch (error) {
-    console.error('Error fetching purchase orders:', error)
+    logger.error('Error fetching purchase orders:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch purchase orders')
   }
 }
@@ -156,11 +159,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         store_id: storeId,
         supplier_id: orderData.supplier_id,
         po_number: poNumber,
-        status: 'draft',
+        status: 'open',
         order_date: orderData.order_date || new Date().toISOString().split('T')[0],
         expected_delivery_date: orderData.expected_delivery_date || null,
         total_amount: Math.round(totalAmount * 100) / 100,
-        currency: orderData.currency || 'USD',
+        currency: orderData.currency || 'GBP',
         notes: orderData.notes || null,
         created_by: context.user.id,
       })
@@ -202,12 +205,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .select('*, inventory_item:inventory_items(id, name, unit_of_measure)')
       .eq('purchase_order_id', po.id)
 
+    // Audit log
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'purchase_order.create',
+      storeId,
+      resourceType: 'purchase_order',
+      resourceId: po.id,
+      details: { poNumber, supplierName: supplier.name, itemCount: items.length },
+      request,
+    })
+
     return apiSuccess(
       { ...completePO, items: poItems || [] },
       { requestId: context.requestId, status: 201 }
     )
   } catch (error) {
-    console.error('Error creating purchase order:', error)
+    logger.error('Error creating purchase order:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create purchase order')
   }
 }

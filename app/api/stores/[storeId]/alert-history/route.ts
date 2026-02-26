@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth, canAccessStore, parsePaginationParams } from '@/lib/api/middleware'
 import { apiSuccess, apiError, apiForbidden } from '@/lib/api/response'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/stores/[storeId]/alert-history
@@ -43,7 +44,7 @@ export async function GET(
       total: count ?? 0,
     }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error fetching alert history:', error)
+    logger.error('Error fetching alert history:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch alert history')
   }
 }

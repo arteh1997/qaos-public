@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Navbar } from '@/components/layout/Navbar'
 import { GlobalKeyboardShortcuts } from '@/components/GlobalKeyboardShortcuts'
-import { CommandPalette } from '@/components/CommandPalette'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
@@ -17,9 +16,8 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const { isLoading, role, user, stores } = useAuth()
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
-  const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), [])
+  const pathname = usePathname()
+  const { isLoading, role, user, stores, currentStore } = useAuth()
 
   // Redirect to onboarding if user has no stores
   useEffect(() => {
@@ -27,6 +25,22 @@ export default function DashboardLayout({
       router.push('/onboarding')
     }
   }, [isLoading, user, stores, router])
+
+  // Redirect to store setup if current store hasn't completed setup
+  // Allow access to store pages (wizard lives there), billing, and profile
+  useEffect(() => {
+    if (isLoading || !currentStore?.store) return
+    if (currentStore.store.setup_completed_at) return
+
+    const isAllowedDuringSetup =
+      pathname.startsWith('/stores') ||
+      pathname.startsWith('/billing') ||
+      pathname.startsWith('/profile')
+
+    if (!isAllowedDuringSetup) {
+      router.push('/')
+    }
+  }, [isLoading, currentStore, pathname, router])
 
   // Show nothing while redirecting to onboarding
   if (!isLoading && user && stores && stores.length === 0) {
@@ -37,7 +51,7 @@ export default function DashboardLayout({
     return (
       <div className="fixed inset-0 flex flex-col bg-background text-foreground">
         {/* Navbar skeleton */}
-        <div className="h-14 bg-black px-4 flex items-center justify-between">
+        <div className="h-14 bg-navbar px-4 flex items-center justify-between">
           <Skeleton className="h-6 w-32 bg-white/20" />
           <Skeleton className="h-10 w-10 rounded-full bg-white/20" />
         </div>
@@ -75,12 +89,11 @@ export default function DashboardLayout({
       >
         Skip to main content
       </a>
-      <GlobalKeyboardShortcuts role={role} onOpenCommandPalette={openCommandPalette} />
-      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+      <GlobalKeyboardShortcuts role={role} />
       <PWAInstallPrompt />
 
       {/* Black navbar at top - full width */}
-      <Navbar role={role} onOpenCommandPalette={openCommandPalette} />
+      <Navbar role={role} />
 
       {/* Sidebar stays fixed, only main content scrolls */}
       <div className="flex flex-1 min-h-0">

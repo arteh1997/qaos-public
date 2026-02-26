@@ -44,7 +44,7 @@ export function TopMovingItemsChart({ data }: TopMovingItemsChartProps) {
               <YAxis
                 dataKey="name"
                 type="category"
-                width={100}
+                width={70}
                 tick={{ fontSize: 11 }}
               />
               <Tooltip

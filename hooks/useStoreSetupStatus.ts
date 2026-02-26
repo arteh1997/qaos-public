@@ -1,20 +1,22 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch } from '@/lib/supabase/client'
+import { supabaseFetch, supabaseUpdate } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
+import { useRouter } from 'next/navigation'
 import { Store } from '@/types'
 import { SetupStep, SetupStepId, StoreSetupStatus, SetupStatusData } from '@/types/setup'
-import { Package, Clock, Users } from 'lucide-react'
+import { Package, Clock, Users, Truck, UtensilsCrossed } from 'lucide-react'
 
 /**
- * Define the setup steps configuration
+ * Setup steps in order: inventory → hours → suppliers → menu → team
+ * Owner sets up everything their business needs before inviting staff.
  */
 const SETUP_STEPS_CONFIG: Omit<SetupStep, 'isComplete'>[] = [
   {
     id: 'inventory',
-    title: 'Add Inventory Items',
-    description: 'Add at least one inventory item to start tracking stock levels',
+    title: 'Add Your Inventory',
+    description: 'Import your items from a spreadsheet to start tracking stock',
     isRequired: true,
     icon: Package,
   },
@@ -22,14 +24,28 @@ const SETUP_STEPS_CONFIG: Omit<SetupStep, 'isComplete'>[] = [
     id: 'hours',
     title: 'Set Operating Hours',
     description: 'Configure your store\'s opening and closing times',
-    isRequired: false,
+    isRequired: true,
     icon: Clock,
   },
   {
+    id: 'suppliers',
+    title: 'Add Your Suppliers',
+    description: 'Add the suppliers you order from so you can track deliveries',
+    isRequired: true,
+    icon: Truck,
+  },
+  {
+    id: 'menu',
+    title: 'Set Up Your Menu',
+    description: 'Add your menu items with pricing so you can track food costs',
+    isRequired: true,
+    icon: UtensilsCrossed,
+  },
+  {
     id: 'team',
-    title: 'Invite Team Members',
-    description: 'Add staff members to help manage your store',
-    isRequired: false,
+    title: 'Invite Your Team',
+    description: 'Add staff members so they can start using the system',
+    isRequired: true,
     icon: Users,
   },
 ]
@@ -43,6 +59,10 @@ function computeStepCompletion(stepId: SetupStepId, data: SetupStatusData): bool
       return data.inventoryCount > 0
     case 'hours':
       return data.hasOpeningTime && data.hasClosingTime
+    case 'suppliers':
+      return data.supplierCount > 0
+    case 'menu':
+      return data.menuItemCount > 0
     case 'team':
       return data.teamMemberCount > 0
     default:
@@ -52,10 +72,12 @@ function computeStepCompletion(stepId: SetupStepId, data: SetupStatusData): bool
 
 /**
  * Hook to determine store setup status
- * Returns whether setup is complete and the status of each step
+ * Returns whether setup is complete and the status of each step.
+ * When all steps are completed, auto-stamps `setup_completed_at` on the store.
  */
 export function useStoreSetupStatus(storeId: string | null) {
-  const { user } = useAuth()
+  const { user, refreshProfile } = useAuth()
+  const router = useRouter()
   const [status, setStatus] = useState<StoreSetupStatus>({
     isSetupComplete: false,
     steps: [],
@@ -93,23 +115,27 @@ export function useStoreSetupStatus(storeId: string | null) {
       const storeRecord = storeData && storeData.length > 0 ? storeData[0] : null
       setStore(storeRecord)
 
-      // Fetch inventory count for this store
-      const { count: inventoryCount, error: invError } = await supabaseFetch<{ id: string }>(
-        'store_inventory',
-        {
+      // If store already completed setup, skip the heavy queries
+      if (storeRecord?.setup_completed_at) {
+        setStatus({
+          isSetupComplete: true,
+          steps: SETUP_STEPS_CONFIG.map(config => ({ ...config, isComplete: true })),
+          completedCount: SETUP_STEPS_CONFIG.length,
+          requiredCount: SETUP_STEPS_CONFIG.length,
+          totalCount: SETUP_STEPS_CONFIG.length,
+        })
+        return
+      }
+
+      // Fetch all counts in parallel
+      const [inventoryResult, teamResult, supplierResult, menuResult] = await Promise.all([
+        supabaseFetch<{ id: string }>('store_inventory', {
           select: 'id',
           filter: { store_id: `eq.${storeId}` },
           count: true,
           range: { from: 0, to: 0 },
-        }
-      )
-
-      if (invError) throw invError
-
-      // Fetch team member count (excluding current user)
-      const { count: teamCount, error: teamError } = await supabaseFetch<{ id: string }>(
-        'store_users',
-        {
+        }),
+        supabaseFetch<{ id: string }>('store_users', {
           select: 'id',
           filter: {
             store_id: `eq.${storeId}`,
@@ -117,17 +143,34 @@ export function useStoreSetupStatus(storeId: string | null) {
           },
           count: true,
           range: { from: 0, to: 0 },
-        }
-      )
+        }),
+        supabaseFetch<{ id: string }>('suppliers', {
+          select: 'id',
+          filter: { store_id: `eq.${storeId}` },
+          count: true,
+          range: { from: 0, to: 0 },
+        }),
+        supabaseFetch<{ id: string }>('menu_items', {
+          select: 'id',
+          filter: { store_id: `eq.${storeId}` },
+          count: true,
+          range: { from: 0, to: 0 },
+        }),
+      ])
 
-      if (teamError) throw teamError
+      if (inventoryResult.error) throw inventoryResult.error
+      if (teamResult.error) throw teamResult.error
+      if (supplierResult.error) throw supplierResult.error
+      if (menuResult.error) throw menuResult.error
 
       // Compile status data
       const statusData: SetupStatusData = {
-        inventoryCount: inventoryCount ?? 0,
+        inventoryCount: inventoryResult.count ?? 0,
         hasOpeningTime: Boolean(storeRecord?.opening_time),
         hasClosingTime: Boolean(storeRecord?.closing_time),
-        teamMemberCount: teamCount ?? 0,
+        teamMemberCount: teamResult.count ?? 0,
+        supplierCount: supplierResult.count ?? 0,
+        menuItemCount: menuResult.count ?? 0,
       }
 
       // Build steps with completion status
@@ -143,6 +186,17 @@ export function useStoreSetupStatus(storeId: string | null) {
 
       // Setup is complete if all required steps are done
       const isSetupComplete = completedRequired.length === requiredSteps.length
+
+      // Auto-stamp setup_completed_at when all steps are done
+      if (isSetupComplete && storeRecord && !storeRecord.setup_completed_at) {
+        await supabaseUpdate('stores', storeRecord.id, {
+          setup_completed_at: new Date().toISOString(),
+        })
+        // Refresh auth context so sidebar/layout pick up the new setup_completed_at
+        await refreshProfile()
+        // Navigate to main dashboard — replace so back button doesn't return to setup
+        router.replace('/')
+      }
 
       setStatus({
         isSetupComplete,

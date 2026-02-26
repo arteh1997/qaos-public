@@ -98,7 +98,7 @@ export function WasteLogForm({ open, onOpenChange, inventoryItems, onSubmit, isS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Log Waste</DialogTitle>
           <DialogDescription>
@@ -110,17 +110,17 @@ export function WasteLogForm({ open, onOpenChange, inventoryItems, onSubmit, isS
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="space-y-3">
               {fields.map((field, index) => (
-                <div key={field.id} className="flex items-start gap-2 p-3 border rounded-lg bg-muted/30">
-                  <div className="flex-1 grid grid-cols-3 gap-2">
+                <div key={field.id} className="p-3 border rounded-lg bg-muted/30 space-y-2">
+                  <div className="flex items-start gap-2">
                     <FormField
                       control={form.control}
                       name={`items.${index}.inventory_item_id`}
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex-1 min-w-0">
                           {index === 0 && <FormLabel>Item</FormLabel>}
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className="truncate">
                                 <SelectValue placeholder="Select item" />
                               </SelectTrigger>
                             </FormControl>
@@ -136,14 +136,21 @@ export function WasteLogForm({ open, onOpenChange, inventoryItems, onSubmit, isS
                         </FormItem>
                       )}
                     />
+                    {fields.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="mt-1 shrink-0" onClick={() => remove(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
                     <FormField
                       control={form.control}
                       name={`items.${index}.quantity`}
                       render={({ field }) => (
                         <FormItem>
-                          {index === 0 && <FormLabel>Quantity</FormLabel>}
+                          {index === 0 && <FormLabel>Qty</FormLabel>}
                           <FormControl>
-                            <Input type="number" step="0.01" min="0" placeholder="0" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                            <Input type="number" step="0.01" min="0" placeholder="Qty" className="h-9" {...field} value={field.value || ''} onChange={e => field.onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -153,11 +160,11 @@ export function WasteLogForm({ open, onOpenChange, inventoryItems, onSubmit, isS
                       control={form.control}
                       name={`items.${index}.reason`}
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="min-w-0">
                           {index === 0 && <FormLabel>Reason</FormLabel>}
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className="truncate">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -172,11 +179,6 @@ export function WasteLogForm({ open, onOpenChange, inventoryItems, onSubmit, isS
                       )}
                     />
                   </div>
-                  {fields.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" className="mt-1 shrink-0" onClick={() => remove(index)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
                 </div>
               ))}
             </div>

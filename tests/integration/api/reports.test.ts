@@ -142,12 +142,18 @@ describe('Reports API Integration Tests', () => {
     })
 
     describe('Authorization', () => {
-      it('should return 403 for Staff users', async () => {
+      it('should allow Staff users to view low stock reports', async () => {
         const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
+
+        const reportsQuery = createChainableMock({
+          data: [],
+          error: null,
+        })
 
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === 'profiles') return profileQuery
           if (table === 'store_users') return storeUsersQuery
+          if (table === 'store_inventory') return reportsQuery
           return profileQuery
         })
 
@@ -157,10 +163,8 @@ describe('Reports API Integration Tests', () => {
           store_id: 'store-1',
         })
         const response = await GET(request)
-        const data = await response.json()
 
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
+        expect(response.status).toBe(200)
       })
     })
 
@@ -228,8 +232,8 @@ describe('Reports API Integration Tests', () => {
         expect(data.success).toBe(true)
       })
 
-      it('should return low stock report for Driver', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
+      it('should return low stock report for Staff', async () => {
+        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
 
         const reportsQuery = createChainableMock({
           data: [],

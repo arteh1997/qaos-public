@@ -8,8 +8,9 @@ import { useUsers } from '@/hooks/useUsers'
 import { ShiftForm } from '@/components/forms/ShiftForm'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ShiftsTableSkeleton, PageHeaderSkeleton } from '@/components/ui/skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { StatsCard } from '@/components/cards/StatsCard'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,41 +27,196 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, MoreHorizontal, Pencil, Trash2, Clock, Calendar, CalendarDays, ClockArrowUp, AlertCircle } from 'lucide-react'
+import {
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Clock,
+  CalendarDays,
+  ClockArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+} from 'lucide-react'
 import Link from 'next/link'
 import { EmptyState } from '@/components/ui/empty-state'
 import { EditClockTimesDialog } from '@/components/forms/EditClockTimesDialog'
-import { format, isSameDay, isToday, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, parseISO, isWithinInterval } from 'date-fns'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { DateRange } from 'react-day-picker'
+import {
+  format,
+  isToday,
+  startOfWeek,
+  endOfWeek,
+  startOfDay,
+  endOfDay,
+  addWeeks,
+  subWeeks,
+  parseISO,
+  isWithinInterval,
+} from 'date-fns'
 import { Shift } from '@/types'
 import { ShiftFormData } from '@/lib/validations/shift'
+import { cn } from '@/lib/utils'
+import { PageGuide } from '@/components/help/PageGuide'
 
-type QuickFilter = 'today' | 'week' | 'next-week' | null
+// ── Thresholds (minutes) ─────────────────────────────────────
+const LATE_THRESHOLD = 5
+const NO_SHOW_THRESHOLD = 30
+const LEFT_EARLY_THRESHOLD = 15
+const OVERTIME_THRESHOLD = 15
+
+// ── Avatar colors (warm palette) ─────────────────────────────
+const AVATAR_COLORS = [
+  'bg-emerald-100 text-emerald-700',
+  'bg-amber-100 text-amber-700',
+  'bg-blue-100 text-blue-700',
+  'bg-violet-100 text-violet-700',
+  'bg-rose-100 text-rose-700',
+  'bg-teal-100 text-teal-700',
+  'bg-orange-100 text-orange-700',
+  'bg-cyan-100 text-cyan-700',
+]
+
+// ── Helpers ──────────────────────────────────────────────────
 
 function getShiftStatus(shift: Shift) {
   const now = new Date()
   const start = new Date(shift.start_time)
   const end = new Date(shift.end_time)
+  const clockIn = shift.clock_in_time ? new Date(shift.clock_in_time) : null
+  const clockOut = shift.clock_out_time ? new Date(shift.clock_out_time) : null
+  const minutesSinceStart = (now.getTime() - start.getTime()) / 60000
 
-  if (shift.clock_out_time) {
-    return { label: 'Completed', variant: 'secondary' as const, isActive: false }
-  }
-  if (shift.clock_in_time && !shift.clock_out_time) {
-    return { label: 'Active Now', variant: 'default' as const, isActive: true }
-  }
-  if (now >= start && now <= end && !shift.clock_in_time) {
-    return { label: 'Not Clocked In', variant: 'destructive' as const, isActive: true }
-  }
+  // Before shift
   if (now < start) {
+    if (clockIn && clockOut) {
+      return { label: 'Completed', variant: 'success' as const, isActive: false }
+    }
+    if (clockIn) {
+      return { label: 'Clocked In Early', variant: 'default' as const, isActive: true }
+    }
     return { label: 'Scheduled', variant: 'outline' as const, isActive: false }
   }
-  return { label: 'Missed', variant: 'destructive' as const, isActive: false }
+
+  // During shift
+  if (now <= end) {
+    if (!clockIn) {
+      if (clockOut) {
+        return { label: 'Completed', variant: 'success' as const, isActive: false }
+      }
+      if (minutesSinceStart >= NO_SHOW_THRESHOLD) {
+        return { label: 'No Show', variant: 'destructive' as const, isActive: false }
+      }
+      return { label: 'Not Clocked In', variant: 'warning' as const, isActive: true }
+    }
+
+    if (clockOut) {
+      const minutesBeforeEnd = (end.getTime() - clockOut.getTime()) / 60000
+      if (minutesBeforeEnd >= LEFT_EARLY_THRESHOLD) {
+        return { label: 'Left Early', variant: 'warning' as const, isActive: false }
+      }
+      return { label: 'Completed', variant: 'success' as const, isActive: false }
+    }
+
+    const minutesLate = (clockIn.getTime() - start.getTime()) / 60000
+    if (minutesLate > LATE_THRESHOLD) {
+      return { label: 'Active · Late', variant: 'warning' as const, isActive: true }
+    }
+    return { label: 'Active', variant: 'default' as const, isActive: true }
+  }
+
+  // After shift
+  if (!clockIn) {
+    if (clockOut) {
+      return { label: 'Completed', variant: 'success' as const, isActive: false }
+    }
+    return { label: 'Missed', variant: 'destructive' as const, isActive: false }
+  }
+
+  if (!clockOut) {
+    return { label: 'No Clock Out', variant: 'warning' as const, isActive: false }
+  }
+
+  // Both present — evaluate quality
+  const minutesLate = (clockIn.getTime() - start.getTime()) / 60000
+  const minutesBeforeEnd = (end.getTime() - clockOut.getTime()) / 60000
+  const minutesAfterEnd = (clockOut.getTime() - end.getTime()) / 60000
+
+  if (minutesBeforeEnd >= LEFT_EARLY_THRESHOLD) {
+    return { label: 'Left Early', variant: 'warning' as const, isActive: false }
+  }
+  if (minutesLate > LATE_THRESHOLD) {
+    return { label: 'Late Arrival', variant: 'warning' as const, isActive: false }
+  }
+  if (minutesAfterEnd > OVERTIME_THRESHOLD) {
+    return { label: 'Overtime', variant: 'secondary' as const, isActive: false }
+  }
+  return { label: 'Completed', variant: 'success' as const, isActive: false }
 }
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '?'
+}
+
+function getAvatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+function formatDuration(startTime: string, endTime: string): string {
+  const diffMs = new Date(endTime).getTime() - new Date(startTime).getTime()
+  const hours = Math.floor(diffMs / 3600000)
+  const mins = Math.round((diffMs % 3600000) / 60000)
+  if (mins === 0) return `${hours}h`
+  return `${hours}h ${mins}m`
+}
+
+function getShiftProgress(shift: Shift): number {
+  const now = new Date()
+  const start = new Date(shift.start_time)
+  const end = new Date(shift.end_time)
+  const total = end.getTime() - start.getTime()
+  const elapsed = now.getTime() - start.getTime()
+  return Math.min(100, Math.max(0, (elapsed / total) * 100))
+}
+
+function formatTimeRemaining(endTime: string): string {
+  const end = new Date(endTime)
+  const now = new Date()
+  const diffMs = end.getTime() - now.getTime()
+  if (diffMs <= 0) return 'Ending now'
+  const hours = Math.floor(diffMs / 3600000)
+  const mins = Math.round((diffMs % 3600000) / 60000)
+  if (hours === 0) return `${mins}m left`
+  if (mins === 0) return `${hours}h left`
+  return `${hours}h ${mins}m left`
+}
+
+function formatHours(hours: number): string {
+  return hours % 1 === 0 ? `${hours}h` : `${hours.toFixed(1)}h`
+}
+
+// ── Page ─────────────────────────────────────────────────────
 
 function ShiftsPageContent() {
   const { currentStore } = useAuth()
   const currentStoreId = currentStore?.store_id
 
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('today')
+  const [pickerRange, setPickerRange] = useState<DateRange>(() => ({
+    from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+    to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+  }))
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [editingClockTimesShift, setEditingClockTimesShift] = useState<Shift | null>(null)
@@ -68,75 +224,89 @@ function ShiftsPageContent() {
   const [isCreating, setIsCreating] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
 
+  // Convert picker range to ISO strings for the hook
+  const dateRange = useMemo(() => {
+    const from = pickerRange?.from ?? new Date()
+    const to = pickerRange?.to ?? from
+    return {
+      from: startOfDay(from).toISOString(),
+      to: endOfDay(to).toISOString(),
+    }
+  }, [pickerRange])
+
   const { stores, isLoading: storesLoading } = useStores({ status: 'active' })
   const { users, isLoading: usersLoading } = useUsers({ status: 'Active', storeId: currentStoreId || 'all' })
-  const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift, refetch: refetchShifts } = useShifts(currentStoreId || null)
+  const { shifts, isLoading: shiftsLoading, createShift, updateShift, deleteShift, refetch: refetchShifts } = useShifts(currentStoreId || null, null, dateRange)
 
   const isLoading = storesLoading || usersLoading || shiftsLoading
 
-  // Get active shifts (happening right now)
+  // Does the selected range include today?
+  const viewIncludesToday = useMemo(() => {
+    if (!pickerRange?.from) return false
+    const from = startOfDay(pickerRange.from)
+    const to = pickerRange.to ? endOfDay(pickerRange.to) : endOfDay(pickerRange.from)
+    return isWithinInterval(new Date(), { start: from, end: to })
+  }, [pickerRange])
+
+  // Active shifts (happening right now)
   const activeShifts = useMemo(() => {
+    if (!viewIncludesToday) return []
     const now = new Date()
-    return shifts.filter(shift => {
-      const start = new Date(shift.start_time)
-      const end = new Date(shift.end_time)
-      return now >= start && now <= end
-    }).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-  }, [shifts])
+    return shifts
+      .filter(shift => {
+        const start = new Date(shift.start_time)
+        const end = new Date(shift.end_time)
+        return now >= start && now <= end
+      })
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+  }, [shifts, viewIncludesToday])
 
-  // Filter shifts based on quick filter
-  const filteredShifts = useMemo(() => {
-    if (!quickFilter) return shifts
-
+  // Summary stats
+  const stats = useMemo(() => {
     const now = new Date()
-    let startDate: Date
-    let endDate: Date
+    const totalHoursNum = shifts.reduce((acc, s) => {
+      return acc + (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / 3600000
+    }, 0)
+    const pastShifts = shifts.filter(s => new Date(s.end_time) < now)
+    const attendedShifts = pastShifts.filter(s => s.clock_in_time != null)
+    const attendanceRate = pastShifts.length > 0
+      ? Math.round((attendedShifts.length / pastShifts.length) * 100)
+      : null
 
-    switch (quickFilter) {
-      case 'today':
-        startDate = startOfDay(now)
-        endDate = endOfDay(now)
-        break
-      case 'week':
-        startDate = startOfWeek(now, { weekStartsOn: 1 }) // Monday
-        endDate = endOfWeek(now, { weekStartsOn: 1 })
-        break
-      case 'next-week':
-        const nextWeek = addWeeks(now, 1)
-        startDate = startOfWeek(nextWeek, { weekStartsOn: 1 })
-        endDate = endOfWeek(nextWeek, { weekStartsOn: 1 })
-        break
-      default:
-        return shifts
+    return {
+      totalHours: Math.round(totalHoursNum * 10) / 10,
+      attendanceRate,
+      attendedCount: attendedShifts.length,
+      pastShiftsCount: pastShifts.length,
     }
-
-    return shifts.filter(shift => {
-      const shiftStart = new Date(shift.start_time)
-      return isWithinInterval(shiftStart, { start: startDate, end: endDate })
-    })
-  }, [shifts, quickFilter])
+  }, [shifts])
 
   // Group shifts by date
   const groupedShifts = useMemo(() => {
     const groups = new Map<string, Shift[]>()
-
-    filteredShifts.forEach(shift => {
+    shifts.forEach(shift => {
       const dateKey = format(new Date(shift.start_time), 'yyyy-MM-dd')
-      if (!groups.has(dateKey)) {
-        groups.set(dateKey, [])
-      }
+      if (!groups.has(dateKey)) groups.set(dateKey, [])
       groups.get(dateKey)!.push(shift)
     })
-
-    // Sort shifts within each day by start time
     groups.forEach(dayShifts => {
       dayShifts.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
     })
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b))
+  }, [shifts])
 
-    // Convert to array and sort by date
-    return Array.from(groups.entries())
-      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-  }, [filteredShifts])
+  // Week navigation
+  const handlePrevWeek = () => {
+    const anchor = pickerRange?.from ?? new Date()
+    const prevWeekStart = subWeeks(startOfWeek(anchor, { weekStartsOn: 1 }), 1)
+    setPickerRange({ from: prevWeekStart, to: endOfWeek(prevWeekStart, { weekStartsOn: 1 }) })
+  }
+
+  const handleNextWeek = () => {
+    const anchor = pickerRange?.from ?? new Date()
+    const nextWeekStart = addWeeks(startOfWeek(anchor, { weekStartsOn: 1 }), 1)
+    setPickerRange({ from: nextWeekStart, to: endOfWeek(nextWeekStart, { weekStartsOn: 1 }) })
+  }
 
   const handleCreateShift = async (data: ShiftFormData) => {
     setIsCreating(true)
@@ -167,11 +337,11 @@ function ShiftsPageContent() {
 
   if (!currentStore) {
     return (
-      <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto px-4">
+      <div className="space-y-6 max-w-7xl mx-auto px-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Shifts Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Please select a store from the sidebar to view its shifts.
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Shifts</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Select a store to manage shifts
           </p>
         </div>
       </div>
@@ -180,17 +350,18 @@ function ShiftsPageContent() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4">
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Shifts</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Shifts</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage staff shifts at {currentStore.store?.name}
+            {currentStore.store?.name}&apos;s team schedule
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <PageGuide pageKey="shifts" />
           <Link href="/shifts/timetable">
-            <Button variant="outline" className="bg-white">
+            <Button variant="outline" className="bg-card">
               <CalendarDays className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Calendar View</span>
               <span className="sm:hidden">Calendar</span>
@@ -204,131 +375,200 @@ function ShiftsPageContent() {
         </div>
       </div>
 
-      {/* Active Shifts - Right Now */}
-      {activeShifts.length > 0 && (
-        <Card className="border-blue-500 bg-white">
+      {/* ── Navigation ── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 bg-card"
+          onClick={handlePrevWeek}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <DateRangePicker
+          value={pickerRange}
+          onChange={(range) => setPickerRange(range || {
+            from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+            to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+          })}
+          presets={['today', 'yesterday', 'thisWeek', 'lastWeek', 'last7days', 'last14days']}
+          allowFutureDates
+        />
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 bg-card"
+          onClick={handleNextWeek}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* ── Stats Overview ── */}
+      {!isLoading && shifts.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatsCard
+            title="Shifts Scheduled"
+            value={shifts.length}
+            description="for this period"
+            icon={<CalendarDays className="h-4 w-4" />}
+          />
+          <StatsCard
+            title="Hours Planned"
+            value={formatHours(stats.totalHours)}
+            description="across your team"
+            icon={<Clock className="h-4 w-4" />}
+          />
+          <StatsCard
+            title="Attendance"
+            value={stats.attendanceRate !== null ? `${stats.attendanceRate}%` : '—'}
+            description={
+              stats.pastShiftsCount > 0
+                ? `${stats.attendedCount} of ${stats.pastShiftsCount} past shifts clocked in`
+                : 'No completed shifts yet'
+            }
+            icon={<Users className="h-4 w-4" />}
+            variant={stats.attendanceRate !== null && stats.attendanceRate < 80 ? 'warning' : 'default'}
+          />
+        </div>
+      )}
+
+      {/* ── Active Now ── */}
+      {!isLoading && viewIncludesToday && activeShifts.length > 0 && (
+        <Card className="border-emerald-200 dark:border-emerald-800 bg-card">
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-base font-semibold text-blue-900">
-                Active Now ({activeShifts.length} shift{activeShifts.length !== 1 ? 's' : ''})
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+              <CardTitle className="text-sm font-semibold">
+                {activeShifts.length} team member{activeShifts.length !== 1 ? 's' : ''} on shift right now
               </CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {activeShifts.map(shift => {
-                const status = getShiftStatus(shift)
-                return (
-                  <div key={shift.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-blue-900">
-                          {shift.user?.full_name || shift.user?.email || 'Unknown'}
-                        </p>
-                        <p className="text-xs text-blue-700">
-                          {format(new Date(shift.start_time), 'h:mm a')} - {format(new Date(shift.end_time), 'h:mm a')}
+          <CardContent className="space-y-4">
+            {activeShifts.map(shift => {
+              const progress = getShiftProgress(shift)
+              const remaining = formatTimeRemaining(shift.end_time)
+              const name = shift.user?.full_name || shift.user?.email || 'Unknown'
+              const status = getShiftStatus(shift)
+
+              return (
+                <div key={shift.id} className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={cn(
+                        'h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
+                        getAvatarColor(name)
+                      )}>
+                        {getInitials(name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(shift.start_time), 'h:mm a')} – {format(new Date(shift.end_time), 'h:mm a')}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {shift.clock_in_time ? (
-                        <Badge variant="default" className="bg-green-600 text-xs">
-                          ✓ Clocked In
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="text-xs">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Not Clocked In
-                        </Badge>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setEditingShift(shift)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit Schedule
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setEditingClockTimesShift(shift)}>
-                            <ClockArrowUp className="mr-2 h-4 w-4" />
-                            Edit Clock Times
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={status.variant} className="text-xs">{status.label}</Badge>
+                      <span className="text-xs text-muted-foreground hidden sm:inline">{remaining}</span>
                     </div>
                   </div>
-                )
-              })}
-            </div>
+                  <div className="ml-11">
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all duration-1000"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1 sm:hidden">{remaining}</p>
+                  </div>
+                </div>
+              )
+            })}
           </CardContent>
         </Card>
       )}
 
-      {/* Quick Filters */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={quickFilter === 'today' ? 'default' : 'outline'}
-          onClick={() => setQuickFilter('today')}
-          size="sm"
-          className={quickFilter !== 'today' ? 'bg-white' : ''}
-        >
-          Today
-        </Button>
-        <Button
-          variant={quickFilter === 'week' ? 'default' : 'outline'}
-          onClick={() => setQuickFilter('week')}
-          size="sm"
-          className={quickFilter !== 'week' ? 'bg-white' : ''}
-        >
-          This Week
-        </Button>
-        <Button
-          variant={quickFilter === 'next-week' ? 'default' : 'outline'}
-          onClick={() => setQuickFilter('next-week')}
-          size="sm"
-          className={quickFilter !== 'next-week' ? 'bg-white' : ''}
-        >
-          Next Week
-        </Button>
-        {quickFilter && (
-          <Button
-            variant="ghost"
-            onClick={() => setQuickFilter(null)}
-            size="sm"
-            className="text-muted-foreground bg-white"
-          >
-            View All
-          </Button>
-        )}
-      </div>
-
-      {/* Shifts Grouped by Day */}
+      {/* ── Shifts by Day ── */}
       {isLoading ? (
-        <ShiftsTableSkeleton rows={5} />
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="bg-card">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-5 w-40" />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[...Array(3)].map((_, j) => (
+                  <div key={j} className="flex items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-3 w-44" />
+                    </div>
+                    <Skeleton className="h-5 w-16 rounded-md" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : groupedShifts.length === 0 ? (
-        <Card className="bg-white">
+        <Card className="bg-card">
           <CardContent className="py-16">
-            <EmptyState
-              icon={Calendar}
-              title="No shifts scheduled"
-              description={quickFilter === 'today'
-                ? "No shifts scheduled for today."
-                : quickFilter === 'week'
-                ? "No shifts scheduled for this week."
-                : quickFilter === 'next-week'
-                ? "No shifts scheduled for next week."
-                : "Create shifts to schedule your team members."
+            {(() => {
+              const now = new Date()
+              const rangeEnd = pickerRange?.to ?? pickerRange?.from ?? now
+              const isPast = endOfDay(rangeEnd) < startOfDay(now)
+              const rangeLabel = pickerRange?.from && pickerRange?.to
+                ? format(pickerRange.from, 'yyyy-MM-dd') === format(pickerRange.to, 'yyyy-MM-dd')
+                  ? format(pickerRange.from, 'EEEE, d MMMM')
+                  : `${format(pickerRange.from, 'd MMM')} – ${format(pickerRange.to, 'd MMM')}`
+                : null
+
+              if (isPast) {
+                return (
+                  <EmptyState
+                    icon={CalendarDays}
+                    title="Nothing was scheduled"
+                    description={
+                      rangeLabel
+                        ? `No one was scheduled to work ${rangeLabel}.`
+                        : "No shifts found for this period."
+                    }
+                    action={{
+                      label: "Go to This Week",
+                      onClick: () => setPickerRange({
+                        from: startOfWeek(new Date(), { weekStartsOn: 1 }),
+                        to: endOfWeek(new Date(), { weekStartsOn: 1 }),
+                      }),
+                      icon: CalendarDays,
+                    }}
+                  />
+                )
               }
-              action={{
-                label: "Create Shift",
-                onClick: () => setIsFormOpen(true),
-                icon: Plus,
-              }}
-            />
+
+              return (
+                <EmptyState
+                  icon={CalendarDays}
+                  title={viewIncludesToday ? "No shifts scheduled yet" : "Nothing planned yet"}
+                  description={
+                    viewIncludesToday
+                      ? "Your team doesn't have any shifts right now. Create shifts to get everyone organised."
+                      : rangeLabel
+                        ? `No shifts planned for ${rangeLabel}. Schedule ahead to stay prepared.`
+                        : "Create shifts to schedule your team."
+                  }
+                  action={{
+                    label: "Create Shift",
+                    onClick: () => setIsFormOpen(true),
+                    icon: Plus,
+                  }}
+                />
+              )
+            })()}
           </CardContent>
         </Card>
       ) : (
@@ -336,59 +576,73 @@ function ShiftsPageContent() {
           {groupedShifts.map(([dateKey, dayShifts]) => {
             const date = parseISO(dateKey)
             const isNow = isToday(date)
+            const dayHours = dayShifts.reduce((acc, s) => {
+              return acc + (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / 3600000
+            }, 0)
 
             return (
-              <Card key={dateKey} className={isNow ? 'border-blue-500/50 bg-white' : 'bg-white'}>
-                <CardHeader className="pb-3">
+              <Card key={dateKey} className={cn('bg-card', isNow && 'border-emerald-500/40')}>
+                <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold">
-                      {format(date, 'EEEE, MMMM d, yyyy')}
-                      {isNow && (
-                        <Badge variant="default" className="ml-2 text-xs">
-                          Today
-                        </Badge>
-                      )}
-                    </CardTitle>
-                    <span className="text-sm text-muted-foreground">
-                      {dayShifts.length} shift{dayShifts.length !== 1 ? 's' : ''}
-                    </span>
+                    <div className="flex items-center gap-2.5">
+                      {isNow && <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />}
+                      <CardTitle className="text-sm font-semibold">
+                        {isNow ? 'Today' : format(date, 'EEEE')}
+                        <span className="font-normal text-muted-foreground ml-1.5">
+                          {format(date, 'd MMMM')}
+                        </span>
+                      </CardTitle>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {dayShifts.length} shift{dayShifts.length !== 1 ? 's' : ''} · {formatHours(Math.round(dayHours * 10) / 10)}
+                    </p>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
+                  <div className="divide-y divide-border/50">
                     {dayShifts.map(shift => {
                       const status = getShiftStatus(shift)
+                      const name = shift.user?.full_name || shift.user?.email || 'Unknown'
+
                       return (
                         <div
                           key={shift.id}
-                          className="flex items-center justify-between py-3 border-b last:border-0"
+                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                         >
-                          <div className="flex items-center gap-4 min-w-0 flex-1">
-                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground min-w-[140px]">
-                              <Clock className="h-4 w-4" />
-                              {format(new Date(shift.start_time), 'h:mm a')} - {format(new Date(shift.end_time), 'h:mm a')}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-sm">
-                                {shift.user?.full_name || shift.user?.email || 'Unknown'}
-                              </p>
-                              {(shift.clock_in_time || shift.clock_out_time) && (
-                                <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                                  {shift.clock_in_time && (
-                                    <span className="text-green-600">
-                                      In: {format(new Date(shift.clock_in_time), 'h:mm a')}
-                                    </span>
-                                  )}
-                                  {shift.clock_out_time && (
-                                    <span>
-                                      Out: {format(new Date(shift.clock_out_time), 'h:mm a')}
-                                    </span>
-                                  )}
-                                </div>
+                          {/* Avatar */}
+                          <div className={cn(
+                            'h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
+                            getAvatarColor(name)
+                          )}>
+                            {getInitials(name)}
+                          </div>
+
+                          {/* Info */}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{name}</p>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-xs text-muted-foreground">
+                              <span className="inline-flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(shift.start_time), 'h:mm a')} – {format(new Date(shift.end_time), 'h:mm a')}
+                              </span>
+                              <span className="bg-muted px-1.5 py-0.5 rounded text-[11px] font-medium">
+                                {formatDuration(shift.start_time, shift.end_time)}
+                              </span>
+                              {shift.clock_in_time && (
+                                <span className="text-emerald-600">
+                                  In: {format(new Date(shift.clock_in_time), 'h:mm a')}
+                                </span>
+                              )}
+                              {shift.clock_out_time && (
+                                <span>
+                                  Out: {format(new Date(shift.clock_out_time), 'h:mm a')}
+                                </span>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+
+                          {/* Status + Actions */}
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <Badge variant={status.variant} className="text-xs">
                               {status.label}
                             </Badge>
@@ -428,6 +682,7 @@ function ShiftsPageContent() {
         </div>
       )}
 
+      {/* ── Dialogs ── */}
       <ShiftForm
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
@@ -483,15 +738,39 @@ export default function ShiftsPage() {
   return (
     <Suspense fallback={
       <div className="space-y-6 max-w-7xl mx-auto px-4">
-        <PageHeaderSkeleton />
-        <Card>
-          <CardHeader>
-            <div className="h-6 w-48" />
-          </CardHeader>
-          <CardContent>
-            <ShiftsTableSkeleton rows={5} />
-          </CardContent>
-        </Card>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1.5">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-[100px]" />)}
+        </div>
+        <Skeleton className="h-10 w-72" />
+        {[...Array(2)].map((_, i) => (
+          <Card key={i} className="bg-card">
+            <CardHeader className="pb-2">
+              <Skeleton className="h-5 w-40" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[...Array(3)].map((_, j) => (
+                <div key={j} className="flex items-center gap-3">
+                  <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-44" />
+                  </div>
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     }>
       <ShiftsPageContent />

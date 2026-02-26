@@ -78,6 +78,7 @@ vi.mock('@/lib/email', () => ({
 // Mock audit log
 vi.mock('@/lib/audit', () => ({
   auditLog: vi.fn(() => Promise.resolve()),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
 }))
 
 // Mock CSRF validation
@@ -193,28 +194,6 @@ describe('Users Invite API Tests', () => {
         expect(data.code).toBe('FORBIDDEN')
       })
 
-      it('should return 403 for Driver users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
-
-        mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === 'profiles') return profileQuery
-          if (table === 'store_users') return storeUsersQuery
-          return profileQuery
-        })
-
-        const { POST } = await import('@/app/api/users/invite/route')
-
-        const request = createMockRequest('POST', {
-          email: 'newuser@example.com',
-          role: 'Staff',
-          storeId: 'store-1',
-        })
-        const response = await POST(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
-      })
     })
 
     describe('Validation', () => {

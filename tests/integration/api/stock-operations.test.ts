@@ -63,6 +63,7 @@ vi.mock('@/lib/rate-limit', () => ({
 // Mock audit logging
 vi.mock('@/lib/audit', () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
 }))
 
 // Mock CSRF validation
@@ -162,8 +163,8 @@ describe('Stock Operations API Integration Tests', () => {
     })
 
     describe('Authorization', () => {
-      it('should return 403 for Driver users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
+      it('should allow Staff users to submit stock counts', async () => {
+        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
 
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === 'profiles') return profileQuery
@@ -174,13 +175,13 @@ describe('Stock Operations API Integration Tests', () => {
         const { POST } = await import('@/app/api/stores/[storeId]/stock-count/route')
 
         const request = createMockRequest('POST', '/api/stores/store-123/stock-count', {
-          items: [{ inventory_item_id: 'item-1', quantity: 10 }],
+          items: [],
         })
         const response = await POST(request, { params: Promise.resolve({ storeId: 'store-123' }) })
         const data = await response.json()
 
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
+        // Staff can access the endpoint - validation error for empty items is expected
+        expect(response.status).toBe(400)
       })
     })
 

@@ -11,19 +11,35 @@ import { UserForm } from '@/components/forms/UserForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { PageHeaderSkeleton, UsersTableSkeleton } from '@/components/ui/skeletons'
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import { Profile, AppRole, UserStatus } from '@/types'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
+import { Profile, AppRole } from '@/types'
 import { InviteUserFormData, UpdateUserFormData } from '@/lib/validations/user'
-import { Plus, Search, Mail, Users, Phone, Calendar, Edit, Clock, ChevronDown } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  Mail,
+  Phone,
+  Calendar,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  X,
+  Send,
+  UserPlus,
+} from 'lucide-react'
+import { useCSRF } from '@/hooks/useCSRF'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { PageGuide } from '@/components/help/PageGuide'
 import Link from 'next/link'
 
 // Store user entry with store name for display
@@ -39,34 +55,66 @@ type UserWithStore = Profile & {
   store_users?: StoreUserWithStore[]
 }
 
+// --- Helpers ---
+
+function getInitials(name: string | null) {
+  if (!name) return '?'
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+const ROLE_STYLES: Record<string, { dot: string; bg: string; text: string }> = {
+  Owner:      { dot: 'bg-amber-500',   bg: 'bg-amber-50',   text: 'text-amber-700' },
+  'Co-Owner': { dot: 'bg-amber-400',   bg: 'bg-amber-50',   text: 'text-amber-600' },
+  Manager:    { dot: 'bg-blue-500',    bg: 'bg-blue-50',    text: 'text-blue-700' },
+  Staff:      { dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+}
+
+function RoleBadge({ role }: { role: string }) {
+  const style = ROLE_STYLES[role] || { dot: 'bg-muted-foreground', bg: 'bg-muted', text: 'text-muted-foreground' }
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${style.bg} ${style.text}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+      {role}
+    </span>
+  )
+}
+
+function StatusDot({ status }: { status: string }) {
+  const color = status === 'Active' ? 'bg-emerald-500' : status === 'Invited' ? 'bg-amber-400' : 'bg-muted-foreground/40'
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
+      {status}
+    </span>
+  )
+}
+
+// --- Main Component ---
+
 function UsersPageContent() {
   const { currentStore, role: currentUserRole } = useAuth()
+  const { csrfFetch } = useCSRF()
   const currentStoreId = currentStore?.store_id
   const { stores, isLoading: storesLoading } = useStores()
   const { shifts, isLoading: shiftsLoading } = useShifts(currentStoreId || null)
   const { invites: pendingInvites, cancelInvite, resendInvite, refetch: refetchInvites } = usePendingInvites()
-  const [pendingInvitesOpen, setPendingInvitesOpen] = useState(true)
 
-  // Simple local filters
   const [searchInput, setSearchInput] = useState('')
   const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all')
 
-  // Build filters for the hook - always filter by current store
   const usersFilters: UsersFilters = {
-    search: searchInput,
     role: 'all',
     status: 'all',
     storeId: currentStoreId || 'all',
     page: 1,
   }
 
-  const {
-    users,
-    isLoading,
-    updateUser,
-    deleteUser,
-    refetch
-  } = useUsers(usersFilters)
+  const { users, isLoading, updateUser, deleteUser, refetch } = useUsers(usersFilters)
 
   // Form state
   const [inviteFormOpen, setInviteFormOpen] = useState(false)
@@ -74,8 +122,9 @@ function UsersPageContent() {
   const [editUser, setEditUser] = useState<Profile | null>(null)
   const [isInviting, setIsInviting] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [deleteUser_, setDeleteUser_] = useState<Profile | null>(null)
 
-  // Calculate who's on shift now
+  // Shifts
   const activeShifts = useMemo(() => {
     const now = new Date()
     return shifts.filter(shift => {
@@ -85,34 +134,27 @@ function UsersPageContent() {
     })
   }, [shifts])
 
-  // Users currently on shift
-  const usersOnShift = useMemo(() => {
-    const onShiftUserIds = new Set(activeShifts.map(s => s.user_id))
-    return users.filter(u => onShiftUserIds.has(u.id))
-  }, [users, activeShifts])
+  const onShiftUserIds = useMemo(() => new Set(activeShifts.map(s => s.user_id)), [activeShifts])
 
   // Get display role for a user at the current store
   const getDisplayRole = useCallback((user: UserWithStore): string => {
     if (!currentStoreId || !user.store_users) return user.role
-
-    // Find the user's membership at the current store
-    const storeUserEntry = user.store_users.find(su => su.store_id === currentStoreId)
-
-    if (storeUserEntry) {
-      if (storeUserEntry.role === 'Owner') {
-        return storeUserEntry.is_billing_owner ? 'Owner' : 'Co-Owner'
-      }
-      return storeUserEntry.role
+    const entry = user.store_users.find(su => su.store_id === currentStoreId)
+    if (entry) {
+      if (entry.role === 'Owner') return entry.is_billing_owner ? 'Owner' : 'Co-Owner'
+      return entry.role
     }
-
     return user.role
   }, [currentStoreId])
 
-  // Filter and group users
+  const isBillingOwner = useCallback((user: UserWithStore): boolean => {
+    return user.store_users?.some(su => su.is_billing_owner) ?? false
+  }, [])
+
+  // Filtered + sorted users
   const filteredUsers = useMemo(() => {
     let filtered = users.filter(u => u.status === 'Active')
 
-    // Apply search
     if (searchInput) {
       const search = searchInput.toLowerCase()
       filtered = filtered.filter(u =>
@@ -121,82 +163,63 @@ function UsersPageContent() {
       )
     }
 
-    // Apply role filter (using display role from store_users)
     if (roleFilter !== 'all') {
-      filtered = filtered.filter(u => getDisplayRole(u as UserWithStore) === roleFilter)
+      filtered = filtered.filter(u => {
+        const role = getDisplayRole(u as UserWithStore)
+        // "Owners" filter includes both Owner and Co-Owner
+        if (roleFilter === 'Owner') return role === 'Owner' || role === 'Co-Owner'
+        return role === roleFilter
+      })
     }
 
-    return filtered
-  }, [users, searchInput, roleFilter, getDisplayRole])
-
-  // Group by role (using display role from store_users)
-  const groupedByRole = useMemo(() => {
-    const groups: Record<string, UserWithStore[]> = {
-      Owner: [],
-      'Co-Owner': [],
-      Manager: [],
-      Staff: [],
-      Driver: [],
-    }
-
-    filteredUsers.forEach(user => {
-      const displayRole = getDisplayRole(user)
-      if (displayRole in groups) {
-        groups[displayRole].push(user as UserWithStore)
-      }
+    // Sort: on-shift first, then by name
+    return [...filtered].sort((a, b) => {
+      const aOnShift = onShiftUserIds.has(a.id) ? 0 : 1
+      const bOnShift = onShiftUserIds.has(b.id) ? 0 : 1
+      if (aOnShift !== bOnShift) return aOnShift - bOnShift
+      return (a.full_name || '').localeCompare(b.full_name || '')
     })
+  }, [users, searchInput, roleFilter, getDisplayRole, onShiftUserIds])
 
-    return groups
-  }, [filteredUsers, currentStoreId])
-
-  // Team stats
+  // Stats
   const stats = useMemo(() => {
     const activeUsers = users.filter(u => u.status === 'Active')
     const scheduledToday = new Set(
       shifts
-        .filter(s => {
-          const start = new Date(s.start_time)
-          const today = new Date()
-          return start.toDateString() === today.toDateString()
-        })
+        .filter(s => new Date(s.start_time).toDateString() === new Date().toDateString())
         .map(s => s.user_id)
     )
-
     return {
       total: activeUsers.length,
-      active: activeUsers.length,
-      onShiftNow: usersOnShift.length,
+      onShift: activeShifts.length > 0 ? onShiftUserIds.size : 0,
       scheduledToday: scheduledToday.size,
     }
-  }, [users, shifts, usersOnShift])
+  }, [users, shifts, activeShifts, onShiftUserIds])
 
-  // Role counts for filter buttons (using display role from store_users)
+  // Role counts
   const roleCounts = useMemo(() => {
-    const activeUsers = users.filter(u => u.status === 'Active')
+    const active = users.filter(u => u.status === 'Active')
     return {
-      all: activeUsers.length,
-      Owner: activeUsers.filter(u => getDisplayRole(u as UserWithStore) === 'Owner').length,
-      Manager: activeUsers.filter(u => getDisplayRole(u as UserWithStore) === 'Manager').length,
-      Staff: activeUsers.filter(u => getDisplayRole(u as UserWithStore) === 'Staff').length,
-      Driver: activeUsers.filter(u => getDisplayRole(u as UserWithStore) === 'Driver').length,
+      all: active.length,
+      Owner: active.filter(u => {
+        const r = getDisplayRole(u as UserWithStore)
+        return r === 'Owner' || r === 'Co-Owner'
+      }).length,
+      Manager: active.filter(u => getDisplayRole(u as UserWithStore) === 'Manager').length,
+      Staff: active.filter(u => getDisplayRole(u as UserWithStore) === 'Staff').length,
     }
-  }, [users, currentStoreId])
+  }, [users, getDisplayRole])
 
+  // Handlers
   const handleInvite = async (data: InviteUserFormData) => {
     setIsInviting(true)
     try {
-      const response = await fetch('/api/users/invite', {
+      const response = await csrfFetch('/api/users/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-
       const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to send invitation')
-      }
-
+      if (!response.ok) throw new Error(result.message || 'Failed to send invitation')
       toast.success(`Invitation sent to ${data.email}`)
       setInviteFormOpen(false)
       refetch()
@@ -215,18 +238,12 @@ function UsersPageContent() {
 
   const handleUpdate = async (data: UpdateUserFormData) => {
     if (!editUser) return
-
     setIsUpdating(true)
     try {
       await updateUser({
         id: editUser.id,
-        data: {
-          full_name: data.fullName,
-          role: data.role,
-          status: data.status,
-        },
+        data: { full_name: data.fullName, role: data.role, status: data.status },
       })
-
       setEditFormOpen(false)
       setEditUser(null)
     } catch {
@@ -236,398 +253,363 @@ function UsersPageContent() {
     }
   }
 
-  const handleDelete = (user: Profile) => {
-    if (currentStoreId) {
-      deleteUser(user.id, currentStoreId)
+  const handleDelete = () => {
+    if (deleteUser_ && currentStoreId) {
+      deleteUser(deleteUser_.id, currentStoreId)
+      setDeleteUser_(null)
     }
   }
 
-  const getInitials = (name: string | null) => {
-    if (!name) return '?'
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }
-
-  const getRoleBadgeColor = (role: string) => {
-    const colors: Record<string, string> = {
-      Owner: 'bg-amber-500 text-white',
-      'Co-Owner': 'bg-amber-400 text-white',
-      Manager: 'bg-blue-500 text-white',
-      Staff: 'bg-green-500 text-white',
-      Driver: 'bg-purple-500 text-white',
-    }
-    return colors[role] || 'bg-gray-500 text-white'
-  }
-
+  // --- Loading ---
   if (isLoading || storesLoading || shiftsLoading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto px-4">
+      <div className="space-y-6">
         <PageHeaderSkeleton />
         <UsersTableSkeleton rows={8} />
       </div>
     )
   }
 
-  // No store selected - prompt user to select one
+  // --- No store ---
   if (!currentStore) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto px-4">
+      <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Please select a store from the sidebar to view your team.
-          </p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Team</h1>
+          <p className="text-sm text-muted-foreground mt-1">Select a store to manage your team</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Team</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage your team at {currentStore.store?.name}
+            {stats.total} {stats.total === 1 ? 'member' : 'members'}
+            {stats.onShift > 0 && <span className="mx-1.5 text-muted-foreground/40">&middot;</span>}
+            {stats.onShift > 0 && <span className="text-emerald-600">{stats.onShift} on shift</span>}
+            {stats.scheduledToday > 0 && <span className="mx-1.5 text-muted-foreground/40">&middot;</span>}
+            {stats.scheduledToday > 0 && <span>{stats.scheduledToday} scheduled today</span>}
           </p>
         </div>
-        <Button onClick={() => setInviteFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          <span className="hidden sm:inline">Invite Team Member</span>
-          <span className="sm:hidden">Invite</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <PageGuide pageKey="users" />
+          <Button onClick={() => setInviteFormOpen(true)} size="sm">
+            <Plus className="h-4 w-4 mr-1.5" />
+            Invite
+          </Button>
+        </div>
       </div>
 
-      {/* On Shift Now - Only show if someone is working */}
-      {usersOnShift.length > 0 && (
-        <Card className="border-blue-500 bg-white">
-          <CardHeader className="pb-3">
+      {/* Pending Invitations Banner */}
+      {pendingInvites.length > 0 && (
+        <div className="rounded-lg border bg-card">
+          <div className="flex items-center justify-between px-4 py-3 border-b">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-base font-semibold text-blue-900">
-                On Shift Now ({usersOnShift.length} {usersOnShift.length === 1 ? 'person' : 'people'})
-              </CardTitle>
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Pending invitations</span>
+              <span className="text-xs text-muted-foreground">({pendingInvites.length})</span>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {usersOnShift.map(user => {
-              const shift = activeShifts.find(s => s.user_id === user.id)
-              if (!shift) return null
+          </div>
+          <div className="divide-y">
+            {pendingInvites.map(invite => (
+              <div key={invite.id} className="flex items-center justify-between px-4 py-3 gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{invite.email}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {invite.role} &middot; Sent {format(new Date(invite.created_at), 'MMM d')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                    onClick={() => resendInvite(invite.id)}
+                  >
+                    <Send className="h-3.5 w-3.5 mr-1" />
+                    Resend
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => cancelInvite(invite.id)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search + Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-9 h-9 bg-card"
+          />
+        </div>
+        <div className="flex gap-1">
+          {(['all', 'Owner', 'Manager', 'Staff'] as const).map(role => {
+            const count = role === 'all' ? roleCounts.all : roleCounts[role as keyof typeof roleCounts]
+            const isActive = roleFilter === role
+            return (
+              <button
+                key={role}
+                onClick={() => setRoleFilter(role === 'all' ? 'all' : role as AppRole)}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  isActive
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                {role === 'all' ? 'All' : role === 'Owner' ? 'Owners' : `${role}s`}
+                <span className="ml-1 tabular-nums">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Team List */}
+      {filteredUsers.length === 0 ? (
+        <div className="rounded-lg border bg-card py-16 text-center">
+          <div className="mx-auto w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-3">
+            <UserPlus className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h3 className="text-sm font-medium mb-1">
+            {searchInput ? 'No results found' : 'No team members yet'}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {searchInput ? 'Try a different search term.' : 'Invite your first team member to get started.'}
+          </p>
+          {!searchInput && (
+            <Button size="sm" onClick={() => setInviteFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Invite
+            </Button>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Desktop Table */}
+          <div className="hidden md:block rounded-lg border bg-card overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">Member</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3 hidden lg:table-cell">Contact</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">Role</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">Status</th>
+                  <th className="w-10 px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredUsers.map(user => {
+                  const displayRole = getDisplayRole(user as UserWithStore)
+                  const isOnShift = onShiftUserIds.has(user.id)
+                  const shift = isOnShift ? activeShifts.find(s => s.user_id === user.id) : null
+                  const style = ROLE_STYLES[displayRole] || ROLE_STYLES.Staff
+
+                  return (
+                    <tr key={user.id} className="group hover:bg-muted/30 transition-colors">
+                      {/* Member */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <Avatar className="h-9 w-9">
+                              <AvatarFallback className={`${style.bg} ${style.text} text-xs font-semibold`}>
+                                {getInitials(user.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            {isOnShift && (
+                              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-card" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{user.full_name || 'No name'}</p>
+                            <p className="text-xs text-muted-foreground truncate lg:hidden">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Contact */}
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <div className="space-y-0.5">
+                          <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                          {user.phone && (
+                            <p className="text-xs text-muted-foreground">{user.phone}</p>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Role */}
+                      <td className="px-4 py-3">
+                        <RoleBadge role={displayRole} />
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        {isOnShift && shift ? (
+                          <span className="text-xs font-medium text-emerald-600">
+                            On shift until {format(new Date(shift.end_time), 'h:mm a')}
+                          </span>
+                        ) : (
+                          <StatusDot status={user.status} />
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleEdit(user)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit member
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/shifts?user=${user.id}`}>
+                                <Calendar className="h-4 w-4 mr-2" />
+                                View schedule
+                              </Link>
+                            </DropdownMenuItem>
+                            {user.phone && (
+                              <DropdownMenuItem onClick={() => window.open(`tel:${user.phone}`, '_self')}>
+                                <Phone className="h-4 w-4 mr-2" />
+                                Call {user.full_name?.split(' ')[0] || 'member'}
+                              </DropdownMenuItem>
+                            )}
+                            {user.email && (
+                              <DropdownMenuItem onClick={() => window.open(`mailto:${user.email}`, '_self')}>
+                                <Mail className="h-4 w-4 mr-2" />
+                                Send email
+                              </DropdownMenuItem>
+                            )}
+                            {!isBillingOwner(user as UserWithStore) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeleteUser_(user)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remove from store
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile List */}
+          <div className="md:hidden space-y-2">
+            {filteredUsers.map(user => {
+              const displayRole = getDisplayRole(user as UserWithStore)
+              const isOnShift = onShiftUserIds.has(user.id)
+              const shift = isOnShift ? activeShifts.find(s => s.user_id === user.id) : null
+              const style = ROLE_STYLES[displayRole] || ROLE_STYLES.Staff
 
               return (
-                <div key={user.id} className="flex items-center justify-between p-3 rounded-lg bg-blue-50 border border-blue-200">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Avatar className="h-10 w-10 border-2 border-blue-500">
-                      <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">
-                        {getInitials(user.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{user.full_name || user.email}</p>
-                        <Badge className={`text-xs ${getRoleBadgeColor(getDisplayRole(user))}`}>
-                          {getDisplayRole(user)}
-                        </Badge>
+                <div key={user.id} className="rounded-lg border bg-card px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative shrink-0">
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback className={`${style.bg} ${style.text} text-xs font-semibold`}>
+                            {getInitials(user.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        {isOnShift && (
+                          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-card" />
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Clocked in at {format(new Date(shift.start_time), 'h:mm a')} • Ends at {format(new Date(shift.end_time), 'h:mm a')}
-                      </p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{user.full_name || 'No name'}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      </div>
                     </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => handleEdit(user)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit member
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/shifts?user=${user.id}`}>
+                            <Calendar className="h-4 w-4 mr-2" />
+                            View schedule
+                          </Link>
+                        </DropdownMenuItem>
+                        {user.phone && (
+                          <DropdownMenuItem onClick={() => window.open(`tel:${user.phone}`, '_self')}>
+                            <Phone className="h-4 w-4 mr-2" />
+                            Call
+                          </DropdownMenuItem>
+                        )}
+                        {!isBillingOwner(user as UserWithStore) && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeleteUser_(user)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Remove from store
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {user.phone && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white"
-                        onClick={() => window.open(`tel:${user.phone}`, '_self')}
-                      >
-                        <Phone className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Call</span>
-                      </Button>
+                  <div className="flex items-center gap-2 mt-2 ml-12">
+                    <RoleBadge role={displayRole} />
+                    {isOnShift && shift ? (
+                      <span className="text-xs font-medium text-emerald-600">
+                        On shift until {format(new Date(shift.end_time), 'h:mm a')}
+                      </span>
+                    ) : (
+                      <StatusDot status={user.status} />
                     )}
-                    <Link href={`/shifts?user=${user.id}`}>
-                      <Button variant="outline" size="sm" className="bg-white">
-                        <Calendar className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Schedule</span>
-                      </Button>
-                    </Link>
                   </div>
                 </div>
               )
             })}
-          </CardContent>
-        </Card>
+          </div>
+        </>
       )}
 
-      {/* Team Overview Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Team</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tracking-tight">{stats.total}</div>
-            <p className="text-xs text-muted-foreground mt-1">Active members</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">On Shift Now</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tracking-tight">{stats.onShiftNow}</div>
-            <p className="text-xs text-muted-foreground mt-1">Currently working</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Scheduled Today</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tracking-tight">{stats.scheduledToday}</div>
-            <p className="text-xs text-muted-foreground mt-1">Shifts today</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Invites</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tracking-tight">{pendingInvites.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Awaiting acceptance</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Pending Invitations Section */}
-      {pendingInvites.length > 0 && (
-        <Collapsible open={pendingInvitesOpen} onOpenChange={setPendingInvitesOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-4 h-auto border rounded-lg hover:bg-muted/50 bg-white">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Pending Invitations</span>
-                <Badge variant="secondary" className="ml-1">
-                  {pendingInvites.length}
-                </Badge>
-              </div>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${pendingInvitesOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2">
-            <div className="space-y-2 border rounded-lg p-4 bg-white">
-              {pendingInvites.map(invite => (
-                <div key={invite.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{invite.email}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Invited as {invite.role} • {format(new Date(invite.created_at), 'MMM d, yyyy')}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => resendInvite(invite.id)}
-                      className="bg-white"
-                    >
-                      Resend
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => cancelInvite(invite.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search team members..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-10 bg-white"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={roleFilter === 'all' ? 'default' : 'outline'}
-            onClick={() => setRoleFilter('all')}
-            size="sm"
-            className={roleFilter !== 'all' ? 'bg-white' : ''}
-          >
-            All ({roleCounts.all})
-          </Button>
-          <Button
-            variant={roleFilter === 'Manager' ? 'default' : 'outline'}
-            onClick={() => setRoleFilter('Manager')}
-            size="sm"
-            className={roleFilter !== 'Manager' ? 'bg-white' : ''}
-          >
-            💼 Managers ({roleCounts.Manager})
-          </Button>
-          <Button
-            variant={roleFilter === 'Staff' ? 'default' : 'outline'}
-            onClick={() => setRoleFilter('Staff')}
-            size="sm"
-            className={roleFilter !== 'Staff' ? 'bg-white' : ''}
-          >
-            👤 Staff ({roleCounts.Staff})
-          </Button>
-          <Button
-            variant={roleFilter === 'Driver' ? 'default' : 'outline'}
-            onClick={() => setRoleFilter('Driver')}
-            size="sm"
-            className={roleFilter !== 'Driver' ? 'bg-white' : ''}
-          >
-            🚗 Drivers ({roleCounts.Driver})
-          </Button>
-        </div>
-      </div>
-
-      {/* Team Members Grouped by Role */}
-      <div className="space-y-6">
-        {(['Owner', 'Co-Owner', 'Manager', 'Staff', 'Driver'] as string[]).map(role => {
-          const roleUsers = groupedByRole[role]
-          if (roleUsers.length === 0) return null
-
-          const roleLabel = role === 'Owner' ? '👑 Owners' :
-                           role === 'Co-Owner' ? '👑 Co-Owners' :
-                           role === 'Manager' ? '💼 Managers' :
-                           role === 'Staff' ? '👤 Staff' : '🚗 Drivers'
-
-          return (
-            <div key={role} className="space-y-3">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                {roleLabel} ({roleUsers.length})
-              </h2>
-              <div className="grid gap-3">
-                {roleUsers.map(user => {
-                  const userShift = activeShifts.find(s => s.user_id === user.id)
-                  const isOnShift = !!userShift
-
-                  return (
-                    <Card key={user.id} className={`bg-white ${isOnShift ? 'border-blue-500' : ''}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback className={`${getRoleBadgeColor(getDisplayRole(user))} font-semibold`}>
-                                {getInitials(user.full_name)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold truncate">{user.full_name || 'No name'}</h3>
-                                <Badge className={`text-xs ${getRoleBadgeColor(getDisplayRole(user))}`}>
-                                  {getDisplayRole(user)}
-                                </Badge>
-                                {isOnShift && (
-                                  <Badge className="text-xs bg-blue-500 text-white">
-                                    On Shift
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                                {user.phone && (
-                                  <div className="flex items-center gap-2">
-                                    <Phone className="h-3 w-3" />
-                                    <span>{user.phone}</span>
-                                  </div>
-                                )}
-                                <div className="flex items-center gap-2">
-                                  <Mail className="h-3 w-3" />
-                                  <span className="truncate">{user.email}</span>
-                                </div>
-                              </div>
-                              {isOnShift && userShift && (
-                                <p className="text-xs text-blue-600 font-medium mt-2">
-                                  Shift ends at {format(new Date(userShift.end_time), 'h:mm a')}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                            {user.phone && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-white w-full sm:w-auto"
-                                onClick={() => window.open(`tel:${user.phone}`, '_self')}
-                              >
-                                <Phone className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Call</span>
-                              </Button>
-                            )}
-                            <Link href={`/shifts?user=${user.id}`}>
-                              <Button variant="outline" size="sm" className="bg-white w-full sm:w-auto">
-                                <Calendar className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Schedule</span>
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(user)}
-                              className="bg-white w-full sm:w-auto"
-                            >
-                              <Edit className="h-4 w-4 sm:mr-2" />
-                              <span className="hidden sm:inline">Edit</span>
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {filteredUsers.length === 0 && (
-        <Card className="bg-white">
-          <CardContent className="py-12 text-center">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <h3 className="font-semibold mb-1">No team members found</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {searchInput ? 'Try adjusting your search or filters.' : 'Get started by inviting your first team member.'}
-            </p>
-            {!searchInput && (
-              <Button onClick={() => setInviteFormOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Invite Team Member
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
+      {/* Dialogs */}
       <InviteUserForm
         open={inviteFormOpen}
         onOpenChange={setInviteFormOpen}
@@ -647,6 +629,16 @@ function UsersPageContent() {
         onSubmit={handleUpdate}
         isLoading={isUpdating}
       />
+
+      <ConfirmDialog
+        open={!!deleteUser_}
+        onOpenChange={(open) => { if (!open) setDeleteUser_(null) }}
+        title="Remove from store"
+        description={`Remove ${deleteUser_?.full_name || deleteUser_?.email} from this store? They'll lose access but their account stays active.`}
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }
@@ -654,7 +646,7 @@ function UsersPageContent() {
 export default function UsersPage() {
   return (
     <Suspense fallback={
-      <div className="space-y-6 max-w-7xl mx-auto px-4">
+      <div className="space-y-6">
         <PageHeaderSkeleton />
         <UsersTableSkeleton rows={8} />
       </div>

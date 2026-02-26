@@ -9,6 +9,9 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { updateSupplierSchema } from '@/lib/validations/suppliers'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog, computeFieldChanges } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; supplierId: string }>
@@ -66,7 +69,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       recent_orders: orders || [],
     }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error fetching supplier:', error)
+    logger.error('Error fetching supplier:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch supplier')
   }
 }
@@ -107,6 +110,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       cleanData[k] = v === '' ? null : v
     }
 
+    // Fetch current state for before/after tracking
+    const { data: beforeSupplier } = await context.supabase
+      .from('suppliers')
+      .select('*')
+      .eq('id', supplierId)
+      .eq('store_id', storeId)
+      .single()
+
     const { data, error } = await context.supabase
       .from('suppliers')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -123,9 +134,25 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return apiNotFound('Supplier', context.requestId)
     }
 
+    // Audit log
+    const admin = createAdminClient()
+    const fieldChanges = beforeSupplier
+      ? computeFieldChanges(beforeSupplier, cleanData)
+      : []
+    void auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'supplier.update',
+      storeId,
+      resourceType: 'supplier',
+      resourceId: supplierId,
+      details: { supplierName: data.name, updatedFields: Object.keys(cleanData), fieldChanges },
+      request,
+    }).catch(err => logger.error('Audit log error:', { error: err }))
+
     return apiSuccess(data, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating supplier:', error)
+    logger.error('Error updating supplier:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update supplier')
   }
 }
@@ -175,9 +202,22 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to delete supplier')
     }
 
+    // Audit log
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'supplier.delete',
+      storeId,
+      resourceType: 'supplier',
+      resourceId: supplierId,
+      details: {},
+      request,
+    })
+
     return apiSuccess({ message: 'Supplier deleted successfully' }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error deleting supplier:', error)
+    logger.error('Error deleting supplier:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to delete supplier')
   }
 }

@@ -49,56 +49,55 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  /* Shopify Polaris shadow-100 */
-  --shadow-card: 0 0.3125rem 0.3125rem -0.15625rem #00000008,
-    0 0.1875rem 0.1875rem -0.09375rem #00000005,
-    0 0.125rem 0.125rem -0.0625rem #00000005,
-    0 0.0625rem 0.0625rem -0.03125rem #00000008,
-    0 0.03125rem 0.03125rem 0 #0000000a,
-    0 0 0 0.0625rem #0000000f;
-  /* Page background - main content area */
-  --background: #f1f1f1;
-  --foreground: #1a1a1a;
-  /* Cards/content are white for contrast */
+  --radius: 0.625rem;
+  /* Paper lifted off the clipboard — perceptible depth */
+  --shadow-card: 0 1px 3px rgba(140, 130, 115, 0.12),
+    0 4px 12px rgba(140, 130, 115, 0.06);
+  /* Canvas — warm cream, like butcher paper */
+  --background: #faf8f5;
+  --foreground: #2d2a26;
+  /* Cards — clean white, lifts off warm canvas */
   --card: #ffffff;
-  --card-foreground: #1a1a1a;
+  --card-foreground: #2d2a26;
   --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
-  /* Primary button - dark like Shopify */
-  --primary: #1a1a1a;
-  --primary-foreground: #ffffff;
-  --secondary: #f6f6f6;
-  --secondary-foreground: #1a1a1a;
-  --muted: #f6f6f6;
-  --muted-foreground: #6d6d6d;
-  --accent: #f6f6f6;
-  --accent-foreground: #1a1a1a;
-  --destructive: #e51c00;
-  --border: #e3e3e3;
-  --input: #e3e3e3;
-  --ring: #1a1a1a;
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  /* Navbar - Black */
-  --navbar: #000000;
-  --navbar-foreground: #ffffff;
-  /* Sidebar - Light gray #ebebeb */
-  --sidebar: #ebebeb;
-  --sidebar-foreground: #8a8a8a;
-  --sidebar-primary: #1a1a1a;
-  --sidebar-primary-foreground: #8a8a8a;
+  --popover-foreground: #2d2a26;
+  /* Primary — warm dark, approachable authority */
+  --primary: #2d2a26;
+  --primary-foreground: #faf8f5;
+  --secondary: #f3f0eb;
+  --secondary-foreground: #2d2a26;
+  --muted: #f3f0eb;
+  --muted-foreground: #8a8279;
+  --accent: #f3f0eb;
+  --accent-foreground: #2d2a26;
+  /* Warm red — the 86'd board, not neon alarm */
+  --destructive: #c4432b;
+  /* Warm borders — visible when needed, invisible when not */
+  --border: #e8e4dd;
+  --input: #e8e4dd;
+  --ring: #2d7a4f;
+  /* Charts — warm earth tones */
+  --chart-1: #2d7a4f;
+  --chart-2: #b58a3a;
+  --chart-3: #c4432b;
+  --chart-4: #5b8a72;
+  --chart-5: #d4a853;
+  /* Navbar — deep warm dark, not pure black */
+  --navbar: #1f1d1a;
+  --navbar-foreground: #faf8f5;
+  /* Sidebar — same as canvas (one room, not zones) */
+  --sidebar: #faf8f5;
+  --sidebar-foreground: #8a8279;
+  --sidebar-primary: #2d2a26;
+  --sidebar-primary-foreground: #8a8279;
   --sidebar-accent: transparent;
-  --sidebar-accent-foreground: #1a1a1a;
-  --sidebar-border: #e3e3e3;
-  --sidebar-ring: #1a1a1a;
-  /* Hover state - between #8a8a8a and black */
-  --sidebar-hover: #5a5a5a;
-  /* Green accent for active nav - Shopify style */
-  --sidebar-active: #36a769;
+  --sidebar-accent-foreground: #2d2a26;
+  --sidebar-border: #e8e4dd;
+  --sidebar-ring: #2d7a4f;
+  /* Nav hover — warm mid-gray */
+  --sidebar-hover: #5c564e;
+  /* Fresh herb green — the "all good" signal */
+  --sidebar-active: #2d7a4f;
 }
 
 @layer base {
@@ -250,12 +249,112 @@ button:disabled,
   animation: pulse-subtle 2s ease-in-out infinite;
 }
 
+/* ── Marketing page animations ── */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Dot grid background pattern */
+.dot-grid {
+  background-image: radial-gradient(circle, #e8e4dd 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, #2d7a4f 0%, #b58a3a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient border via pseudo-element */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, #2d7a4f, #b58a3a, #2d7a4f);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
 /* Staggered animation delays */
 .stagger-1 { animation-delay: 50ms; }
 .stagger-2 { animation-delay: 100ms; }
 .stagger-3 { animation-delay: 150ms; }
 .stagger-4 { animation-delay: 200ms; }
 .stagger-5 { animation-delay: 250ms; }
+
+/* Shimmer highlight sweep */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Glow pulse for CTA buttons */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(45, 122, 79, 0.3); }
+  50% { box-shadow: 0 0 20px 4px rgba(45, 122, 79, 0.15); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Reduced motion: disable all custom animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-gradient,
+  .animate-shimmer,
+  .animate-glow-pulse,
+  .animate-fade-in,
+  .animate-fade-in-up,
+  .animate-slide-in-right {
+    animation: none !important;
+  }
+}
 
 /* Mobile input zoom prevention */
 @media screen and (max-width: 768px) {

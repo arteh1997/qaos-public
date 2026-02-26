@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { UserInvite } from '@/types'
+import { useCSRF } from './useCSRF'
 import { toast } from 'sonner'
 
 export interface PendingInvite extends Omit<UserInvite, 'store' | 'inviter'> {
@@ -13,6 +14,7 @@ export function usePendingInvites() {
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const { csrfFetch } = useCSRF()
 
   const fetchInvites = useCallback(async () => {
     setIsLoading(true)
@@ -44,7 +46,7 @@ export function usePendingInvites() {
     setInvites(prev => prev.filter(invite => invite.id !== inviteId))
 
     try {
-      const response = await fetch(`/api/users/invites?id=${inviteId}`, {
+      const response = await csrfFetch(`/api/users/invites?id=${inviteId}`, {
         method: 'DELETE',
       })
 
@@ -65,7 +67,7 @@ export function usePendingInvites() {
 
   const resendInvite = useCallback(async (inviteId: string) => {
     try {
-      const response = await fetch('/api/users/invites/resend', {
+      const response = await csrfFetch('/api/users/invites/resend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inviteId }),

@@ -23,6 +23,7 @@ import {
 import { ArrowLeft, AlertTriangle, Download, ArrowUp, ArrowDown, Package } from 'lucide-react'
 import { exportToCSV, generateExportFilename } from '@/lib/export'
 import { toast } from 'sonner'
+import { PageGuide } from '@/components/help/PageGuide'
 import { LowStockItem } from '@/types'
 
 // Sort configuration
@@ -139,7 +140,7 @@ function LowStockTable({ items, storeId }: LowStockTableProps) {
             <div className="flex items-center gap-4 mt-2 pt-2 border-t">
               <div>
                 <div className="text-[10px] text-muted-foreground uppercase">Current</div>
-                <div className="text-lg font-bold text-red-600">{item.current_quantity}</div>
+                <div className="text-lg font-bold text-destructive">{item.current_quantity}</div>
               </div>
               <div>
                 <div className="text-[10px] text-muted-foreground uppercase">PAR Level</div>
@@ -190,7 +191,7 @@ function LowStockTable({ items, storeId }: LowStockTableProps) {
                 <TableCell className="font-medium">
                   {item.item_name}
                 </TableCell>
-                <TableCell className="text-right text-red-600 font-medium">
+                <TableCell className="text-right text-destructive font-medium">
                   {item.current_quantity}
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground">
@@ -216,14 +217,11 @@ function LowStockPageContent() {
 
   // Check store setup status
   const { status: setupStatus, isLoading: setupLoading } = useStoreSetupStatus(currentStoreId || null)
-  const { data: lowStockItems, isLoading: reportLoading } = useLowStockReport()
+  const { data: lowStockItems, isLoading: reportLoading } = useLowStockReport(currentStoreId)
 
   const isLoading = reportLoading || setupLoading
 
-  // Filter by current store
-  const filteredItems = currentStoreId
-    ? (lowStockItems ?? []).filter(item => item.store_id === currentStoreId)
-    : []
+  const filteredItems = lowStockItems ?? []
 
   const handleExport = () => {
     if (filteredItems.length === 0) {
@@ -267,7 +265,7 @@ function LowStockPageContent() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Low Stock Report</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Low Stock Report</h1>
             <p className="text-sm text-muted-foreground">
               Please select a store from the sidebar to view its low stock report.
             </p>
@@ -288,7 +286,7 @@ function LowStockPageContent() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Low Stock Report</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Low Stock Report</h1>
             <p className="text-sm text-muted-foreground">
               Items below PAR level at {currentStore.store?.name}
             </p>
@@ -318,40 +316,61 @@ function LowStockPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Link href="/reports">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Low Stock Report</h1>
-          <p className="text-sm text-muted-foreground">
-            Items below PAR level at {currentStore.store?.name}
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <Link href="/reports">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
+              <div className="rounded-lg p-1.5 bg-amber-500/10">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              Low Stock Report
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Items below PAR level at {currentStore.store?.name}
+            </p>
+          </div>
+          <PageGuide pageKey="low-stock-report" />
+          {filteredItems.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleExport} className="h-8 text-xs shrink-0">
+              <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Export
+            </Button>
+          )}
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-        <Badge variant={filteredItems.length > 0 ? 'destructive' : 'secondary'}>
-          {filteredItems.length} low stock items
-        </Badge>
 
         {filteredItems.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleExport} className="ml-auto sm:ml-0">
-            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Export CSV</span>
-            <span className="sm:hidden">Export</span>
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="border-red-200 bg-red-50/30">
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-destructive uppercase tracking-wider">Below PAR</p>
+                <p className="text-2xl font-bold mt-1 text-destructive">{filteredItems.length}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">items need restocking</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Shortage</p>
+                <p className="text-2xl font-bold mt-1">{filteredItems.reduce((sum, i) => sum + i.shortage, 0).toFixed(0)}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">units below PAR</p>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
 
       {filteredItems.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <AlertTriangle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">All Stock Levels OK</h3>
-            <p className="text-muted-foreground">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
+              <Package className="h-6 w-6 text-emerald-500" />
+            </div>
+            <h3 className="text-base font-semibold mb-1">All Stock Levels OK</h3>
+            <p className="text-sm text-muted-foreground">
               No items are currently below their PAR level
             </p>
           </CardContent>

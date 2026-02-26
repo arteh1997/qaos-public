@@ -23,7 +23,6 @@ import {
 import { toast } from 'sonner'
 import {
   Shield,
-  Truck,
   UserCircle,
   Mail,
   Calendar,
@@ -80,14 +79,6 @@ export default function ProfilePage() {
       borderColor: 'border-purple-500/20',
       label: 'Manager',
       description: 'Full operational access to assigned store',
-    },
-    Driver: {
-      icon: Truck,
-      color: 'text-blue-500',
-      bg: 'bg-blue-500/10',
-      borderColor: 'border-blue-500/20',
-      label: 'Driver',
-      description: 'Can manage deliveries and stock reception across stores',
     },
     Staff: {
       icon: UserCircle,
@@ -148,7 +139,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">My Profile</h1>
         <p className="text-muted-foreground mt-1">
           Manage your account settings and preferences
         </p>

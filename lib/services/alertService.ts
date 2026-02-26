@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email'
 import { getLowStockAlertEmailHtml, getCriticalStockAlertEmailHtml, getMissingCountAlertEmailHtml } from '@/lib/email-alerts'
 import type { AlertType } from '@/types'
+import { logger } from '@/lib/logger'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -46,7 +47,7 @@ export async function processScheduledAlerts(currentHourUtc: number): Promise<Al
     .neq('alert_frequency', 'never')
 
   if (prefError) {
-    console.error('[Alerts] Failed to fetch preferences:', prefError)
+    logger.error('[Alerts] Failed to fetch preferences:', prefError)
     return results
   }
 
@@ -105,7 +106,7 @@ export async function processScheduledAlerts(currentHourUtc: number): Promise<Al
         if (alertResult) results.push(alertResult)
       }
     } catch (error) {
-      console.error(`[Alerts] Error processing alerts for store ${pref.store_id}:`, error)
+      logger.error(`[Alerts] Error processing alerts for store ${pref.store_id}:`, error)
       results.push({
         store_id: pref.store_id,
         store_name: pref.store?.name ?? 'Unknown',
@@ -186,7 +187,7 @@ async function processStockAlerts(
     const html = getCriticalStockAlertEmailHtml({
       storeName: store.name,
       items: criticalItems,
-      dashboardUrl: `${APP_URL}/stores/${store.id}`,
+      dashboardUrl: `${APP_URL}/`,
     })
 
     const emailResult = await sendEmail({
@@ -224,7 +225,7 @@ async function processStockAlerts(
     const html = getLowStockAlertEmailHtml({
       storeName: store.name,
       items: lowStockItems,
-      dashboardUrl: `${APP_URL}/stores/${store.id}`,
+      dashboardUrl: `${APP_URL}/`,
       lowStockReportUrl: `${APP_URL}/reports/low-stock`,
     })
 
@@ -287,7 +288,7 @@ async function processMissingCountAlert(
   const html = getMissingCountAlertEmailHtml({
     storeName: store.name,
     date: yesterdayStr,
-    dashboardUrl: `${APP_URL}/stores/${store.id}`,
+    dashboardUrl: `${APP_URL}/stock-count`,
   })
 
   const emailResult = await sendEmail({
@@ -341,6 +342,6 @@ async function recordAlert(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await supabase.from('alert_history').insert(alert as any)
   } catch (err) {
-    console.error('[Alerts] Failed to record alert:', err)
+    logger.error('[Alerts] Failed to record alert:', err)
   }
 }

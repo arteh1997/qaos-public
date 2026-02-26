@@ -10,6 +10,7 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -176,7 +177,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error transferring billing ownership:', error)
+    logger.error('Error transferring billing ownership:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to transfer billing ownership')
   }
 }

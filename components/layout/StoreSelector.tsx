@@ -16,6 +16,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import { ROLE_LABELS } from '@/lib/constants'
+import { StoreUser } from '@/types'
+
+function getStoreRoleLabel(storeUser: StoreUser): string {
+  if (storeUser.role === 'Owner' && !storeUser.is_billing_owner) return 'Co-Owner'
+  return ROLE_LABELS[storeUser.role]
+}
 
 interface StoreSelectorProps {
   className?: string
@@ -59,7 +65,7 @@ export const StoreSelector = memo(function StoreSelector({
                 </span>
                 {currentStore && (
                   <span className="text-xs text-sidebar-foreground/70">
-                    {ROLE_LABELS[currentStore.role]}
+                    {getStoreRoleLabel(currentStore)}
                   </span>
                 )}
               </div>
@@ -82,7 +88,7 @@ export const StoreSelector = memo(function StoreSelector({
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
-                    {ROLE_LABELS[storeUser.role]}
+                    {getStoreRoleLabel(storeUser)}
                   </span>
                   {storeUser.is_billing_owner && (
                     <Badge variant="secondary" className="text-xs px-1 py-0">
@@ -120,7 +126,7 @@ export const StoreIndicator = memo(function StoreIndicator({
         {currentStore.store?.name}
       </span>
       <Badge variant="outline" className="text-xs">
-        {ROLE_LABELS[currentStore.role]}
+        {getStoreRoleLabel(currentStore)}
       </Badge>
     </div>
   )

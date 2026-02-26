@@ -15,6 +15,25 @@ import {
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = React.useState(false)
+
+  React.useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    const onChange = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches)
+    onChange(mql)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [breakpoint])
+
+  return isMobile
+}
+
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]
+
 function Calendar({
   className,
   classNames,
@@ -23,15 +42,154 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  month: controlledMonth,
+  defaultMonth,
+  onMonthChange: onMonthChangeProp,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
+  const [view, setView] = React.useState<"days" | "months" | "years">("days")
+  const [displayDate, setDisplayDate] = React.useState<Date>(
+    () => controlledMonth || defaultMonth || new Date()
+  )
+  const [yearRangeStart, setYearRangeStart] = React.useState(
+    () => Math.floor((controlledMonth || defaultMonth || new Date()).getFullYear() / 12) * 12
+  )
+
+  React.useEffect(() => {
+    if (controlledMonth) setDisplayDate(controlledMonth)
+  }, [controlledMonth])
+
+  const handleMonthChange = React.useCallback((newMonth: Date) => {
+    setDisplayDate(newMonth)
+    onMonthChangeProp?.(newMonth)
+  }, [onMonthChangeProp])
+
+  const isMobile = useIsMobile()
   const defaultClassNames = getDefaultClassNames()
 
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+
+  const containerClass = cn(
+    "bg-background p-3 [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+    className
+  )
+
+  // Years view — 4×3 grid of years with paging
+  if (view === "years") {
+    const years = Array.from({ length: 12 }, (_, i) => yearRangeStart + i)
+    return (
+      <div data-slot="calendar" className={containerClass}>
+        <div className="flex items-center justify-between mb-3">
+          <Button
+            variant={buttonVariant}
+            size="icon"
+            className="size-8 p-0"
+            onClick={() => setYearRangeStart(y => y - 12)}
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <span className="text-sm font-medium select-none">
+            {yearRangeStart} – {yearRangeStart + 11}
+          </span>
+          <Button
+            variant={buttonVariant}
+            size="icon"
+            className="size-8 p-0"
+            onClick={() => setYearRangeStart(y => y + 12)}
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          {years.map(year => (
+            <Button
+              key={year}
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-9 font-normal",
+                year === currentYear && "bg-accent text-accent-foreground",
+              )}
+              onClick={() => {
+                setDisplayDate(new Date(year, displayDate.getMonth(), 1))
+                setView("months")
+              }}
+            >
+              {year}
+            </Button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Months view — 4×3 grid of month names, year clickable to drill into years
+  if (view === "months") {
+    return (
+      <div data-slot="calendar" className={containerClass}>
+        <div className="flex items-center justify-between mb-3">
+          <Button
+            variant={buttonVariant}
+            size="icon"
+            className="size-8 p-0"
+            onClick={() => setDisplayDate(d => new Date(d.getFullYear() - 1, d.getMonth(), 1))}
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <button
+            type="button"
+            className="text-sm font-medium select-none hover:text-primary transition-colors cursor-pointer"
+            onClick={() => {
+              setYearRangeStart(Math.floor(displayDate.getFullYear() / 12) * 12)
+              setView("years")
+            }}
+          >
+            {displayDate.getFullYear()}
+          </button>
+          <Button
+            variant={buttonVariant}
+            size="icon"
+            className="size-8 p-0"
+            onClick={() => setDisplayDate(d => new Date(d.getFullYear() + 1, d.getMonth(), 1))}
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          {MONTH_NAMES.map((month, index) => (
+            <Button
+              key={month}
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-9 font-normal",
+                index === currentMonth && displayDate.getFullYear() === currentYear && "bg-accent text-accent-foreground",
+              )}
+              onClick={() => {
+                const newDate = new Date(displayDate.getFullYear(), index, 1)
+                setDisplayDate(newDate)
+                onMonthChangeProp?.(newDate)
+                setView("days")
+              }}
+            >
+              {month}
+            </Button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Days view — existing DayPicker with clickable caption for drill-down
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      month={displayDate}
+      onMonthChange={handleMonthChange}
       className={cn(
         "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
@@ -50,19 +208,19 @@ function Calendar({
           "flex gap-4 flex-col md:flex-row relative",
           defaultClassNames.months
         ),
-        month: cn("flex flex-col w-full gap-4", defaultClassNames.month),
+        month: cn("flex flex-col gap-4", defaultClassNames.month),
         nav: cn(
-          "flex items-center gap-1 w-full absolute top-0 inset-x-0 justify-between",
+          "flex items-center gap-1 w-full absolute top-0 inset-x-0 justify-between pointer-events-none",
           defaultClassNames.nav
         ),
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
+          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none pointer-events-auto",
           defaultClassNames.button_previous
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
+          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none pointer-events-auto",
           defaultClassNames.button_next
         ),
         month_caption: cn(
@@ -91,10 +249,12 @@ function Calendar({
         table: "w-full border-collapse",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
-          "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none",
+          isMobile
+            ? "text-muted-foreground rounded-md w-(--cell-size) text-center font-normal text-[0.8rem] select-none"
+            : "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none",
           defaultClassNames.weekday
         ),
-        week: cn("flex w-full mt-2", defaultClassNames.week),
+        week: cn(isMobile ? "flex mt-2" : "flex w-full mt-2", defaultClassNames.week),
         week_number_header: cn(
           "select-none w-(--cell-size)",
           defaultClassNames.week_number_header
@@ -104,10 +264,14 @@ function Calendar({
           defaultClassNames.week_number
         ),
         day: cn(
-          "relative w-full h-full p-0 text-center [&:last-child[data-selected=true]_button]:rounded-r-md group/day aspect-square select-none",
-          props.showWeekNumber
-            ? "[&:nth-child(2)[data-selected=true]_button]:rounded-l-md"
-            : "[&:first-child[data-selected=true]_button]:rounded-l-md",
+          isMobile
+            ? "relative w-(--cell-size) h-(--cell-size) p-0 text-center [&:last-child[data-selected=true]_button]:rounded-r-md group/day select-none [&:first-child[data-selected=true]_button]:rounded-l-md"
+            : cn(
+                "relative w-full h-full p-0 text-center [&:last-child[data-selected=true]_button]:rounded-r-md group/day aspect-square select-none",
+                props.showWeekNumber
+                  ? "[&:nth-child(2)[data-selected=true]_button]:rounded-l-md"
+                  : "[&:first-child[data-selected=true]_button]:rounded-l-md",
+              ),
           defaultClassNames.day
         ),
         range_start: cn(
@@ -162,6 +326,15 @@ function Calendar({
             <ChevronDownIcon className={cn("size-4", className)} {...props} />
           )
         },
+        CaptionLabel: ({ children }) => (
+          <button
+            type="button"
+            className="text-sm font-medium select-none cursor-pointer hover:text-primary transition-colors"
+            onClick={() => setView("months")}
+          >
+            {children}
+          </button>
+        ),
         DayButton: CalendarDayButton,
         WeekNumber: ({ children, ...props }) => {
           return (

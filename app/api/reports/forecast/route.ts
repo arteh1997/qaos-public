@@ -3,6 +3,7 @@ import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth, canAccessStore } from '@/lib/api/middleware'
 import { apiSuccess, apiError, apiBadRequest, apiForbidden } from '@/lib/api/response'
 import { forecastItem, type ForecastResult } from '@/lib/forecasting/engine'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/reports/forecast - AI-Powered Demand Forecasting
@@ -170,7 +171,7 @@ export async function GET(request: NextRequest) {
       period: { historyDays, forecastDays },
     }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Forecast API error:', error)
+    logger.error('Forecast API error:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to generate forecast')
   }
 }

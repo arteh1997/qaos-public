@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, RATE_LIMITS, getRateLimitHeaders } from '@/lib/rate-limit'
 import { loginSchema } from '@/lib/validations/auth'
 import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/auth/login - Server-side login with rate limiting
@@ -13,9 +14,9 @@ import { auditLog } from '@/lib/audit'
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get client IP for rate limiting
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-      || request.headers.get('x-real-ip')
+    // Get client IP for rate limiting — prefer x-real-ip (trusted, set by Vercel)
+    const ip = request.headers.get('x-real-ip')
+      || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || 'unknown'
 
     // Apply rate limiting (stricter for auth endpoints)
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
       }
     )
   } catch (error) {
-    console.error('[Auth/Login] Error:', error)
+    logger.error('[Auth/Login] Error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'An error occurred during login' },
       { status: 500 }

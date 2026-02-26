@@ -35,7 +35,7 @@ import { INVITE_ROLES, INVITE_ROLE_LABELS, INVITE_ROLE_DESCRIPTIONS } from '@/li
 import { AppRole, LegacyAppRole } from '@/types'
 import { normalizeRole } from '@/lib/auth'
 
-// Extended profile type with store_users for getting current driver stores and billing owner status
+// Extended profile type with store_users for getting current store memberships and billing owner status
 type ProfileWithStoreUsers = Profile & {
   store_users?: Pick<StoreUser, 'store_id' | 'role' | 'is_billing_owner'>[]
 }

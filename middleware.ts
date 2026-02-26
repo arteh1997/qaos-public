@@ -9,6 +9,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { PUBLIC_ROUTES } from '@/lib/constants'
 
+const CSRF_COOKIE_NAME = 'csrf_token'
+
 /**
  * Security headers to add to all responses
  * These help protect against common web vulnerabilities
@@ -22,8 +24,18 @@ const securityHeaders = {
   'X-XSS-Protection': '1; mode=block',
   // Control referrer information
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  // Restrict permissions/features
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  // Restrict permissions/features — camera=(self) needed for barcode scanning
+  'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
+  // CSP in report-only mode — monitor violations before enforcing
+  'Content-Security-Policy-Report-Only': [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https://*.supabase.co",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io",
+    "frame-src https://js.stripe.com",
+    "font-src 'self'",
+  ].join('; '),
 }
 
 export async function middleware(request: NextRequest) {
@@ -32,8 +44,9 @@ export async function middleware(request: NextRequest) {
   // Check if the route is public
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
 
-  // Check for Supabase auth cookie to determine if user is logged in
-  // This is a lightweight check that doesn't make any API calls
+  // NOTE: This is a UX-layer redirect only — not a security boundary.
+  // All API routes validate the session via supabase.auth.getUser().
+  // A forged cookie only reaches the dashboard shell before API calls reject it.
   const hasAuthCookie = request.cookies.getAll().some(cookie =>
     cookie.name.startsWith('sb-') && cookie.name.includes('auth-token')
   )
@@ -71,6 +84,20 @@ export async function middleware(request: NextRequest) {
   Object.entries(securityHeaders).forEach(([key, value]) => {
     response.headers.set(key, value)
   })
+
+  // Ensure CSRF cookie exists for state-changing requests (double-submit cookie pattern)
+  if (!request.cookies.get(CSRF_COOKIE_NAME)) {
+    const array = new Uint8Array(32)
+    crypto.getRandomValues(array)
+    const token = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
+    response.cookies.set(CSRF_COOKIE_NAME, token, {
+      httpOnly: false, // Client must read it for double-submit pattern
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24, // 24 hours
+    })
+  }
 
   return response
 }

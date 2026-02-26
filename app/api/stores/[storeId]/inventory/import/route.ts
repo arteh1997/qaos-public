@@ -1,14 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
 import { z } from 'zod'
-import { UNITS_OF_MEASURE } from '@/lib/constants'
+import { logger } from '@/lib/logger'
+
+// Map human-friendly CSV headers to internal field names (backward-compatible)
+const HEADER_ALIASES: Record<string, string> = {
+  'item name': 'name',
+  'unit (kg/litres/each/etc)': 'unit',
+  'minimum stock level': 'par_level',
+  'cost per unit (£)': 'cost_per_unit',
+  'unit cost (£)': 'cost_per_unit',
+  'current stock': 'current_stock',
+  // Technical headers (backward compatibility)
+  'name': 'name',
+  'category': 'category',
+  'unit': 'unit',
+  'par_level': 'par_level',
+  'cost_per_unit': 'cost_per_unit',
+  'cost': 'cost_per_unit',
+  'current_stock': 'current_stock',
+  'quantity': 'current_stock',
+}
+
+function normalizeHeader(raw: string): string {
+  const lower = raw.toLowerCase().trim()
+  return HEADER_ALIASES[lower] || lower
+}
 
 // Validation schema for CSV row
 const csvRowSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
   category: z.string().min(1, 'Category is required').max(100),
-  unit: z.string().min(1, 'Unit is required').max(50),
+  unit: z.string().max(50).optional(),
+  current_stock: z.coerce.number().min(0, 'Current stock cannot be negative').optional(),
   par_level: z.coerce.number().positive('Par level must be positive').optional(),
+  cost_per_unit: z.coerce.number().min(0, 'Cost cannot be negative').optional(),
 })
 
 type CSVRow = z.infer<typeof csvRowSchema>
@@ -93,10 +121,10 @@ export async function POST(
       )
     }
 
-    // Validate header
-    const header = rows[0].map(h => h.toLowerCase())
-    const expectedHeaders = ['name', 'category', 'unit', 'par_level']
-    const requiredHeaders = ['name', 'category', 'unit']
+    // Validate header (normalize human-friendly headers to internal names)
+    const header = rows[0].map(h => normalizeHeader(h))
+    const expectedHeaders = ['name', 'category', 'current_stock', 'par_level', 'cost_per_unit']
+    const requiredHeaders = ['name', 'category']
 
     const missingHeaders = requiredHeaders.filter(h => !header.includes(h))
     if (missingHeaders.length > 0) {
@@ -113,17 +141,22 @@ export async function POST(
     const nameIndex = header.indexOf('name')
     const categoryIndex = header.indexOf('category')
     const unitIndex = header.indexOf('unit')
+    const currentStockIndex = header.indexOf('current_stock')
     const parLevelIndex = header.indexOf('par_level')
+    const costIndex = header.indexOf('cost_per_unit')
 
     // Parse and validate data rows
     const parsedRows: ParsedRow[] = []
     const validItems: Array<{
+      store_id: string
       name: string
       category: string
       unit_of_measure: string
       is_active: boolean
     }> = []
-    const parLevels: Array<number | null> = [] // Track par levels separately
+    const currentStocks: Array<number> = []
+    const parLevels: Array<number | null> = []
+    const unitCosts: Array<number | null> = []
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
@@ -135,8 +168,10 @@ export async function POST(
       const rowData = {
         name: row[nameIndex] || '',
         category: row[categoryIndex] || '',
-        unit: row[unitIndex] || '',
+        unit: unitIndex >= 0 && row[unitIndex] ? row[unitIndex] : undefined,
+        current_stock: currentStockIndex >= 0 && row[currentStockIndex] ? row[currentStockIndex] : undefined,
         par_level: parLevelIndex >= 0 && row[parLevelIndex] ? row[parLevelIndex] : undefined,
+        cost_per_unit: costIndex >= 0 && row[costIndex] ? row[costIndex] : undefined,
       }
 
       const result = csvRowSchema.safeParse(rowData)
@@ -149,12 +184,15 @@ export async function POST(
         })
 
         validItems.push({
+          store_id: storeId,
           name: result.data.name,
           category: result.data.category,
-          unit_of_measure: result.data.unit,
+          unit_of_measure: result.data.unit || 'each',
           is_active: true,
         })
+        currentStocks.push(result.data.current_stock ?? 0)
         parLevels.push(result.data.par_level ?? null)
+        unitCosts.push(result.data.cost_per_unit ?? null)
       } else {
         parsedRows.push({
           row: rowNumber,
@@ -196,7 +234,7 @@ export async function POST(
       .select()
 
     if (insertError) {
-      console.error('[Import] Insert error:', insertError)
+      logger.error('[Import] Insert error:', { error: insertError })
       return NextResponse.json(
         { success: false, message: 'Failed to import items', error: insertError.message },
         { status: 500 }
@@ -208,8 +246,10 @@ export async function POST(
       const storeInventoryRecords = insertedItems.map((item, index) => ({
         store_id: storeId,
         inventory_item_id: item.id,
-        quantity: 0, // Start with 0 quantity
-        par_level: parLevels[index], // Use the par_level from CSV
+        quantity: currentStocks[index] ?? 0,
+        par_level: parLevels[index],
+        unit_cost: unitCosts[index] ?? 0,
+        cost_currency: 'GBP',
       }))
 
       const { error: inventoryError } = await supabase
@@ -217,7 +257,7 @@ export async function POST(
         .insert(storeInventoryRecords)
 
       if (inventoryError) {
-        console.error('[Import] Store inventory error:', inventoryError)
+        logger.error('[Import] Store inventory error:', { error: inventoryError })
         return NextResponse.json(
           { success: false, message: 'Failed to link items to store', error: inventoryError.message },
           { status: 500 }
@@ -227,6 +267,21 @@ export async function POST(
 
     // Get unique categories for the response
     const categories = [...new Set(validItems.map(item => item.category))]
+
+    // Audit log the bulk import
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: session.user.id,
+      userEmail: session.user.email,
+      action: 'inventory.bulk_import',
+      storeId,
+      resourceType: 'inventory_import',
+      details: {
+        itemsImported: insertedItems.length,
+        categories,
+      },
+      request,
+    })
 
     return NextResponse.json({
       success: true,
@@ -239,7 +294,7 @@ export async function POST(
       },
     })
   } catch (error) {
-    console.error('[Import] Error:', error)
+    logger.error('[Import] Error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }

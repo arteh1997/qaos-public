@@ -56,6 +56,19 @@ export interface BillingInfo {
   currency: string
 }
 
+export interface Invoice {
+  id: string
+  number: string | null
+  date: string
+  amount_due: number
+  amount_paid: number
+  currency: string
+  status: string
+  invoice_pdf: string | null
+  hosted_invoice_url: string | null
+  store_name: string | null
+}
+
 export interface CreateSubscriptionData {
   store_id: string
   payment_method_id: string

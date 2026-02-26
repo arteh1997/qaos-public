@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseInsert, supabaseUpdate, supabaseDelete } from '@/lib/supabase/client'
+import { supabaseFetch } from '@/lib/supabase/client'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
+import { useAuth } from '@/components/providers/AuthProvider'
 import { InventoryItem } from '@/types'
 import { sanitizeErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -21,17 +23,25 @@ export interface UpdateInventoryItemData {
 }
 
 export function useInventory() {
+  const { storeId } = useAuth()
   const [items, setItems] = useState<InventoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
   const fetchInventory = useCallback(async () => {
+    if (!storeId) {
+      setItems([])
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
     try {
       const { data, error: fetchError } = await supabaseFetch<InventoryItem>('inventory_items', {
         order: 'name',
+        filter: { is_active: 'eq.true', store_id: `eq.${storeId}` },
       })
 
       if (fetchError) throw fetchError
@@ -41,13 +51,13 @@ export function useInventory() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [storeId])
 
   useEffect(() => {
     fetchInventory()
   }, [fetchInventory])
 
-  const createItem = useCallback(async (formData: CreateInventoryItemData) => {
+  const createItem = useCallback(async (formData: CreateInventoryItemData): Promise<InventoryItem | null> => {
     const now = new Date().toISOString()
     const optimisticItem: InventoryItem = {
       id: crypto.randomUUID(),
@@ -61,41 +71,58 @@ export function useInventory() {
       updated_at: now,
     }
 
-    // Optimistic update
     setItems(prev => [...prev, optimisticItem].sort((a, b) => a.name.localeCompare(b.name)))
 
     try {
-      const { error } = await supabaseInsert('inventory_items', {
-        name: formData.name,
-        category: formData.category ?? null,
-        unit_of_measure: formData.unit_of_measure,
-        is_active: formData.is_active ?? true,
+      const response = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: getCSRFHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          store_id: storeId,
+          name: formData.name,
+          category: formData.category ?? null,
+          unit_of_measure: formData.unit_of_measure,
+          is_active: formData.is_active ?? true,
+        }),
       })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to create item')
+      }
+
+      const json = await response.json()
       toast.success('Inventory item created successfully')
       fetchInventory()
+      return json.data as InventoryItem
     } catch (err) {
-      // Rollback optimistic update
       setItems(prev => prev.filter(item => item.id !== optimisticItem.id))
       toast.error('Failed to create item: ' + sanitizeErrorMessage(err))
       throw err
     }
-  }, [fetchInventory])
+  }, [fetchInventory, storeId])
 
   const updateItem = useCallback(async ({ id, data }: { id: string; data: UpdateInventoryItemData }) => {
-    // Optimistic update
     setItems(prev => prev.map(item =>
       item.id === id ? { ...item, ...data } : item
     ))
 
     try {
-      const { error } = await supabaseUpdate('inventory_items', id, data as Record<string, unknown>)
+      const response = await fetch(`/api/inventory/${id}`, {
+        method: 'PATCH',
+        headers: getCSRFHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify(data),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to update item')
+      }
+
       toast.success('Inventory item updated successfully')
     } catch (err) {
-      // Refetch to restore correct state
       fetchInventory()
       toast.error('Failed to update item: ' + sanitizeErrorMessage(err))
       throw err
@@ -103,16 +130,22 @@ export function useInventory() {
   }, [fetchInventory])
 
   const deleteItem = useCallback(async (id: string) => {
-    // Optimistic update - remove from list
-    setItems(prev => prev.filter(item => item.id !== id))
+    setItems(prev => prev.map(item =>
+      item.id === id ? { ...item, is_active: false } : item
+    ))
 
     try {
-      const { error } = await supabaseDelete('inventory_items', id)
+      const response = await fetch(`/api/inventory/${id}`, {
+        method: 'DELETE',
+        headers: getCSRFHeaders(),
+        credentials: 'same-origin',
+      })
 
-      if (error) throw error
-      toast.success('Inventory item deleted')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to delete item')
+      }
     } catch (err) {
-      // Refetch to restore correct state
       fetchInventory()
       toast.error('Failed to delete item: ' + sanitizeErrorMessage(err))
       throw err

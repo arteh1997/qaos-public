@@ -25,7 +25,7 @@ export const supplierItemSchema = z.object({
   inventory_item_id: z.string().uuid('Invalid inventory item'),
   supplier_sku: z.string().max(50, 'SKU must be under 50 characters').optional().or(z.literal('')),
   unit_cost: z.number().min(0, 'Unit cost cannot be negative'),
-  currency: z.string().max(3).default('USD'),
+  currency: z.string().max(3).default('GBP'),
   lead_time_days: z.number().int().min(0, 'Lead time cannot be negative').optional(),
   min_order_quantity: z.number().min(0, 'Minimum order quantity cannot be negative').default(1),
   is_preferred: z.boolean().optional(),
@@ -50,12 +50,12 @@ export const createPurchaseOrderSchema = z.object({
   order_date: z.string().optional(),
   expected_delivery_date: z.string().optional(),
   notes: z.string().max(1000, 'Notes must be under 1000 characters').optional().or(z.literal('')),
-  currency: z.string().max(3).default('USD'),
+  currency: z.string().max(3).default('GBP'),
   items: z.array(purchaseOrderItemSchema).min(1, 'At least one item is required'),
 })
 
 export const updatePurchaseOrderSchema = z.object({
-  status: z.enum(['draft', 'submitted', 'acknowledged', 'shipped', 'partial', 'received', 'cancelled']).optional(),
+  status: z.enum(['open', 'awaiting_delivery', 'partial', 'received', 'cancelled']).optional(),
   expected_delivery_date: z.string().optional(),
   notes: z.string().max(1000).optional().or(z.literal('')),
 })

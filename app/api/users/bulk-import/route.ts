@@ -14,6 +14,7 @@ import {
 } from '@/lib/api/response'
 import { bulkImportSchema, BulkUserRow } from '@/lib/validations/bulk-import'
 import crypto from 'crypto'
+import { logger } from '@/lib/logger'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Restaurant Inventory'
@@ -145,12 +146,12 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      // Non-Driver roles require a store
-      if (!storeId && user.role !== 'Driver') {
+      // All roles require a store
+      if (!storeId) {
         results.push({
           email,
           status: 'error',
-          message: 'Store ID required for non-Driver roles',
+          message: 'Store ID is required',
         })
         continue
       }
@@ -253,7 +254,7 @@ export async function POST(request: NextRequest) {
       { requestId: context.requestId, status: 201 }
     )
   } catch (error) {
-    console.error('[BulkImport] Error:', error)
+    logger.error('[BulkImport] Error:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to process bulk import')
   }
 }

@@ -9,6 +9,9 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { createMenuItemSchema } from '@/lib/validations/recipes'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -46,64 +49,76 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to fetch menu items')
     }
 
-    // Calculate food cost for items with recipes
-    const menuItemsWithCosts = await Promise.all(
-      (data || []).map(async (item: {
-        recipe_id: string | null
-        selling_price: number
-        recipe: { id: string; yield_quantity: number } | null
-      }) => {
-        let foodCost = 0
+    // Batch-fetch all recipe ingredients in one query (avoids N+1)
+    const recipeIds = (data || [])
+      .filter((item: { recipe_id: string | null }) => item.recipe_id)
+      .map((item: { recipe_id: string | null }) => item.recipe_id as string)
 
-        if (item.recipe_id && item.recipe) {
-          // Get recipe ingredients
-          const { data: ingredients } = await context.supabase
-            .from('recipe_ingredients')
-            .select('quantity, inventory_item_id')
-            .eq('recipe_id', item.recipe_id)
+    const { data: allIngredients } = recipeIds.length > 0
+      ? await context.supabase
+          .from('recipe_ingredients')
+          .select('recipe_id, quantity, inventory_item_id')
+          .in('recipe_id', recipeIds)
+      : { data: [] }
 
-          if (ingredients && ingredients.length > 0) {
-            const itemIds = ingredients.map((i: { inventory_item_id: string }) => i.inventory_item_id)
-            const { data: inventoryData } = await context.supabase
-              .from('store_inventory')
-              .select('inventory_item_id, unit_cost')
-              .eq('store_id', storeId)
-              .in('inventory_item_id', itemIds)
+    // Group ingredients by recipe_id
+    const ingredientsByRecipe = new Map<string, Array<{ inventory_item_id: string; quantity: number }>>()
+    for (const ing of (allIngredients || []) as Array<{ recipe_id: string; inventory_item_id: string; quantity: number }>) {
+      const list = ingredientsByRecipe.get(ing.recipe_id) || []
+      list.push(ing)
+      ingredientsByRecipe.set(ing.recipe_id, list)
+    }
 
-            const costMap = new Map(
-              (inventoryData || []).map((inv: { inventory_item_id: string; unit_cost: number }) => [
-                inv.inventory_item_id,
-                Number(inv.unit_cost || 0),
-              ])
-            )
+    // Batch-fetch all unit costs in one query
+    const allItemIds = [...new Set((allIngredients || []).map((i: { inventory_item_id: string }) => i.inventory_item_id))]
 
-            const totalRecipeCost = ingredients.reduce(
-              (sum: number, ing: { inventory_item_id: string; quantity: number }) =>
-                sum + (Number(ing.quantity) * (costMap.get(ing.inventory_item_id) || 0)),
-              0
-            )
+    const { data: inventoryData } = allItemIds.length > 0
+      ? await context.supabase
+          .from('store_inventory')
+          .select('inventory_item_id, unit_cost')
+          .eq('store_id', storeId)
+          .in('inventory_item_id', allItemIds)
+      : { data: [] }
 
-            // Cost per serving
-            foodCost = item.recipe.yield_quantity > 0
-              ? totalRecipeCost / item.recipe.yield_quantity
-              : totalRecipeCost
-          }
-        }
-
-        const sellingPrice = Number(item.selling_price)
-        const foodCostPercentage = sellingPrice > 0
-          ? Math.round((foodCost / sellingPrice) * 10000) / 100
-          : 0
-        const profitMargin = sellingPrice - foodCost
-
-        return {
-          ...item,
-          food_cost: Math.round(foodCost * 100) / 100,
-          food_cost_percentage: foodCostPercentage,
-          profit_margin: Math.round(profitMargin * 100) / 100,
-        }
-      })
+    const costMap = new Map(
+      (inventoryData || []).map((inv: { inventory_item_id: string; unit_cost: number }) => [
+        inv.inventory_item_id,
+        Number(inv.unit_cost || 0),
+      ])
     )
+
+    // Assemble response (no additional queries needed)
+    const menuItemsWithCosts = (data || []).map((item: {
+      recipe_id: string | null
+      selling_price: number
+      recipe: { id: string; yield_quantity: number } | null
+    }) => {
+      let foodCost = 0
+
+      if (item.recipe_id && item.recipe) {
+        const ingredients = ingredientsByRecipe.get(item.recipe_id) || []
+        const totalRecipeCost = ingredients.reduce(
+          (sum: number, ing) => sum + (Number(ing.quantity) * (costMap.get(ing.inventory_item_id) || 0)),
+          0
+        )
+        foodCost = item.recipe.yield_quantity > 0
+          ? totalRecipeCost / item.recipe.yield_quantity
+          : totalRecipeCost
+      }
+
+      const sellingPrice = Number(item.selling_price)
+      const foodCostPercentage = sellingPrice > 0
+        ? Math.round((foodCost / sellingPrice) * 10000) / 100
+        : 0
+      const profitMargin = sellingPrice - foodCost
+
+      return {
+        ...item,
+        food_cost: Math.round(foodCost * 100) / 100,
+        food_cost_percentage: foodCostPercentage,
+        profit_margin: Math.round(profitMargin * 100) / 100,
+      }
+    })
 
     const pagination = createPaginationMeta(page, pageSize, count ?? 0)
 
@@ -112,7 +127,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       pagination,
     })
   } catch (error) {
-    console.error('Error fetching menu items:', error)
+    logger.error('Error fetching menu items:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch menu items')
   }
 }
@@ -177,9 +192,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to create menu item')
     }
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'inventory.menu_item_create',
+      storeId,
+      resourceType: 'menu_item',
+      resourceId: data.id,
+      details: { menuItemName: data.name, sellingPrice: data.selling_price },
+      request,
+    })
+
     return apiSuccess(data, { requestId: context.requestId, status: 201 })
   } catch (error) {
-    console.error('Error creating menu item:', error)
+    logger.error('Error creating menu item:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create menu item')
   }
 }

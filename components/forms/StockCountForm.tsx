@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useStoreInventory } from '@/hooks/useStoreInventory'
-import { useInventory } from '@/hooks/useInventory'
 import { useStockCount } from '@/hooks/useStockCount'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useFormDraft, formatDraftTime } from '@/hooks/useFormDraft'
@@ -35,7 +34,7 @@ import {
 import { Loader2, Search, AlertTriangle, Keyboard, RotateCcw, X, ArrowUp, ArrowDown } from 'lucide-react'
 
 // Sort configuration
-type SortKey = 'item' | 'category' | 'unit' | 'current' | 'status'
+type SortKey = 'item' | 'category' | 'current' | 'status'
 type SortDirection = 'asc' | 'desc'
 
 interface SortConfig {
@@ -90,7 +89,6 @@ interface CountItem {
   inventory_item_id: string
   name: string
   category: string | null
-  unit_of_measure: string
   current_quantity: number
   new_quantity: number | null
   par_level: number | null
@@ -104,7 +102,6 @@ interface DraftData {
 
 export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
   const { inventory, isLoading: inventoryLoading } = useStoreInventory(storeId)
-  const { activeItems, isLoading: itemsLoading } = useInventory()
   const { submitCount, isSubmitting } = useStockCount()
   const [countItems, setCountItems] = useState<CountItem[]>([])
   const [notes, setNotes] = useState('')
@@ -141,33 +138,24 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
   useEffect(() => {
     if (
       !inventoryLoading &&
-      !itemsLoading &&
-      activeItems.length > 0 &&
+      inventory.length > 0 &&
       initializedForStore.current !== storeId
     ) {
       initializedForStore.current = storeId
 
-      const inventoryMap = new Map(
-        inventory.map(inv => [inv.inventory_item_id, inv])
-      )
-
-      const items: CountItem[] = activeItems.map(item => {
-        const storeInv = inventoryMap.get(item.id)
-        return {
-          inventory_item_id: item.id,
-          name: item.name,
-          category: item.category,
-          unit_of_measure: item.unit_of_measure,
-          current_quantity: storeInv?.quantity ?? 0,
-          new_quantity: null,
-          par_level: storeInv?.par_level ?? null,
-          isEditing: false,
-        }
-      })
+      const items: CountItem[] = inventory.map(inv => ({
+        inventory_item_id: inv.inventory_item_id,
+        name: inv.inventory_item?.name ?? 'Unknown',
+        category: inv.inventory_item?.category ?? null,
+        current_quantity: inv.quantity,
+        new_quantity: null,
+        par_level: inv.par_level,
+        isEditing: false,
+      }))
 
       setCountItems(items)
     }
-  }, [inventoryLoading, itemsLoading, activeItems.length, inventory, activeItems, storeId])
+  }, [inventoryLoading, inventory, storeId])
 
   // Handle clicking on quantity to start editing
   const handleStartEditing = useCallback((itemId: string) => {
@@ -339,10 +327,6 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
           aVal = (a.category ?? 'zzz').toLowerCase()
           bVal = (b.category ?? 'zzz').toLowerCase()
           break
-        case 'unit':
-          aVal = a.unit_of_measure.toLowerCase()
-          bVal = b.unit_of_measure.toLowerCase()
-          break
         case 'current':
           aVal = a.current_quantity
           bVal = b.current_quantity
@@ -465,7 +449,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
     },
   ]
 
-  if (inventoryLoading || itemsLoading) {
+  if (inventoryLoading) {
     return (
       <div className="space-y-2">
         {[...Array(8)].map((_, i) => (
@@ -511,7 +495,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
             placeholder="Search items..."
@@ -522,7 +506,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
           />
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-40 h-9" aria-label="Filter by category">
+          <SelectTrigger className="w-full sm:w-40 h-9" aria-label="Filter by category">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -575,11 +559,11 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                      {item.category && <span>{item.category}</span>}
-                      <span>•</span>
-                      <span>{item.unit_of_measure}</span>
-                    </div>
+                    {item.category && (
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {item.category}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
@@ -655,13 +639,6 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                 className="hidden md:table-cell"
               />
               <SortableHeader
-                label="Unit"
-                sortKey="unit"
-                currentSort={sortConfig}
-                onSort={handleSort}
-                className="hidden lg:table-cell"
-              />
-              <SortableHeader
                 label="Current"
                 sortKey="current"
                 currentSort={sortConfig}
@@ -679,7 +656,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-[200px] text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-[200px] text-center text-muted-foreground">
                   No items found
                 </TableCell>
               </TableRow>
@@ -698,9 +675,6 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">
                       {item.category || '-'}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-muted-foreground">
-                      {item.unit_of_measure}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {item.current_quantity}
@@ -748,7 +722,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                               ? 'bg-primary text-primary-foreground border-primary'
                               : 'bg-muted/50 hover:bg-muted border-input'
                             }`}
-                          aria-label={`Edit quantity for ${item.name}, currently ${item.new_quantity ?? item.current_quantity} ${item.unit_of_measure}`}
+                          aria-label={`Edit quantity for ${item.name}, currently ${item.new_quantity ?? item.current_quantity}`}
                         >
                           {item.new_quantity ?? item.current_quantity}
                         </button>

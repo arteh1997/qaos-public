@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch, supabaseUpdate, supabaseInsert, supabaseDelete } from '@/lib/supabase/client'
+import { supabaseFetch, supabaseUpdate } from '@/lib/supabase/client'
 import { Profile, AppRole, UserStatus, StoreUser } from '@/types'
 import { sanitizeSearchInput, sanitizeErrorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 
 const PAGE_SIZE = 20
 
@@ -38,7 +39,6 @@ export interface UpdateUserData {
   full_name?: string
   role?: AppRole
   store_id?: string | null
-  store_ids?: string[] // For Driver role - multiple stores
   status?: UserStatus
 }
 
@@ -161,40 +161,6 @@ export function useUsers(filters: UsersFilters = {}) {
         }
       }
 
-      // Handle store_users for Driver role
-      if (data.role === 'Driver' && data.store_ids !== undefined) {
-        // Get current store_users for this user with Driver role
-        const { data: currentStoreUsers } = await supabaseFetch<{ id: string; store_id: string }>('store_users', {
-          select: 'id,store_id',
-          filter: {
-            user_id: `eq.${id}`,
-            role: 'eq.Driver',
-          },
-        })
-
-        const currentStoreIds = currentStoreUsers?.map(su => su.store_id) ?? []
-        const newStoreIds = data.store_ids
-
-        // Find stores to add and remove
-        const storesToAdd = newStoreIds.filter(storeId => !currentStoreIds.includes(storeId))
-        const storesToRemove = currentStoreUsers?.filter(su => !newStoreIds.includes(su.store_id)) ?? []
-
-        // Remove old store_users entries
-        for (const storeUser of storesToRemove) {
-          await supabaseDelete('store_users', storeUser.id)
-        }
-
-        // Add new store_users entries
-        for (const storeId of storesToAdd) {
-          await supabaseInsert('store_users', {
-            user_id: id,
-            store_id: storeId,
-            role: 'Driver',
-            is_billing_owner: false,
-          })
-        }
-      }
-
       toast.success('User updated successfully')
       // Refetch to get updated store_users
       fetchUsers()
@@ -222,6 +188,7 @@ export function useUsers(filters: UsersFilters = {}) {
       // Use API endpoint to remove user - handles active shifts and audit logging
       const response = await fetch(`/api/stores/${storeId}/users/${id}`, {
         method: 'DELETE',
+        headers: getCSRFHeaders(),
       })
 
       const result = await response.json()

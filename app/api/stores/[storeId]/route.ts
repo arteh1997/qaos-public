@@ -11,7 +11,8 @@ import { RATE_LIMITS } from '@/lib/rate-limit'
 import { storeSchema, storeUpdateSchema } from '@/lib/validations/store'
 import { Store } from '@/types'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { auditLog } from '@/lib/audit'
+import { auditLog, computeFieldChanges } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return apiSuccess(store as Store, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error getting store:', error)
+    logger.error('Error getting store:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to get store')
   }
 }
@@ -120,21 +121,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           .is('used_at', null)
 
         if (deleteError) {
-          console.error('Error cancelling invites:', deleteError)
+          logger.error('Error cancelling invites:', { error: deleteError })
           // Continue with deactivation even if invite cancellation fails
         }
       }
 
-      // Also handle invites for Drivers that include this store in store_ids array
-      const { data: driverInvites } = await supabaseAdmin
+      // Also handle invites that include this store in store_ids array (legacy multi-store invites)
+      const { data: multiStoreInvites } = await supabaseAdmin
         .from('user_invites')
         .select('id, store_ids')
         .is('used_at', null)
         .contains('store_ids', [storeId])
 
-      // Remove this store from driver invite store_ids
-      if (driverInvites && driverInvites.length > 0) {
-        for (const invite of driverInvites) {
+      // Remove this store from legacy multi-store invite store_ids
+      if (multiStoreInvites && multiStoreInvites.length > 0) {
+        for (const invite of multiStoreInvites) {
           const updatedStoreIds = (invite.store_ids || []).filter((id: string) => id !== storeId)
           if (updatedStoreIds.length === 0) {
             // Delete invite if no stores left
@@ -153,8 +154,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         }
       }
 
-      // Audit log the deactivation
-      await auditLog(supabaseAdmin, {
+      // Non-blocking audit log for faster response
+      void auditLog(supabaseAdmin, {
         userId: context.user.id,
         userEmail: context.user.email,
         action: 'store.deactivate',
@@ -165,8 +166,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           cancelledInviteEmails: pendingInvites?.map((i: { email: string }) => i.email) || [],
         },
         request,
-      })
+      }).catch(err => logger.error('Audit log error:', { error: err }))
     }
+
+    // Fetch current state for before/after tracking
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: beforeStore } = await (context.supabase as any)
+      .from('stores')
+      .select('*')
+      .eq('id', storeId)
+      .single()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: store, error } = await (context.supabase as any)
@@ -186,6 +195,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       throw error
     }
 
+    // Audit log the general update (deactivation already logged above)
+    if (!isDeactivating) {
+      const adminForAudit = createAdminClient()
+      const fieldChanges = beforeStore
+        ? computeFieldChanges(beforeStore, updateData)
+        : []
+      void auditLog(adminForAudit, {
+        userId: context.user.id,
+        userEmail: context.user.email,
+        action: 'store.update',
+        storeId,
+        resourceType: 'store',
+        resourceId: storeId,
+        details: {
+          storeName: store.name,
+          updatedFields: Object.keys(updateData),
+          fieldChanges,
+        },
+        request,
+      }).catch(err => logger.error('Audit log error:', { error: err }))
+    }
+
     // Include cancelled invite count in response if deactivating
     const response = isDeactivating && cancelledInvites > 0
       ? { ...store, _meta: { cancelledInvites } }
@@ -193,7 +224,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return apiSuccess(response as Store, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating store:', error)
+    logger.error('Error updating store:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update store')
   }
 }
@@ -252,9 +283,21 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     if (error) throw error
 
+    const adminForAudit = createAdminClient()
+    await auditLog(adminForAudit, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'store.delete',
+      storeId,
+      resourceType: 'store',
+      resourceId: storeId,
+      details: { storeId },
+      request,
+    })
+
     return apiSuccess({ deleted: true }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error deleting store:', error)
+    logger.error('Error deleting store:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to delete store')
   }
 }

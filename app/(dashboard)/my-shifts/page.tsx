@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Clock, LogIn, LogOut, Calendar, List } from 'lucide-react'
 import { format, isFuture, isPast } from 'date-fns'
+import { PageGuide } from '@/components/help/PageGuide'
 
 type ViewMode = 'calendar' | 'list'
 
@@ -34,7 +35,7 @@ export default function MyShiftsPage() {
 
   if (isLoading || storesLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40" />
         <Skeleton className="h-96" />
@@ -69,18 +70,20 @@ export default function MyShiftsPage() {
   const todayShift = activeShifts[0] || todayShifts[0]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Shifts</h1>
-          <p className="text-sm text-muted-foreground">
-            View your schedule and clock in/out
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">My Shifts</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Your upcoming and past shifts
           </p>
         </div>
 
-        {/* View Toggle */}
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-          <TabsList>
+        <div className="flex items-center gap-2">
+          <PageGuide pageKey="my-shifts" />
+          {/* View Toggle */}
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <TabsList>
             <TabsTrigger value="calendar" className="gap-1.5 sm:gap-2">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Calendar</span>
@@ -89,8 +92,9 @@ export default function MyShiftsPage() {
               <List className="h-4 w-4" />
               <span className="hidden sm:inline">List</span>
             </TabsTrigger>
-          </TabsList>
-        </Tabs>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {/* Today's Shift Card */}
@@ -103,7 +107,7 @@ export default function MyShiftsPage() {
                 {activeShifts.includes(todayShift) ? 'Current Shift' : "Today's Shift"}
               </CardTitle>
               {todayShift.clock_in_time && !todayShift.clock_out_time && (
-                <Badge variant="default" className="bg-green-600">Clocked In</Badge>
+                <Badge variant="default" className="bg-emerald-600">Clocked In</Badge>
               )}
               {todayShift.clock_out_time && (
                 <Badge variant="secondary">Completed</Badge>
@@ -127,7 +131,7 @@ export default function MyShiftsPage() {
               {todayShift.clock_in_time && (
                 <div>
                   <p className="text-sm text-muted-foreground">Clocked In</p>
-                  <p className="text-lg font-semibold text-green-600">
+                  <p className="text-lg font-semibold text-emerald-600">
                     {format(new Date(todayShift.clock_in_time), 'h:mm a')}
                   </p>
                 </div>
@@ -161,7 +165,7 @@ export default function MyShiftsPage() {
                     }
                   }}
                   disabled={isClockingIn}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-emerald-600 hover:bg-green-700"
                 >
                   <LogIn className="mr-2 h-4 w-4" />
                   {isClockingIn ? 'Clocking In...' : 'Clock In'}

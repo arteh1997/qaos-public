@@ -6,7 +6,7 @@ import { ROLES } from '@/lib/constants'
  */
 export const bulkUserRowSchema = z.object({
   email: z.string().email('Invalid email address'),
-  role: z.enum(['Owner', 'Manager', 'Staff', 'Driver'], {
+  role: z.enum(['Owner', 'Manager', 'Staff'], {
     message: `Role must be one of: ${ROLES.join(', ')}`
   }),
   storeId: z.string().uuid('Invalid store ID').optional(),
@@ -114,6 +114,5 @@ function parseCSVLine(line: string): string[] {
 export function generateCSVTemplate(): string {
   return `email,role,storeId
 john.doe@example.com,Staff,
-jane.smith@example.com,Manager,
-driver@example.com,Driver,`
+jane.smith@example.com,Manager,`
 }

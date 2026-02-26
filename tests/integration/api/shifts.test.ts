@@ -304,30 +304,6 @@ describe('Shifts API Integration Tests', () => {
         expect(data.code).toBe('FORBIDDEN')
       })
 
-      it('should return 403 for Driver users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
-
-        mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === 'profiles') return profileQuery
-          if (table === 'store_users') return storeUsersQuery
-          return profileQuery
-        })
-
-        const { POST } = await import('@/app/api/shifts/route')
-
-        const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
-        const request = createMockRequest('POST', {
-          store_id: 'store-1',
-          user_id: 'user-456',
-          start_time: futureDate.toISOString(),
-          end_time: new Date(futureDate.getTime() + 8 * 60 * 60 * 1000).toISOString(),
-        })
-        const response = await POST(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
-      })
     })
 
     describe('Validation', () => {

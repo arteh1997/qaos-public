@@ -16,6 +16,7 @@ export interface PendingOperation {
   createdAt: string
   retryCount: number
   lastError: string | null
+  operationHash: string
 }
 
 export interface CachedInventoryItem {
@@ -47,8 +48,8 @@ class InventoryDatabase extends Dexie {
   constructor() {
     super('InventoryOfflineDB')
 
-    this.version(1).stores({
-      pendingOperations: '++id, type, storeId, createdAt',
+    this.version(2).stores({
+      pendingOperations: '++id, type, storeId, createdAt, operationHash',
       inventoryCache: 'id, storeId, inventoryItemId, name',
       barcodeLookups: 'barcode, storeId, inventoryItemId',
     })
@@ -58,13 +59,35 @@ class InventoryDatabase extends Dexie {
 export const db = new InventoryDatabase()
 
 /**
- * Add a pending operation to the sync queue
+ * Simple hash for deduplication (not cryptographic — just collision-resistant enough)
+ */
+function simpleHash(str: string): string {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash |= 0
+  }
+  return `op_${Math.abs(hash).toString(36)}`
+}
+
+/**
+ * Add a pending operation to the sync queue.
+ * Deduplicates: if an identical operation already exists, returns its ID instead.
  */
 export async function queueOperation(
   type: PendingOperation['type'],
   storeId: string,
   data: Record<string, unknown>
 ): Promise<number> {
+  const hash = simpleHash(`${type}:${storeId}:${JSON.stringify(data)}`)
+
+  // Check for duplicate
+  const existing = await db.pendingOperations.where('operationHash').equals(hash).first()
+  if (existing?.id) {
+    return existing.id
+  }
+
   const id = await db.pendingOperations.add({
     type,
     storeId,
@@ -72,6 +95,7 @@ export async function queueOperation(
     createdAt: new Date().toISOString(),
     retryCount: 0,
     lastError: null,
+    operationHash: hash,
   })
   return id as number
 }

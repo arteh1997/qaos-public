@@ -13,23 +13,6 @@ describe('User Validation Schemas', () => {
         expect(result.success).toBe(true)
       })
 
-      it('should accept valid Driver invite without storeId', () => {
-        const result = inviteUserSchema.safeParse({
-          email: 'driver@example.com',
-          role: 'Driver',
-        })
-        expect(result.success).toBe(true)
-      })
-
-      it('should accept Driver with storeIds array', () => {
-        const result = inviteUserSchema.safeParse({
-          email: 'driver@example.com',
-          role: 'Driver',
-          storeIds: ['store-1', 'store-2'],
-        })
-        expect(result.success).toBe(true)
-      })
-
       it('should accept Staff with storeId', () => {
         const result = inviteUserSchema.safeParse({
           email: 'staff@example.com',
@@ -51,7 +34,8 @@ describe('User Validation Schemas', () => {
       it('should accept complex email addresses', () => {
         const result = inviteUserSchema.safeParse({
           email: 'user.name+tag@company.co.uk',
-          role: 'Driver',
+          role: 'Staff',
+          storeId: 'store-id',
         })
         expect(result.success).toBe(true)
       })
@@ -103,7 +87,8 @@ describe('User Validation Schemas', () => {
       it('should reject invalid email', () => {
         const result = inviteUserSchema.safeParse({
           email: 'not-an-email',
-          role: 'Driver',
+          role: 'Staff',
+          storeId: 'store-id',
         })
         expect(result.success).toBe(false)
         if (!result.success) {
@@ -116,7 +101,8 @@ describe('User Validation Schemas', () => {
       it('should reject empty email', () => {
         const result = inviteUserSchema.safeParse({
           email: '',
-          role: 'Driver',
+          role: 'Staff',
+          storeId: 'store-id',
         })
         expect(result.success).toBe(false)
       })
@@ -166,14 +152,6 @@ describe('User Validation Schemas', () => {
         expect(result.success).toBe(true)
       })
 
-      it('should accept exactly Driver role', () => {
-        const result = inviteUserSchema.safeParse({
-          email: 'test@example.com',
-          role: 'Driver',
-        })
-        expect(result.success).toBe(true)
-      })
-
       it('should accept exactly Staff role with store', () => {
         const result = inviteUserSchema.safeParse({
           email: 'test@example.com',
@@ -212,20 +190,22 @@ describe('User Validation Schemas', () => {
       expect(result.success).toBe(true)
     })
 
-    it('should accept Driver without storeId', () => {
+    it('should reject Driver role (no longer valid)', () => {
       const result = legacyInviteUserSchema.safeParse({
-        email: 'driver@example.com',
-        fullName: 'Driver User',
+        email: 'user@example.com',
+        fullName: 'Test User',
         role: 'Driver',
+        storeId: 'store-123',
       })
-      expect(result.success).toBe(true)
+      expect(result.success).toBe(false)
     })
 
     it('should reject fullName shorter than 2 characters', () => {
       const result = legacyInviteUserSchema.safeParse({
         email: 'user@example.com',
         fullName: 'J',
-        role: 'Driver',
+        role: 'Staff',
+        storeId: 'store-id',
       })
       expect(result.success).toBe(false)
       if (!result.success) {
@@ -347,7 +327,7 @@ describe('User Validation Schemas', () => {
 
       it('should accept updating only role', () => {
         const result = updateUserSchema.safeParse({
-          role: 'Driver',
+          role: 'Staff',
         })
         expect(result.success).toBe(true)
       })
@@ -369,13 +349,6 @@ describe('User Validation Schemas', () => {
       it('should accept updating storeId to a value', () => {
         const result = updateUserSchema.safeParse({
           storeId: 'new-store-id',
-        })
-        expect(result.success).toBe(true)
-      })
-
-      it('should accept updating storeIds array', () => {
-        const result = updateUserSchema.safeParse({
-          storeIds: ['store-1', 'store-2'],
         })
         expect(result.success).toBe(true)
       })
@@ -405,8 +378,11 @@ describe('User Validation Schemas', () => {
       it('should accept all valid role values', () => {
         expect(updateUserSchema.safeParse({ role: 'Owner' }).success).toBe(true)
         expect(updateUserSchema.safeParse({ role: 'Manager' }).success).toBe(true)
-        expect(updateUserSchema.safeParse({ role: 'Driver' }).success).toBe(true)
         expect(updateUserSchema.safeParse({ role: 'Staff' }).success).toBe(true)
+      })
+
+      it('should reject Driver role (no longer valid)', () => {
+        expect(updateUserSchema.safeParse({ role: 'Driver' }).success).toBe(false)
       })
     })
 

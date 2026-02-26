@@ -30,6 +30,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 import { BILLING_CONFIG, getMonthlyPriceDisplay } from '@/lib/stripe/billing-config'
 import Link from 'next/link'
 
@@ -92,7 +93,7 @@ function PaymentForm({
       // Create the subscription
       const subscriptionResponse = await fetch('/api/billing/subscriptions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getCSRFHeaders(),
         body: JSON.stringify({
           store_id: storeId,
           payment_method_id: setupIntent.payment_method,
@@ -195,7 +196,7 @@ export default function SubscribePage({ params }: PageProps) {
       try {
         const response = await fetch('/api/billing/setup-intent', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getCSRFHeaders(),
         })
 
         if (!response.ok) {
@@ -336,7 +337,7 @@ export default function SubscribePage({ params }: PageProps) {
             </Card>
 
             {/* What's Included */}
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle className="text-base">Everything Included</CardTitle>
               </CardHeader>
@@ -408,7 +409,7 @@ export default function SubscribePage({ params }: PageProps) {
             </Card>
 
             {/* Payment Form Card */}
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Payment Details</CardTitle>
                 <CardDescription>

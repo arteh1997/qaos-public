@@ -145,28 +145,6 @@ describe('Stock Reception API Tests', () => {
     })
 
     describe('Authorization', () => {
-      it('should return 403 for Staff users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
-
-        mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === 'profiles') return profileQuery
-          if (table === 'store_users') return storeUsersQuery
-          return profileQuery
-        })
-
-        const { POST } = await import('@/app/api/stores/[storeId]/stock-reception/route')
-
-        const request = createMockRequest({
-          items: [{ inventory_item_id: ITEM_UUID_1, quantity: 10 }],
-        })
-        const response = await POST(request, { params: Promise.resolve({ storeId: STORE_UUID }) })
-        const data = await response.json()
-
-        expect(response.status).toBe(403)
-        expect(data.success).toBe(false)
-        expect(data.code).toBe('FORBIDDEN')
-      })
-
       it('should allow Owner users', async () => {
         const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
 
@@ -205,8 +183,8 @@ describe('Stock Reception API Tests', () => {
         expect(data.success).toBe(true)
       })
 
-      it('should allow Driver users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
+      it('should allow Staff users', async () => {
+        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
 
         const activeItemsQuery = createChainableMock({
           data: [{ id: ITEM_UUID_1 }],
@@ -401,6 +379,89 @@ describe('Stock Reception API Tests', () => {
         expect(data.success).toBe(true)
         expect(data.data.itemsReceived).toBe(2)
         expect(data.data.totalQuantity).toBe(150)
+      })
+
+      it('should update unit_cost when total_cost is provided', async () => {
+        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
+
+        const activeItemsQuery = createChainableMock({
+          data: [{ id: ITEM_UUID_1 }],
+          error: null,
+        })
+
+        const currentInventoryQuery = createChainableMock({
+          data: [{ inventory_item_id: ITEM_UUID_1, quantity: 0 }],
+          error: null,
+        })
+        currentInventoryQuery.upsert = vi.fn().mockResolvedValue({ error: null })
+        currentInventoryQuery.update = vi.fn(() => currentInventoryQuery)
+
+        const stockHistoryQuery = createChainableMock({ error: null })
+        stockHistoryQuery.insert = vi.fn().mockResolvedValue({ error: null })
+
+        mockSupabaseClient.from.mockImplementation((table: string) => {
+          if (table === 'profiles') return profileQuery
+          if (table === 'store_users') return storeUsersQuery
+          if (table === 'inventory_items') return activeItemsQuery
+          if (table === 'store_inventory') return currentInventoryQuery
+          if (table === 'stock_history') return stockHistoryQuery
+          return storeUsersQuery
+        })
+
+        const { POST } = await import('@/app/api/stores/[storeId]/stock-reception/route')
+
+        const request = createMockRequest({
+          items: [{ inventory_item_id: ITEM_UUID_1, quantity: 50, total_cost: 20 }],
+        })
+        const response = await POST(request, { params: Promise.resolve({ storeId: STORE_UUID }) })
+        const data = await response.json()
+
+        expect(response.status).toBe(201)
+        expect(data.success).toBe(true)
+
+        // Verify cost update was called on store_inventory
+        expect(currentInventoryQuery.update).toHaveBeenCalledWith(
+          expect.objectContaining({ unit_cost: 0.4, cost_currency: 'GBP' })
+        )
+      })
+
+      it('should not update unit_cost when total_cost is not provided', async () => {
+        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
+
+        const activeItemsQuery = createChainableMock({
+          data: [{ id: ITEM_UUID_1 }],
+          error: null,
+        })
+
+        const currentInventoryQuery = createChainableMock({
+          data: [{ inventory_item_id: ITEM_UUID_1, quantity: 5 }],
+          error: null,
+        })
+        currentInventoryQuery.upsert = vi.fn().mockResolvedValue({ error: null })
+        currentInventoryQuery.update = vi.fn(() => currentInventoryQuery)
+
+        const stockHistoryQuery = createChainableMock({ error: null })
+        stockHistoryQuery.insert = vi.fn().mockResolvedValue({ error: null })
+
+        mockSupabaseClient.from.mockImplementation((table: string) => {
+          if (table === 'profiles') return profileQuery
+          if (table === 'store_users') return storeUsersQuery
+          if (table === 'inventory_items') return activeItemsQuery
+          if (table === 'store_inventory') return currentInventoryQuery
+          if (table === 'stock_history') return stockHistoryQuery
+          return storeUsersQuery
+        })
+
+        const { POST } = await import('@/app/api/stores/[storeId]/stock-reception/route')
+
+        const request = createMockRequest({
+          items: [{ inventory_item_id: ITEM_UUID_1, quantity: 10 }],
+        })
+        const response = await POST(request, { params: Promise.resolve({ storeId: STORE_UUID }) })
+
+        expect(response.status).toBe(201)
+        // update should NOT have been called for cost since no total_cost was given
+        expect(currentInventoryQuery.update).not.toHaveBeenCalled()
       })
 
       it('should filter out zero quantity items', async () => {

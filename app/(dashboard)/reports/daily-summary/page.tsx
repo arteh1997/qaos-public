@@ -11,13 +11,14 @@ import { useStockHistoryRange } from '@/hooks/useReports'
 import { DateRange } from 'react-day-picker'
 import { StockHistoryTable } from '@/components/tables/StockHistoryTable'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
-import { ArrowLeft, ClipboardList, Truck, Download, Calendar, Package, Printer } from 'lucide-react'
+import { ArrowLeft, ClipboardList, Download, Calendar, Package, Printer } from 'lucide-react'
 import { format, startOfWeek } from 'date-fns'
 import { exportToCSV, generateExportFilename, formatDateTimeForExport } from '@/lib/export'
 import { toast } from 'sonner'
+import { PageGuide } from '@/components/help/PageGuide'
 import { useState } from 'react'
 
 export default function DailySummaryPage() {
@@ -116,7 +117,7 @@ export default function DailySummaryPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Stock Summary</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Stock Summary</h1>
             <p className="text-sm text-muted-foreground">
               Please select a store from the sidebar to view its stock summary.
             </p>
@@ -137,7 +138,7 @@ export default function DailySummaryPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Stock Summary</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Stock Summary</h1>
             <p className="text-sm text-muted-foreground">
               Stock changes at {currentStore.store?.name}
             </p>
@@ -167,90 +168,83 @@ export default function DailySummaryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Link href="/reports">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Stock Summary</h1>
-          <p className="text-sm text-muted-foreground">
-            Stock changes at {currentStore.store?.name}
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <Link href="/reports">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
+              <div className="rounded-lg p-1.5 bg-emerald-500/10">
+                <ClipboardList className="h-5 w-5 text-emerald-600" />
+              </div>
+              Stock Summary
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Stock changes at {currentStore.store?.name}
+            </p>
+          </div>
+          <PageGuide pageKey="daily-summary" />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangePicker
+            value={dateRange}
+            onChange={(range) => setDateRange(range || { from: new Date(), to: new Date() })}
+            className="w-auto min-w-[220px]"
+          />
+          {history && history.length > 0 && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleExport} className="h-8 text-xs print:hidden">
+                <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                Export
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8 text-xs print:hidden">
+                <Printer className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                Print
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-        <DateRangePicker
-          value={dateRange}
-          onChange={(range) => setDateRange(range || { from: new Date(), to: new Date() })}
-          className="w-auto min-w-[280px]"
-        />
-        {history && history.length > 0 && (
-          <>
-            <Button variant="outline" size="sm" onClick={handleExport} className="print:hidden">
-              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-              Export CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
-              <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
-              Print
-            </Button>
-          </>
-        )}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-blue-500" />
-              Date Range
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold truncate">{dateRangeLabel}</div>
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Changes</p>
+            <p className="text-2xl font-bold mt-1">{(history ?? []).length}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{dateRangeLabel}</p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Stock Counts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{counts.length}</div>
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Stock Counts</p>
+            <p className="text-2xl font-bold mt-1">{counts.length}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">inventory checks</p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Truck className="h-4 w-4" />
-              Receptions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{receptions.length}</div>
+          <CardContent className="pt-4 pb-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Receptions</p>
+            <p className="text-2xl font-bold mt-1">{receptions.length}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">deliveries received</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="font-semibold">
-          Stock Changes {dateRangeLabel && `(${dateRangeLabel})`}
-        </h2>
-        {history && history.length > 0 ? (
-          <StockHistoryTable history={history} showStore={false} />
-        ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            No stock changes found for the selected date range.
-          </div>
-        )}
-      </div>
+      {history && history.length > 0 ? (
+        <StockHistoryTable history={history} showStore={false} />
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Calendar className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm font-medium mb-1">No stock changes found</p>
+            <p className="text-xs text-muted-foreground">Try selecting a different date range</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

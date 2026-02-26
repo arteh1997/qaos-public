@@ -43,7 +43,7 @@ const REASON_COLORS: Record<string, string> = {
 }
 
 function formatCurrency(value: number): string {
-  return `$${value.toFixed(0)}`
+  return `£${value.toFixed(0)}`
 }
 
 function formatDate(dateStr: string): string {

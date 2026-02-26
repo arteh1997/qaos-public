@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { processScheduledAlerts } from '@/lib/services/alertService'
 import { apiSuccess, apiError, apiUnauthorized } from '@/lib/api/response'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/cron/send-alerts
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     const cronSecret = process.env.CRON_SECRET
 
     if (!cronSecret) {
-      console.warn('[Cron/Alerts] CRON_SECRET not configured')
+      logger.warn('[Cron/Alerts] CRON_SECRET not configured')
       return apiError('Cron not configured', { status: 503 })
     }
 
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       })),
     })
   } catch (error) {
-    console.error('[Cron/Alerts] Error:', error)
+    logger.error('[Cron/Alerts] Error:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to process alerts')
   }
 }

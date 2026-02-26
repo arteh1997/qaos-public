@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth, canAccessStore } from '@/lib/api/middleware'
 import { apiSuccess, apiError, apiBadRequest, apiForbidden } from '@/lib/api/response'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/reports/analytics - Comprehensive analytics data for dashboard charts
@@ -199,7 +200,7 @@ export async function GET(request: NextRequest) {
       stockValueTrend: totalQuantityByDay,
     }, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error fetching analytics:', error)
+    logger.error('Error fetching analytics:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch analytics')
   }
 }

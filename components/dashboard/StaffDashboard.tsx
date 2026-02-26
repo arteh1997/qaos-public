@@ -7,6 +7,7 @@ import { useStore } from '@/hooks/useStore'
 import { useShifts } from '@/hooks/useShifts'
 import { useDailyCounts, useLowStockReport, useStockHistory } from '@/hooks/useReports'
 import { useStoreInventory } from '@/hooks/useStoreInventory'
+import { useHACCPDashboard } from '@/hooks/useHACCP'
 import { StatsCard } from '@/components/cards/StatsCard'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,19 +24,25 @@ import {
   Activity,
   Trash2,
   TrendingDown,
+  Shield,
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
+import { PageGuide } from '@/components/help/PageGuide'
 
 export function StaffDashboard() {
   const { user, storeId, currentStore } = useAuth()
   const { data: store, isLoading: storeLoading } = useStore(storeId)
   const { todayShifts, currentShift, clockIn, clockOut, isLoading: shiftsLoading } = useShifts(storeId, user?.id)
-  const { data: dailyCounts, isLoading: countsLoading } = useDailyCounts()
+  const { data: dailyCounts, isLoading: countsLoading } = useDailyCounts(storeId)
   const { lowStockItems, isLoading: inventoryLoading } = useStoreInventory(storeId)
-  const { data: allLowStock, isLoading: lowStockLoading } = useLowStockReport()
+  const { data: storeLowStock, isLoading: lowStockLoading } = useLowStockReport(storeId)
 
   const today = new Date().toISOString().split('T')[0]
   const { data: recentActivity, isLoading: activityLoading } = useStockHistory(storeId || null, today)
+
+  // HACCP due checks
+  const { data: haccpDashboard } = useHACCPDashboard(storeId || null)
+  const haccpDueChecks = haccpDashboard?.due_checks ?? []
 
   const [isClockingIn, setIsClockingIn] = useState(false)
   const [isClockingOut, setIsClockingOut] = useState(false)
@@ -44,18 +51,15 @@ export function StaffDashboard() {
 
   // Memoized data
   const todayCountCompleted = useMemo(() =>
-    dailyCounts?.some(c => c.store_id === storeId && c.count_date === today) ?? false,
-    [dailyCounts, storeId, today]
+    dailyCounts?.some(c => c.count_date === today) ?? false,
+    [dailyCounts, today]
   )
 
-  const storeLowStock = useMemo(() => {
-    if (!storeId) return allLowStock ?? []
-    return (allLowStock ?? []).filter(item => item.store_id === storeId)
-  }, [allLowStock, storeId])
+  const storeLowStockItems = storeLowStock ?? []
 
   const outOfStockCount = useMemo(() =>
-    storeLowStock.filter(item => item.current_quantity === 0).length,
-    [storeLowStock]
+    storeLowStockItems.filter(item => item.current_quantity === 0).length,
+    [storeLowStockItems]
   )
 
   const myTodayShift = todayShifts[0]
@@ -72,13 +76,13 @@ export function StaffDashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         <div>
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-48 mt-2" />
         </div>
         <Skeleton className="h-24" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
@@ -102,44 +106,47 @@ export function StaffDashboard() {
     )
   }
 
-  const hasUrgentIssues = !todayCountCompleted || outOfStockCount > 0
+  const hasUrgentIssues = !todayCountCompleted || outOfStockCount > 0 || haccpDueChecks.length > 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {greeting}, {firstName}
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {greeting}, {firstName}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          </p>
+        </div>
+        <PageGuide pageKey="dashboard" />
       </div>
 
       {/* URGENT ALERTS */}
       {hasUrgentIssues && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             <h2 className="text-lg font-semibold">Needs Your Attention</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {!todayCountCompleted && (
-              <Card className="border-yellow-500 bg-yellow-50/50">
+              <Card className="border-amber-500/40 bg-amber-50/60">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
-                    <ClipboardList className="h-5 w-5 text-yellow-700" />
-                    <CardTitle className="text-base font-semibold text-yellow-900">
+                    <ClipboardList className="h-5 w-5 text-amber-700" />
+                    <CardTitle className="text-base font-semibold text-amber-800">
                       Stock Count Pending
                     </CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-yellow-800 mb-3">
+                  <p className="text-sm text-amber-700 mb-3">
                     Today&apos;s stock count hasn&apos;t been done yet.
                   </p>
                   <Link href="/stock-count">
-                    <Button size="sm" className="w-full bg-yellow-600 hover:bg-yellow-700">
+                    <Button size="sm" className="w-full bg-amber-600 hover:bg-amber-700">
                       Do Stock Count Now
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -148,25 +155,25 @@ export function StaffDashboard() {
               </Card>
             )}
             {outOfStockCount > 0 && (
-              <Card className="border-red-500 bg-red-50/50">
+              <Card className="border-destructive/40 bg-destructive/5">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
-                    <XCircle className="h-5 w-5 text-red-600" />
-                    <CardTitle className="text-base font-semibold text-red-900">
+                    <XCircle className="h-5 w-5 text-destructive" />
+                    <CardTitle className="text-base font-semibold text-destructive">
                       {outOfStockCount} Item{outOfStockCount !== 1 ? 's' : ''} Out of Stock
                     </CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-1 text-sm text-red-800">
-                    {storeLowStock.filter(i => i.current_quantity === 0).slice(0, 3).map((item) => (
+                  <div className="space-y-1 text-sm text-destructive/80">
+                    {storeLowStockItems.filter(i => i.current_quantity === 0).slice(0, 3).map((item) => (
                       <div key={item.inventory_item_id} className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-red-600" />
+                        <div className="h-1.5 w-1.5 rounded-full bg-destructive" />
                         <span>{item.item_name}</span>
                       </div>
                     ))}
                     {outOfStockCount > 3 && (
-                      <p className="text-xs text-red-700 mt-1">+{outOfStockCount - 3} more</p>
+                      <p className="text-xs text-destructive/80 mt-1">+{outOfStockCount - 3} more</p>
                     )}
                   </div>
                   <Link href="/low-stock">
@@ -178,12 +185,46 @@ export function StaffDashboard() {
                 </CardContent>
               </Card>
             )}
+
+            {/* HACCP Due Checks Alert */}
+            {haccpDueChecks.length > 0 && (
+              <Card className="border-amber-500/40 bg-amber-50/60">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-amber-700" />
+                    <CardTitle className="text-base font-semibold text-amber-800">
+                      {haccpDueChecks.length} Food Safety Check{haccpDueChecks.length !== 1 ? 's' : ''} Due
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-amber-700 space-y-1">
+                    {haccpDueChecks.slice(0, 3).map((check) => (
+                      <div key={check.id} className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-amber-600" />
+                        <span>{check.name}</span>
+                        <span className="text-xs text-amber-600 capitalize">({check.frequency})</span>
+                      </div>
+                    ))}
+                    {haccpDueChecks.length > 3 && (
+                      <p className="text-xs text-amber-600/80 mt-1">+{haccpDueChecks.length - 3} more</p>
+                    )}
+                  </div>
+                  <Link href="/haccp/checks">
+                    <Button size="sm" className="w-full mt-3 bg-amber-600 hover:bg-amber-700">
+                      Run Checks Now
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       )}
 
       {/* TODAY'S SHIFT */}
-      <Card className="bg-white">
+      <Card className="bg-card">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -229,7 +270,7 @@ export function StaffDashboard() {
                     Clock In
                   </Button>
                 ) : (
-                  <Badge className="bg-green-100 text-green-800">
+                  <Badge className="bg-emerald-50 text-emerald-700">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Shift Complete
                   </Badge>
@@ -246,25 +287,25 @@ export function StaffDashboard() {
       </Card>
 
       {/* SUMMARY CARDS */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
         <Link href="/stock-count">
           <StatsCard
             title="Stock Count"
             value={todayCountCompleted ? 'Done' : 'Pending'}
             description={todayCountCompleted ? 'Completed today' : 'Not yet submitted'}
-            icon={todayCountCompleted ? <CheckCircle className="h-4 w-4 text-green-500" /> : <ClipboardList className="h-4 w-4" />}
+            icon={todayCountCompleted ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <ClipboardList className="h-4 w-4" />}
             variant={todayCountCompleted ? 'success' : 'warning'}
-            className="hover:border-primary/50 transition-colors cursor-pointer bg-white"
+            className="hover:border-primary/50 transition-colors cursor-pointer bg-card"
           />
         </Link>
         <Link href="/low-stock">
           <StatsCard
             title="Low Stock"
-            value={storeLowStock.length}
+            value={storeLowStockItems.length}
             description="Items below PAR"
             icon={<TrendingDown className="h-4 w-4" />}
-            variant={storeLowStock.length > 0 ? 'warning' : 'default'}
-            className="hover:border-primary/50 transition-colors cursor-pointer bg-white"
+            variant={storeLowStockItems.length > 0 ? 'warning' : 'default'}
+            className="hover:border-primary/50 transition-colors cursor-pointer bg-card"
           />
         </Link>
         <StatsCard
@@ -273,58 +314,73 @@ export function StaffDashboard() {
           description={outOfStockCount > 0 ? 'Need restock' : 'All stocked'}
           icon={<XCircle className="h-4 w-4" />}
           variant={outOfStockCount > 0 ? 'danger' : 'default'}
-          className="bg-white"
+          className="bg-card"
         />
         <StatsCard
           title="Items Tracked"
-          value={lowStockItems.length > 0 ? lowStockItems.length + storeLowStock.length : '—'}
+          value={lowStockItems.length > 0 ? lowStockItems.length + storeLowStockItems.length : '—'}
           description="In this store"
           icon={<Package className="h-4 w-4" />}
-          className="bg-white"
+          className="bg-card"
         />
       </div>
 
       {/* QUICK ACTIONS */}
-      <Card className="bg-white">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Link href="/stock-count">
-              <Button
-                variant={!todayCountCompleted ? 'default' : 'outline'}
-                className="w-full"
-                size="lg"
-              >
-                <ClipboardList className="h-4 w-4 mr-2" />
-                {todayCountCompleted ? 'Update Count' : 'Do Stock Count'}
-              </Button>
-            </Link>
-            <Link href="/waste">
-              <Button variant="outline" className="w-full" size="lg">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Log Waste
-              </Button>
-            </Link>
-            <Link href="/low-stock">
-              <Button variant="outline" className="w-full" size="lg">
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                View Low Stock
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Quick Actions</h2>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+          <Link href="/stock-count">
+            {!todayCountCompleted ? (
+              <Card className="group h-full py-4 gap-2 transition-all hover:shadow-md border-primary bg-primary/5 hover:bg-primary/10">
+                <CardContent className="flex flex-col items-center text-center gap-2">
+                  <div className="rounded-full p-2.5 bg-primary text-primary-foreground">
+                    <ClipboardList className="h-5 w-5" />
+                  </div>
+                  <span className="text-sm font-medium">Do Stock Count</span>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="group h-full py-4 gap-2 transition-all hover:shadow-md hover:border-primary/30">
+                <CardContent className="flex flex-col items-center text-center gap-2">
+                  <div className="rounded-full p-2.5 bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                    <ClipboardList className="h-5 w-5" />
+                  </div>
+                  <span className="text-sm font-medium">Update Count</span>
+                </CardContent>
+              </Card>
+            )}
+          </Link>
+          <Link href="/waste">
+            <Card className="group h-full py-4 gap-2 transition-all hover:shadow-md hover:border-primary/30">
+              <CardContent className="flex flex-col items-center text-center gap-2">
+                <div className="rounded-full p-2.5 bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-medium">Log Waste</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/low-stock">
+            <Card className="group h-full py-4 gap-2 transition-all hover:shadow-md hover:border-primary/30">
+              <CardContent className="flex flex-col items-center text-center gap-2">
+                <div className="rounded-full p-2.5 bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-medium">View Low Stock</span>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      </div>
 
       {/* BOTTOM SECTION: Low Stock Items + Recent Activity */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Low Stock Items */}
-        <Card className="bg-white">
+        <Card className="bg-card">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
                 <CardTitle className="text-base">Low Stock Items</CardTitle>
               </div>
               <Link href="/low-stock">
@@ -336,14 +392,14 @@ export function StaffDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {storeLowStock.length === 0 ? (
+            {storeLowStockItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 text-center">
-                <CheckCircle className="h-6 w-6 text-green-500/50 mb-2" />
+                <CheckCircle className="h-6 w-6 text-emerald-500/50 mb-2" />
                 <p className="text-sm text-muted-foreground">All items above PAR level</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {storeLowStock.slice(0, 6).map((item) => (
+                {storeLowStockItems.slice(0, 6).map((item) => (
                   <div
                     key={item.inventory_item_id}
                     className="flex items-center justify-between py-2 border-b last:border-0"
@@ -352,7 +408,7 @@ export function StaffDashboard() {
                       <p className="text-sm font-medium truncate">{item.item_name}</p>
                     </div>
                     <Badge variant={item.current_quantity === 0 ? 'destructive' : 'outline'}
-                      className={item.current_quantity > 0 ? 'border-yellow-500 text-yellow-700' : ''}
+                      className={item.current_quantity > 0 ? 'border-amber-500/40 text-amber-700' : ''}
                     >
                       {item.current_quantity} / {item.par_level}
                     </Badge>
@@ -364,7 +420,7 @@ export function StaffDashboard() {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="bg-white">
+        <Card className="bg-card">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-muted-foreground" />
@@ -396,9 +452,9 @@ export function StaffDashboard() {
                     <div className="text-right shrink-0">
                       <p className={`text-sm font-mono font-medium ${
                         activity.quantity_change && activity.quantity_change > 0
-                          ? 'text-green-600'
+                          ? 'text-emerald-600'
                           : activity.quantity_change && activity.quantity_change < 0
-                          ? 'text-red-600' : ''
+                          ? 'text-destructive' : ''
                       }`}>
                         {activity.quantity_change && activity.quantity_change > 0 ? '+' : ''}
                         {activity.quantity_change ?? 0}

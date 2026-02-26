@@ -21,16 +21,8 @@ describe('Bulk Import Validation', () => {
         expect(result.success).toBe(true)
       })
 
-      it('should accept user without storeId (optional)', () => {
-        const result = bulkUserRowSchema.safeParse({
-          email: 'driver@example.com',
-          role: 'Driver',
-        })
-        expect(result.success).toBe(true)
-      })
-
       it('should accept all valid roles', () => {
-        const roles = ['Owner', 'Manager', 'Staff', 'Driver']
+        const roles = ['Owner', 'Manager', 'Staff']
         for (const role of roles) {
           const result = bulkUserRowSchema.safeParse({
             email: `test-${role.toLowerCase()}@example.com`,
@@ -97,7 +89,7 @@ describe('Bulk Import Validation', () => {
           users: [
             { email: 'user1@example.com', role: 'Staff' },
             { email: 'user2@example.com', role: 'Manager' },
-            { email: 'user3@example.com', role: 'Driver' },
+            { email: 'user3@example.com', role: 'Staff' },
           ],
         })
         expect(result.success).toBe(true)
@@ -303,7 +295,6 @@ user@example.com,BadRole,`
       expect(template).toContain('email,role,storeId')
       expect(template).toContain('Staff')
       expect(template).toContain('Manager')
-      expect(template).toContain('Driver')
     })
 
     it('should generate valid example emails', () => {

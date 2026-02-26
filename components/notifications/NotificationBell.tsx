@@ -13,8 +13,8 @@ import { Bell, AlertTriangle, XCircle, Info, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const TYPE_CONFIG: Record<Notification['type'], { icon: typeof XCircle; color: string; bg: string }> = {
-  critical: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
-  warning: { icon: AlertTriangle, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  critical: { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/5' },
+  warning: { icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50' },
   info: { icon: Info, color: 'text-blue-600', bg: 'bg-blue-50' },
 }
 
@@ -36,7 +36,7 @@ export function NotificationBell() {
             <span
               className={cn(
                 'absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white',
-                criticalCount > 0 ? 'bg-red-500' : 'bg-yellow-500'
+                criticalCount > 0 ? 'bg-destructive' : 'bg-amber-500'
               )}
             >
               {totalCount}
@@ -45,7 +45,7 @@ export function NotificationBell() {
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-80 p-0"
+        className="w-[calc(100vw-2rem)] sm:w-80 p-0"
         align="end"
         sideOffset={8}
       >

@@ -65,6 +65,7 @@ vi.mock('@/lib/rate-limit', () => ({
 // Mock audit logging
 vi.mock('@/lib/audit', () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
 }))
 
 // Mock CSRF validation
@@ -96,11 +97,13 @@ function createMockRequest(
     })
   }
 
+  const bodyStr = JSON.stringify(body || {})
   return {
     method,
     nextUrl: url,
     url: url.toString(),
     json: vi.fn(() => Promise.resolve(body || {})),
+    text: vi.fn(() => Promise.resolve(bodyStr)),
     headers: new Headers(),
     cookies: {
       get: vi.fn(),

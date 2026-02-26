@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { TimePicker } from '@/components/ui/time-picker'
 import {
   Form,
   FormControl,
@@ -32,6 +33,26 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Loader2, Clock, ChevronDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+function formatTime12h(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  if (isNaN(h) || isNaN(m)) return time
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+/** Normalize a time value from PostgreSQL TIME format (HH:MM:SS) to HH:MM */
+function normalizeTime(time: string | null | undefined): string | null {
+  if (!time) return null
+  // Strip seconds if present (PostgreSQL TIME returns HH:MM:SS)
+  const parts = time.split(':')
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`
+  }
+  return time
+}
 
 interface StoreFormProps {
   open: boolean
@@ -83,9 +104,9 @@ export function StoreForm({
         name: store?.name ?? '',
         address: store?.address ?? '',
         is_active: store?.is_active ?? true,
-        opening_time: store?.opening_time ?? '09:00', // Default with :00 minutes
-        closing_time: store?.closing_time ?? '22:00', // Default with :00 minutes
-        weekly_hours: store?.weekly_hours ?? null,
+        opening_time: normalizeTime(store?.opening_time) || '09:00',
+        closing_time: normalizeTime(store?.closing_time) || '22:00',
+        weekly_hours: null, // Managed by local weeklyHours state, not form — avoids silent validation failures
       })
     }
   }, [open, store, form])
@@ -139,7 +160,22 @@ export function StoreForm({
       const openTime = field === 'opening_time' ? value as string : updated[day].opening_time
       const closeTime = field === 'closing_time' ? value as string : updated[day].closing_time
       if (openTime && closeTime) {
-        updated[day].shifts = calculateDefaultShiftPatterns(openTime, closeTime)
+        const newShifts = calculateDefaultShiftPatterns(openTime, closeTime)
+        // Preserve user-customised mid-range times, but always lock:
+        //   opening.start_time = store opening time
+        //   closing.end_time = store closing time
+        const existingShifts = updated[day].shifts || {}
+        updated[day].shifts = {
+          opening: {
+            start_time: openTime, // Locked to store opening
+            end_time: existingShifts.opening?.end_time || newShifts?.opening?.end_time || '',
+          },
+          mid: existingShifts.mid || newShifts?.mid,
+          closing: {
+            start_time: existingShifts.closing?.start_time || newShifts?.closing?.start_time || '',
+            end_time: closeTime, // Locked to store closing
+          },
+        }
       }
     }
 
@@ -234,7 +270,7 @@ export function StoreForm({
             />
 
             {/* Operating Hours */}
-            <div className="space-y-3">
+            <div className="space-y-3 pt-2">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <Label className="text-sm font-medium">Operating Hours</Label>
@@ -248,17 +284,15 @@ export function StoreForm({
                     name="opening_time"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs">Default Opening</FormLabel>
+                        <FormLabel className="text-xs">Opens</FormLabel>
                         <FormControl>
-                          <Input
-                            type="time"
-                            step="3600"
-                            {...field}
-                            value={field.value ?? ''}
-                            onChange={(e) => {
-                              field.onChange(e.target.value || null)
+                          <TimePicker
+                            value={field.value}
+                            onChange={(v) => {
+                              field.onChange(v)
                               handleDefaultTimesChange()
                             }}
+                            placeholder="Opens"
                           />
                         </FormControl>
                         <FormMessage />
@@ -270,17 +304,15 @@ export function StoreForm({
                     name="closing_time"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs">Default Closing</FormLabel>
+                        <FormLabel className="text-xs">Closes</FormLabel>
                         <FormControl>
-                          <Input
-                            type="time"
-                            step="3600"
-                            {...field}
-                            value={field.value ?? ''}
-                            onChange={(e) => {
-                              field.onChange(e.target.value || null)
+                          <TimePicker
+                            value={field.value}
+                            onChange={(v) => {
+                              field.onChange(v)
                               handleDefaultTimesChange()
                             }}
+                            placeholder="Closes"
                           />
                         </FormControl>
                         <FormMessage />
@@ -291,7 +323,7 @@ export function StoreForm({
               )}
 
               {/* Toggle for per-day hours */}
-              <div className="flex items-center justify-between py-2">
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2.5">
                 <Label className="text-xs text-muted-foreground">
                   Different hours for each day?
                 </Label>
@@ -301,155 +333,145 @@ export function StoreForm({
                 />
               </div>
 
-              {/* Per-day hours */}
+              {/* Per-day hours — each day is its own card */}
               {showWeeklyHours && weeklyHours && (
-                <div className="space-y-1 border rounded-lg p-3 bg-muted/30">
-                  {DAYS_OF_WEEK.map((day) => (
-                    <Collapsible
-                      key={day}
-                      open={expandedDays[day]}
-                      onOpenChange={() => toggleDayExpanded(day)}
-                    >
-                      <div
-                        className={`flex flex-wrap items-center gap-2 py-2 ${
-                          !weeklyHours[day].is_open ? 'opacity-50' : ''
-                        }`}
+                <div className="space-y-2.5">
+                  {DAYS_OF_WEEK.map((day) => {
+                    const dayData = weeklyHours[day]
+                    const isOpen = dayData.is_open
+
+                    return (
+                      <Collapsible
+                        key={day}
+                        open={expandedDays[day]}
+                        onOpenChange={() => toggleDayExpanded(day)}
                       >
-                        <div className="flex items-center gap-2 min-w-[140px]">
-                          <Checkbox
-                            checked={weeklyHours[day].is_open}
-                            onCheckedChange={(checked) =>
-                              handleDayChange(day, 'is_open', checked as boolean)
-                            }
-                          />
-                          <span className="text-xs font-medium w-10">{DAY_LABELS[day].slice(0, 3)}</span>
-                        </div>
-                        {weeklyHours[day].is_open ? (
-                          <>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="time"
-                                step="3600"
-                                className="h-8 w-[6.5rem] text-sm"
-                                value={weeklyHours[day].opening_time ?? ''}
-                                onChange={(e) =>
-                                  handleDayChange(day, 'opening_time', e.target.value || null)
+                        <div
+                          className={cn(
+                            'rounded-lg border p-3 transition-colors',
+                            isOpen ? 'bg-background' : 'bg-muted/30'
+                          )}
+                        >
+                          {/* Day header row */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={isOpen}
+                                onCheckedChange={(checked) =>
+                                  handleDayChange(day, 'is_open', checked as boolean)
                                 }
                               />
-                              <span className="text-xs text-muted-foreground px-1">-</span>
-                              <Input
-                                type="time"
-                                step="3600"
-                                className="h-8 w-[6.5rem] text-sm"
-                                value={weeklyHours[day].closing_time ?? ''}
-                                onChange={(e) =>
-                                  handleDayChange(day, 'closing_time', e.target.value || null)
-                                }
-                              />
+                              <span className={cn(
+                                'text-sm font-medium',
+                                !isOpen && 'text-muted-foreground'
+                              )}>
+                                {DAY_LABELS[day]}
+                              </span>
                             </div>
-                            <CollapsibleTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 ml-auto"
-                              >
-                                <ChevronDown className={`h-3 w-3 transition-transform ${expandedDays[day] ? 'rotate-180' : ''}`} />
-                                <span className="text-xs ml-1">Shifts</span>
-                              </Button>
-                            </CollapsibleTrigger>
-                          </>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Closed</span>
-                        )}
-                      </div>
-
-                      {/* Shift patterns for this day */}
-                      <CollapsibleContent>
-                        {weeklyHours[day].is_open && (
-                          <div className="mt-2 mb-3 space-y-3 pl-4 border-l-2 border-muted ml-4 sm:ml-12">
-                            {/* Opening Shift */}
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs font-medium w-14 text-green-600">Opening</span>
-                              <Input
-                                type="time"
-                                step="3600"
-                                className="h-8 w-[6.5rem] text-sm"
-                                value={weeklyHours[day].shifts?.opening?.start_time ?? ''}
-                                onChange={(e) =>
-                                  handleShiftChange(day, 'opening', 'start_time', e.target.value)
-                                }
-                              />
-                              <span className="text-xs text-muted-foreground">-</span>
-                              <Input
-                                type="time"
-                                step="3600"
-                                className="h-8 w-[6.5rem] text-sm"
-                                value={weeklyHours[day].shifts?.opening?.end_time ?? ''}
-                                onChange={(e) =>
-                                  handleShiftChange(day, 'opening', 'end_time', e.target.value)
-                                }
-                              />
-                            </div>
-
-                            {/* Mid Shift */}
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs font-medium w-14 text-blue-600">Mid</span>
-                              <Input
-                                type="time"
-                                step="3600"
-                                className="h-8 w-[6.5rem] text-sm"
-                                value={weeklyHours[day].shifts?.mid?.start_time ?? ''}
-                                onChange={(e) =>
-                                  handleShiftChange(day, 'mid', 'start_time', e.target.value)
-                                }
-                              />
-                              <span className="text-xs text-muted-foreground">-</span>
-                              <Input
-                                type="time"
-                                step="3600"
-                                className="h-8 w-[6.5rem] text-sm"
-                                value={weeklyHours[day].shifts?.mid?.end_time ?? ''}
-                                onChange={(e) =>
-                                  handleShiftChange(day, 'mid', 'end_time', e.target.value)
-                                }
-                              />
-                            </div>
-
-                            {/* Closing Shift */}
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs font-medium w-14 text-purple-600">Closing</span>
-                              <Input
-                                type="time"
-                                step="3600"
-                                className="h-8 w-[6.5rem] text-sm"
-                                value={weeklyHours[day].shifts?.closing?.start_time ?? ''}
-                                onChange={(e) =>
-                                  handleShiftChange(day, 'closing', 'start_time', e.target.value)
-                                }
-                              />
-                              <span className="text-xs text-muted-foreground">-</span>
-                              <Input
-                                type="time"
-                                step="3600"
-                                className="h-8 w-[6.5rem] text-sm"
-                                value={weeklyHours[day].shifts?.closing?.end_time ?? ''}
-                                onChange={(e) =>
-                                  handleShiftChange(day, 'closing', 'end_time', e.target.value)
-                                }
-                              />
-                            </div>
+                            {!isOpen && (
+                              <span className="text-xs text-muted-foreground italic">Closed</span>
+                            )}
                           </div>
-                        )}
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ))}
+
+                          {/* Open day: time pickers + shift toggle */}
+                          {isOpen && (
+                            <div className="mt-3 space-y-2.5">
+                              {/* Hours row */}
+                              <div className="flex items-center gap-2">
+                                <TimePicker
+                                  value={dayData.opening_time}
+                                  onChange={(v) => handleDayChange(day, 'opening_time', v)}
+                                  placeholder="Opens"
+                                  className="flex-1"
+                                />
+                                <span className="text-sm text-muted-foreground shrink-0">to</span>
+                                <TimePicker
+                                  value={dayData.closing_time}
+                                  onChange={(v) => handleDayChange(day, 'closing_time', v)}
+                                  placeholder="Closes"
+                                  className="flex-1"
+                                />
+                              </div>
+
+                              {/* Shift times toggle */}
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 -ml-2 text-muted-foreground hover:text-foreground"
+                                >
+                                  <ChevronDown className={cn(
+                                    'h-3.5 w-3.5 transition-transform',
+                                    expandedDays[day] && 'rotate-180'
+                                  )} />
+                                  <span className="text-xs ml-1.5">Shift times</span>
+                                </Button>
+                              </CollapsibleTrigger>
+
+                              {/* Shift patterns */}
+                              <CollapsibleContent>
+                                <div className="rounded-md bg-muted/40 p-3 space-y-2.5">
+                                  {(['opening', 'mid', 'closing'] as const).map((shiftType) => {
+                                    const shiftStyles = {
+                                      opening: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+                                      mid: 'text-blue-700 bg-blue-50 border-blue-200',
+                                      closing: 'text-purple-700 bg-purple-50 border-purple-200',
+                                    }
+                                    const shiftLabels = { opening: 'Opening', mid: 'Mid', closing: 'Closing' }
+
+                                    // Opening start is locked to store opening, closing end is locked to store closing
+                                    const isStartLocked = shiftType === 'opening'
+                                    const isEndLocked = shiftType === 'closing'
+
+                                    return (
+                                      <div key={shiftType} className="flex items-center gap-2">
+                                        <span className={cn(
+                                          'text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0',
+                                          shiftStyles[shiftType]
+                                        )}>
+                                          {shiftLabels[shiftType]}
+                                        </span>
+                                        {isStartLocked ? (
+                                          <span className="flex-1 h-8 px-2.5 text-sm flex items-center rounded-md border bg-muted/50 text-muted-foreground">
+                                            {dayData.opening_time ? formatTime12h(dayData.opening_time) : '—'}
+                                          </span>
+                                        ) : (
+                                          <TimePicker
+                                            size="sm"
+                                            value={dayData.shifts?.[shiftType]?.start_time}
+                                            onChange={(v) => handleShiftChange(day, shiftType, 'start_time', v)}
+                                            placeholder="Start"
+                                            className="flex-1"
+                                          />
+                                        )}
+                                        <span className="text-xs text-muted-foreground">–</span>
+                                        {isEndLocked ? (
+                                          <span className="flex-1 h-8 px-2.5 text-sm flex items-center rounded-md border bg-muted/50 text-muted-foreground">
+                                            {dayData.closing_time ? formatTime12h(dayData.closing_time) : '—'}
+                                          </span>
+                                        ) : (
+                                          <TimePicker
+                                            size="sm"
+                                            value={dayData.shifts?.[shiftType]?.end_time}
+                                            onChange={(v) => handleShiftChange(day, shiftType, 'end_time', v)}
+                                            placeholder="End"
+                                            className="flex-1"
+                                          />
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </CollapsibleContent>
+                            </div>
+                          )}
+                        </div>
+                      </Collapsible>
+                    )
+                  })}
                 </div>
               )}
-
-              <FormDescription className="text-xs">
-                Set store hours to enable shift pattern presets
-              </FormDescription>
             </div>
 
             <FormField

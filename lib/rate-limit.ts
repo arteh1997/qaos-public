@@ -4,6 +4,7 @@
  */
 
 import { Redis } from '@upstash/redis'
+import { logger } from '@/lib/logger'
 
 // Initialize Redis client (will be null if env vars not configured)
 let redis: Redis | null = null
@@ -14,11 +15,12 @@ try {
       url: process.env.UPSTASH_REDIS_REST_URL,
       token: process.env.UPSTASH_REDIS_REST_TOKEN,
     })
-  } else {
-    console.warn('⚠️  Upstash Redis not configured. Rate limiting will use in-memory fallback.')
+  } else if (process.env.NODE_ENV === 'production') {
+    logger.warn('Upstash Redis not configured. Rate limiting will use in-memory fallback.')
   }
-} catch (error) {
-  console.error('Failed to initialize Upstash Redis:', error)
+} catch {
+  // Do NOT log the error object — it may contain the Redis URL with embedded credentials
+  logger.warn('Redis unavailable, using in-memory rate limiting')
 }
 
 // Fallback in-memory store for development or when Redis unavailable
@@ -108,7 +110,7 @@ async function rateLimitRedis(
       limit: config.limit,
     }
   } catch (error) {
-    console.error('Redis rate limit error:', error)
+    logger.error('Redis rate limit error:', error)
     // Fall back to in-memory on Redis errors
     return rateLimitFallback(identifier, config)
   }

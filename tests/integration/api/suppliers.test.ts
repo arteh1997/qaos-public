@@ -38,7 +38,7 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: { api: { limit: 100, windowMs: 60000 } },
   getRateLimitHeaders: vi.fn(() => ({})),
 }))
-vi.mock('@/lib/audit', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/audit', () => ({ auditLog: vi.fn().mockResolvedValue(undefined), computeFieldChanges: vi.fn().mockReturnValue([]) }))
 vi.mock('@/lib/csrf', () => ({
   validateCSRFToken: vi.fn().mockResolvedValue(true),
   getCSRFToken: vi.fn().mockResolvedValue('test-csrf-token'),
@@ -151,19 +151,6 @@ describe('Suppliers API', () => {
       expect(response.status).toBe(201)
       expect(data.success).toBe(true)
       expect(data.data.name).toBe('New Supplier')
-    })
-
-    it('should return 403 for Driver', async () => {
-      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver', STORE_UUID)
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') return profileQuery
-        if (table === 'store_users') return storeUsersQuery
-        return profileQuery
-      })
-      const { POST } = await import('@/app/api/stores/[storeId]/suppliers/route')
-      const request = createMockRequest('POST', `/api/stores/${STORE_UUID}/suppliers`, { name: 'Test' })
-      const response = await POST(request, { params: Promise.resolve({ storeId: STORE_UUID }) })
-      expect(response.status).toBe(403)
     })
 
     it('should return 400 for missing name', async () => {

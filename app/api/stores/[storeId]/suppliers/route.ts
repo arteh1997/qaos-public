@@ -9,6 +9,9 @@ import {
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { createSupplierSchema } from '@/lib/validations/suppliers'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string }>
@@ -69,7 +72,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       pagination,
     })
   } catch (error) {
-    console.error('Error fetching suppliers:', error)
+    logger.error('Error fetching suppliers:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch suppliers')
   }
 }
@@ -128,9 +131,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiError('Failed to create supplier')
     }
 
+    // Audit log the supplier creation
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'supplier.create',
+      storeId,
+      resourceType: 'supplier',
+      resourceId: data.id,
+      details: { supplierName: d.name },
+      request,
+    })
+
     return apiSuccess(data, { requestId: context.requestId, status: 201 })
   } catch (error) {
-    console.error('Error creating supplier:', error)
+    logger.error('Error creating supplier:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create supplier')
   }
 }

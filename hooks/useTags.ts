@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 
 export interface Tag {
   id: string
@@ -47,17 +48,9 @@ export function useCreateTag(storeId: string) {
 
   return useMutation({
     mutationFn: async (data: CreateTagData) => {
-      // Get CSRF token
-      const csrfResponse = await fetch('/api/auth/csrf')
-      const { token } = await csrfResponse.json()
-
       const response = await fetch(`/api/stores/${storeId}/tags`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-csrf-token': token,
-        },
-        credentials: 'include',
+        headers: getCSRFHeaders(),
         body: JSON.stringify(data),
       })
 
@@ -79,17 +72,9 @@ export function useUpdateTag(storeId: string, tagId: string) {
 
   return useMutation({
     mutationFn: async (data: UpdateTagData) => {
-      // Get CSRF token
-      const csrfResponse = await fetch('/api/auth/csrf')
-      const { token } = await csrfResponse.json()
-
       const response = await fetch(`/api/stores/${storeId}/tags/${tagId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-csrf-token': token,
-        },
-        credentials: 'include',
+        headers: getCSRFHeaders(),
         body: JSON.stringify(data),
       })
 
@@ -111,16 +96,9 @@ export function useDeleteTag(storeId: string, tagId: string) {
 
   return useMutation({
     mutationFn: async () => {
-      // Get CSRF token
-      const csrfResponse = await fetch('/api/auth/csrf')
-      const { token } = await csrfResponse.json()
-
       const response = await fetch(`/api/stores/${storeId}/tags/${tagId}`, {
         method: 'DELETE',
-        headers: {
-          'x-csrf-token': token,
-        },
-        credentials: 'include',
+        headers: getCSRFHeaders(),
       })
 
       if (!response.ok) {

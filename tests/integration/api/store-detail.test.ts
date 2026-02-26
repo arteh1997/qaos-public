@@ -68,6 +68,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 // Mock audit log
 vi.mock('@/lib/audit', () => ({
   auditLog: vi.fn(() => Promise.resolve()),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
 }))
 
 // Mock rate limit
@@ -273,25 +274,6 @@ describe('Store Detail API Tests', () => {
 
     it('should return 403 for Staff users', async () => {
       const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
-
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') return profileQuery
-        if (table === 'store_users') return storeUsersQuery
-        return profileQuery
-      })
-
-      const { PATCH } = await import('@/app/api/stores/[storeId]/route')
-
-      const request = createMockRequest('PATCH', { name: 'Updated Store' })
-      const response = await PATCH(request, { params: Promise.resolve({ storeId: 'store-123' }) })
-      const data = await response.json()
-
-      expect(response.status).toBe(403)
-      expect(data.code).toBe('FORBIDDEN')
-    })
-
-    it('should return 403 for Driver users', async () => {
-      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
 
       mockSupabaseClient.from.mockImplementation((table: string) => {
         if (table === 'profiles') return profileQuery

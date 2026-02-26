@@ -9,7 +9,9 @@ import {
   syncSubscriptionToDatabase,
   logBillingEvent,
 } from '@/lib/stripe/server'
+import { getCurrencyForCountry } from '@/lib/stripe/billing-config'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 // Types for Supabase admin client query results
 interface StoreUserRow {
@@ -27,7 +29,7 @@ interface SubscriptionRow {
 
 const createSubscriptionSchema = z.object({
   store_id: z.string().uuid('Invalid store ID'),
-  payment_method_id: z.string().min(1, 'Payment method is required'),
+  payment_method_id: z.string().min(1).optional().nullable(),
 })
 
 /**
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { store_id, payment_method_id } = validationResult.data
+    const { store_id, payment_method_id = null } = validationResult.data
 
     const supabaseAdmin = createAdminClient()
 
@@ -93,18 +95,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Look up the store's country to determine billing currency
+    const { data: storeData } = await supabaseAdmin
+      .from('stores')
+      .select('country')
+      .eq('id', store_id)
+      .single()
+
+    const storeCurrency = storeData?.country
+      ? getCurrencyForCountry(storeData.country)
+      : 'GBP'
+
     // Get or create Stripe customer
     const customerId = await getOrCreateCustomer(
       context.user.id,
       context.user.email || ''
     )
 
-    // Create subscription with trial
+    // Create subscription with trial in the store's currency
     const subscription = await createSubscription(
       customerId,
       payment_method_id,
       store_id,
-      context.user.id
+      context.user.id,
+      storeCurrency
     )
 
     // Sync to database
@@ -128,7 +142,7 @@ export async function POST(request: NextRequest) {
         : null,
     }, { requestId: context.requestId, status: 201 })
   } catch (error) {
-    console.error('Error creating subscription:', error)
+    logger.error('Error creating subscription:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create subscription')
   }
 }
@@ -183,7 +197,7 @@ export async function GET(request: NextRequest) {
 
     return apiSuccess(subscriptions, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error fetching subscriptions:', error)
+    logger.error('Error fetching subscriptions:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch subscriptions')
   }
 }

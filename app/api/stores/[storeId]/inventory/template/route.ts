@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/stores/[storeId]/inventory/template
@@ -37,13 +38,13 @@ export async function GET(
       )
     }
 
-    // Generate CSV template with example rows
-    const csvContent = `name,category,unit,par_level
-Chicken Breast,Proteins,kg,10
-Tomatoes,Produce,kg,5
-Olive Oil,Oils & Condiments,liters,3
-Mozzarella Cheese,Dairy,kg,8
-Paper Towels,Supplies,pack,20`
+    // Generate CSV template with example rows (human-friendly headers)
+    const csvContent = `Item Name,Category,Current Stock,Minimum Stock Level,Unit Cost (£)
+Chicken Breast,Proteins,15,10,5.50
+Tomatoes,Produce,8,5,2.00
+Olive Oil,Oils & Condiments,2,3,8.99
+Mozzarella Cheese,Dairy,12,8,12.50
+Paper Towels,Supplies,25,20,3.75`
 
     // Return as downloadable CSV file
     return new NextResponse(csvContent, {
@@ -54,7 +55,7 @@ Paper Towels,Supplies,pack,20`
       },
     })
   } catch (error) {
-    console.error('[Inventory Template] Error:', error)
+    logger.error('[Inventory Template] Error:', { error: error })
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }

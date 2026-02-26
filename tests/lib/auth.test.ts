@@ -48,8 +48,8 @@ function createStoreMembership(
 }
 
 describe('Auth Helpers', () => {
-  // New role system: Owner, Manager, Staff, Driver
-  const roles: (AppRole | null | undefined)[] = ['Owner', 'Manager', 'Staff', 'Driver', null, undefined]
+  // New role system: Owner, Manager, Staff
+  const roles: (AppRole | null | undefined)[] = ['Owner', 'Manager', 'Staff', null, undefined]
 
   describe('normalizeRole', () => {
     it('should map Admin to Owner', () => {
@@ -60,7 +60,10 @@ describe('Auth Helpers', () => {
       expect(normalizeRole('Owner')).toBe('Owner')
       expect(normalizeRole('Manager')).toBe('Manager')
       expect(normalizeRole('Staff')).toBe('Staff')
-      expect(normalizeRole('Driver')).toBe('Driver')
+    })
+
+    it('should map Driver to Staff (legacy)', () => {
+      expect(normalizeRole('Driver')).toBe('Staff')
     })
 
     it('should return null for null/undefined', () => {
@@ -78,8 +81,8 @@ describe('Auth Helpers', () => {
       expect(hasGlobalAccess('Admin')).toBe(true)
     })
 
-    it('should return true for Driver', () => {
-      expect(hasGlobalAccess('Driver')).toBe(true)
+    it('should return false for Driver', () => {
+      expect(hasGlobalAccess('Driver')).toBe(false)
     })
 
     it('should return false for Staff', () => {
@@ -104,7 +107,7 @@ describe('Auth Helpers', () => {
       expect(isStoreScopedRole('Owner')).toBe(false)
     })
 
-    it('should return false for Driver', () => {
+    it('should return false for Driver (legacy, not a current role)', () => {
       expect(isStoreScopedRole('Driver')).toBe(false)
     })
 
@@ -130,8 +133,8 @@ describe('Auth Helpers', () => {
       expect(isMultiStoreRole('Owner')).toBe(true)
     })
 
-    it('should return true for Driver', () => {
-      expect(isMultiStoreRole('Driver')).toBe(true)
+    it('should return false for Driver (no longer a multi-store role)', () => {
+      expect(isMultiStoreRole('Driver')).toBe(false)
     })
 
     it('should return false for Manager', () => {
@@ -177,14 +180,14 @@ describe('Auth Helpers', () => {
   })
 
   describe('canViewAllStores (legacy)', () => {
-    it('should return true for Owner and Driver', () => {
+    it('should return true for Owner', () => {
       expect(canViewAllStores('Owner')).toBe(true)
-      expect(canViewAllStores('Driver')).toBe(true)
     })
 
-    it('should return false for Manager and Staff', () => {
+    it('should return false for Manager, Staff, and Driver', () => {
       expect(canViewAllStores('Manager')).toBe(false)
       expect(canViewAllStores('Staff')).toBe(false)
+      expect(canViewAllStores('Driver')).toBe(false)
     })
 
     it('should return false for null/undefined', () => {
@@ -199,8 +202,7 @@ describe('Auth Helpers', () => {
       expect(canManageUsers('Manager')).toBe(true)
     })
 
-    it('should return false for Staff and Driver', () => {
-      expect(canManageUsers('Driver')).toBe(false)
+    it('should return false for Staff', () => {
       expect(canManageUsers('Staff')).toBe(false)
     })
   })
@@ -211,8 +213,7 @@ describe('Auth Helpers', () => {
       expect(canManageInventoryItems('Manager')).toBe(true)
     })
 
-    it('should return false for Staff and Driver', () => {
-      expect(canManageInventoryItems('Driver')).toBe(false)
+    it('should return false for Staff', () => {
       expect(canManageInventoryItems('Staff')).toBe(false)
     })
   })
@@ -224,20 +225,13 @@ describe('Auth Helpers', () => {
       expect(canDoStockCount('Staff')).toBe(true)
     })
 
-    it('should return false for Driver', () => {
-      expect(canDoStockCount('Driver')).toBe(false)
-    })
   })
 
   describe('canDoStockReception', () => {
-    it('should return true for Owner, Manager, and Driver', () => {
+    it('should return true for Owner, Manager, and Staff', () => {
       expect(canDoStockReception('Owner')).toBe(true)
       expect(canDoStockReception('Manager')).toBe(true)
-      expect(canDoStockReception('Driver')).toBe(true)
-    })
-
-    it('should return false for Staff', () => {
-      expect(canDoStockReception('Staff')).toBe(false)
+      expect(canDoStockReception('Staff')).toBe(true)
     })
   })
 
@@ -247,21 +241,16 @@ describe('Auth Helpers', () => {
       expect(canManageShifts('Manager')).toBe(true)
     })
 
-    it('should return false for Staff and Driver', () => {
-      expect(canManageShifts('Driver')).toBe(false)
+    it('should return false for Staff', () => {
       expect(canManageShifts('Staff')).toBe(false)
     })
   })
 
   describe('canViewReports', () => {
-    it('should return true for Owner, Manager, and Driver', () => {
+    it('should return true for Owner, Manager, and Staff', () => {
       expect(canViewReports('Owner')).toBe(true)
       expect(canViewReports('Manager')).toBe(true)
-      expect(canViewReports('Driver')).toBe(true)
-    })
-
-    it('should return false for Staff', () => {
-      expect(canViewReports('Staff')).toBe(false)
+      expect(canViewReports('Staff')).toBe(true)
     })
   })
 
@@ -275,7 +264,7 @@ describe('Auth Helpers', () => {
     })
 
     it('should allow access for any role with membership', () => {
-      const roles: AppRole[] = ['Owner', 'Manager', 'Staff', 'Driver']
+      const roles: AppRole[] = ['Owner', 'Manager', 'Staff']
       roles.forEach(role => {
         const stores = [createStoreMembership(targetStoreId, role)]
         expect(canAccessStore(stores, targetStoreId)).toBe(true)
@@ -306,15 +295,15 @@ describe('Auth Helpers', () => {
     const targetStoreId = 'store-123'
     const otherStoreId = 'store-456'
 
-    describe('Global Access Roles (Owner, Driver)', () => {
+    describe('Global Access Roles (Owner)', () => {
       it('should allow Owner to access any store', () => {
         expect(canAccessStoreLegacy('Owner', null, targetStoreId)).toBe(true)
         expect(canAccessStoreLegacy('Owner', otherStoreId, targetStoreId)).toBe(true)
       })
 
-      it('should allow Driver to access any store', () => {
-        expect(canAccessStoreLegacy('Driver', null, targetStoreId)).toBe(true)
-        expect(canAccessStoreLegacy('Driver', otherStoreId, targetStoreId)).toBe(true)
+      it('should deny Driver access (no longer global after merge)', () => {
+        expect(canAccessStoreLegacy('Driver', null, targetStoreId)).toBe(false)
+        expect(canAccessStoreLegacy('Driver', otherStoreId, targetStoreId)).toBe(false)
       })
     })
 
@@ -376,7 +365,7 @@ describe('Auth Helpers', () => {
         expect(getDefaultStoreId('Owner', null)).toBe(null)
       })
 
-      it('should return null for Driver regardless of store assignment', () => {
+      it('should return null for Driver (legacy role)', () => {
         expect(getDefaultStoreId('Driver', storeId)).toBe(null)
         expect(getDefaultStoreId('Driver', null)).toBe(null)
       })
@@ -406,13 +395,9 @@ describe('Auth Helpers', () => {
     })
 
     it('should ensure stock count and reception have appropriate role overlap', () => {
-      // Driver can do reception but not count
-      expect(canDoStockReception('Driver')).toBe(true)
-      expect(canDoStockCount('Driver')).toBe(false)
-
-      // Staff can do count but not reception
+      // Staff can do both count and reception
       expect(canDoStockCount('Staff')).toBe(true)
-      expect(canDoStockReception('Staff')).toBe(false)
+      expect(canDoStockReception('Staff')).toBe(true)
 
       // Owner can do both
       expect(canDoStockReception('Owner')).toBe(true)

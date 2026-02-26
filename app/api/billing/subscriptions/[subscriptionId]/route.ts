@@ -10,6 +10,7 @@ import {
   logBillingEvent,
 } from '@/lib/stripe/server'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 // Type for subscription row from database
 interface SubscriptionRow {
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return apiSuccess(subscription, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error fetching subscription:', error)
+    logger.error('Error fetching subscription:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch subscription')
   }
 }
@@ -204,7 +205,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return apiSuccess(updatedSubscription, { requestId: context.requestId })
   } catch (error) {
-    console.error('Error updating subscription:', error)
+    logger.error('Error updating subscription:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to update subscription')
   }
 }

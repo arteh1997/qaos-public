@@ -21,7 +21,7 @@ import {
   Settings,
   Trash2,
   Truck,
-  ChefHat,
+  UtensilsCrossed,
   ClipboardList,
   AlertTriangle,
   Activity,
@@ -62,10 +62,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     if (role === 'Owner' || role === 'Manager') {
       items.push(
         { id: 'nav-inventory', label: 'Inventory', icon: Package, href: '/inventory', category: 'navigation', keywords: ['items', 'stock', 'products'] },
-        { id: 'nav-inventory-value', label: 'Inventory Value', icon: DollarSign, href: '/inventory-value', category: 'navigation', keywords: ['cost', 'money', 'valuation', 'assets'] },
+        { id: 'nav-inventory-value', label: 'Stock Costs', icon: DollarSign, href: '/inventory-value', category: 'navigation', keywords: ['cost', 'money', 'price', 'unit cost', 'purchase'] },
         { id: 'nav-waste', label: 'Waste Tracking', icon: Trash2, href: '/waste', category: 'navigation', keywords: ['spoilage', 'loss', 'expired'] },
         { id: 'nav-suppliers', label: 'Suppliers', icon: Truck, href: '/suppliers', category: 'navigation', keywords: ['vendors', 'purchase', 'orders'] },
-        { id: 'nav-recipes', label: 'Recipes', icon: ChefHat, href: '/recipes', category: 'navigation', keywords: ['menu', 'costing', 'food cost'] },
+        { id: 'nav-recipes', label: 'Menu & Costs', icon: UtensilsCrossed, href: '/recipes', category: 'navigation', keywords: ['menu', 'costing', 'food cost', 'recipes', 'profit', 'ingredients'] },
         { id: 'nav-team', label: 'Team', icon: Users, href: '/users', category: 'navigation', keywords: ['staff', 'employees', 'people'] },
         { id: 'nav-shifts', label: 'Shifts', icon: Clock, href: '/shifts', category: 'navigation', keywords: ['schedule', 'timetable'] },
         { id: 'nav-reports', label: 'Reports', icon: FileText, href: '/reports', category: 'navigation', keywords: ['analytics', 'summary', 'data'] },
@@ -110,8 +110,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     if (role === 'Owner' || role === 'Manager' || role === 'Staff') {
       if (storeId) {
         items.push(
-          { id: 'action-stock-count', label: 'Do Stock Count', description: 'Start a new stock count', icon: ClipboardList, href: storeId ? `/stores/${storeId}/stock-count` : '/stock-count', category: 'actions', keywords: ['count'] },
-          { id: 'action-delivery', label: 'Record Delivery', description: 'Log a stock reception', icon: Truck, href: storeId ? `/stores/${storeId}/stock-reception` : '/deliveries', category: 'actions', keywords: ['receive', 'reception'] },
+          { id: 'action-stock-count', label: 'Do Stock Count', description: 'Start a new stock count', icon: ClipboardList, href: '/stock-count', category: 'actions', keywords: ['count'] },
+          { id: 'action-delivery', label: 'Record Delivery', description: 'Log a stock reception', icon: Truck, href: '/deliveries', category: 'actions', keywords: ['receive', 'reception'] },
         )
       }
     }

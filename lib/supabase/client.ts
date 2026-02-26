@@ -2,12 +2,10 @@
 
 import { createBrowserClient } from '@supabase/ssr'
 import { Database } from '@/types/database'
+import { clientEnv } from '@/lib/env'
 
-// Fallback placeholders prevent build crashes when env vars aren't available
-// (e.g. dependabot PR builds that don't have access to secrets).
-// Client pages prerender as loading states so these placeholders are never called at runtime.
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJplaceholder'
+const SUPABASE_URL = clientEnv.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_KEY = clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 // For auth operations only - use the SSR client
 let authClient: ReturnType<typeof createBrowserClient<Database>> | null = null

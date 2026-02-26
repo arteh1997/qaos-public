@@ -3,6 +3,7 @@
  */
 
 import { stripe, BILLING_CONFIG } from './config'
+import { getPricingTier, getCurrencyForCountry } from './billing-config'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Enums, Json } from '@/types/database'
 import Stripe from 'stripe'
@@ -60,29 +61,67 @@ export async function createSetupIntent(customerId: string): Promise<Stripe.Setu
 }
 
 /**
- * Create a subscription for a store with trial period
+ * Create a subscription for a store with trial period.
+ * If paymentMethodId is omitted, uses the customer's existing default payment method.
+ * Supports multi-currency — pass the store's currency code (e.g. 'GBP', 'USD', 'SAR').
  */
 export async function createSubscription(
   customerId: string,
-  paymentMethodId: string,
+  paymentMethodId: string | null,
   storeId: string,
-  userId: string
+  userId: string,
+  currency?: string
 ): Promise<Stripe.Subscription> {
+  // Resolve payment method: use provided one, or look up customer's default
+  let resolvedPaymentMethodId = paymentMethodId
+
+  if (!resolvedPaymentMethodId) {
+    const customer = await stripe.customers.retrieve(customerId)
+    if (customer.deleted) {
+      throw new Error('Stripe customer has been deleted')
+    }
+    const defaultPm = customer.invoice_settings?.default_payment_method
+    if (defaultPm) {
+      resolvedPaymentMethodId = typeof defaultPm === 'string' ? defaultPm : defaultPm.id
+    } else {
+      // Fall back to any attached payment method
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: customerId,
+        type: 'card',
+        limit: 1,
+      })
+      if (paymentMethods.data.length > 0) {
+        resolvedPaymentMethodId = paymentMethods.data[0].id
+      }
+    }
+  }
+
+  if (!resolvedPaymentMethodId) {
+    throw new Error('No payment method found. Please add a payment method first.')
+  }
+
   // Set the payment method as default for the customer
   await stripe.customers.update(customerId, {
     invoice_settings: {
-      default_payment_method: paymentMethodId,
+      default_payment_method: resolvedPaymentMethodId,
     },
   })
 
-  // Get or create the price
-  const priceId = await getOrCreatePrice()
+  // Resolve billing currency from card's issuing country (anti-currency-gaming)
+  const paymentMethod = await stripe.paymentMethods.retrieve(resolvedPaymentMethodId)
+  const cardCountry = paymentMethod.card?.country // ISO 3166-1 alpha-2, e.g. 'GB'
+  const billingCurrency = cardCountry
+    ? getCurrencyForCountry(cardCountry)
+    : (currency || 'GBP')
+
+  // Get or create the price for the resolved billing currency
+  const priceId = await getOrCreatePrice(billingCurrency)
 
   // Create subscription with trial
   const subscription = await stripe.subscriptions.create({
     customer: customerId,
     items: [{ price: priceId }],
-    default_payment_method: paymentMethodId,
+    default_payment_method: resolvedPaymentMethodId,
     trial_period_days: BILLING_CONFIG.TRIAL_DAYS,
     payment_behavior: 'default_incomplete',
     payment_settings: {
@@ -91,6 +130,9 @@ export async function createSubscription(
     metadata: {
       store_id: storeId,
       user_id: userId,
+      currency: billingCurrency.toUpperCase(),
+      card_country: cardCountry || 'unknown',
+      store_currency: (currency || 'GBP').toUpperCase(),
     },
     expand: ['latest_invoice.payment_intent'],
   })
@@ -99,26 +141,31 @@ export async function createSubscription(
 }
 
 /**
- * Get or create the product and price in Stripe
+ * Get or create the product and price in Stripe.
+ * Supports multi-currency: finds or creates a price for the given currency.
  */
-async function getOrCreatePrice(): Promise<string> {
-  // Check environment variable first
-  if (process.env.STRIPE_PRICE_ID) {
+async function getOrCreatePrice(currency?: string): Promise<string> {
+  // Check environment variable first (legacy single-price mode)
+  if (!currency && process.env.STRIPE_PRICE_ID) {
     return process.env.STRIPE_PRICE_ID
   }
 
-  // Try to find existing product
+  const tier = getPricingTier(currency || 'GBP')
+  const amount = tier.amount
+  const stripeCurrency = tier.currency
+
+  // Get or create the product
   const products = await stripe.products.list({
     active: true,
-    limit: 1,
+    limit: 10,
   })
 
   let productId: string
+  const existingProduct = products.data.find(p => p.name === BILLING_CONFIG.PRODUCT_NAME)
 
-  if (products.data.length > 0 && products.data[0].name === BILLING_CONFIG.PRODUCT_NAME) {
-    productId = products.data[0].id
+  if (existingProduct) {
+    productId = existingProduct.id
   } else {
-    // Create product
     const product = await stripe.products.create({
       name: BILLING_CONFIG.PRODUCT_NAME,
       description: 'Complete restaurant inventory management solution',
@@ -126,25 +173,34 @@ async function getOrCreatePrice(): Promise<string> {
     productId = product.id
   }
 
-  // Check for existing price
+  // Look for an existing price matching this currency + amount
   const prices = await stripe.prices.list({
     product: productId,
     active: true,
-    limit: 1,
+    limit: 100,
   })
 
-  if (prices.data.length > 0) {
-    return prices.data[0].id
+  const matchingPrice = prices.data.find(
+    p => p.currency === stripeCurrency &&
+         p.unit_amount === amount &&
+         p.recurring?.interval === 'month'
+  )
+
+  if (matchingPrice) {
+    return matchingPrice.id
   }
 
-  // Create price
+  // Create a new price for this currency + amount
+  const nickname = `${stripeCurrency.toUpperCase()} Monthly`
+
   const price = await stripe.prices.create({
     product: productId,
-    unit_amount: BILLING_CONFIG.PRICE_AMOUNT_PENCE,
-    currency: BILLING_CONFIG.CURRENCY,
+    unit_amount: amount,
+    currency: stripeCurrency,
     recurring: {
       interval: 'month',
     },
+    nickname,
   })
 
   return price.id

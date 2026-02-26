@@ -148,7 +148,7 @@ export async function verifyStoreAccess(
     .select('id')
     .eq('store_id', storeId)
     .eq('user_id', userId)
-    .single()
+    .maybeSingle()
 
   if (!currentAccess) {
     throw new Error('Your access to this store has been revoked')

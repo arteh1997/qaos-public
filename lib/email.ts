@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logger } from '@/lib/logger'
 
 // Initialize Resend client (will be undefined if API key not set)
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
@@ -18,8 +19,8 @@ interface SendEmailOptions {
 
 export async function sendEmail({ to, subject, html, text }: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
-    console.warn('[Email] Resend not configured. Email would have been sent to:', to)
-    console.warn('[Email] Subject:', subject)
+    logger.warn('[Email] Resend not configured. Email would have been sent to:', to)
+    logger.warn('[Email] Subject:', subject)
     // In development, log the email content
     if (process.env.NODE_ENV === 'development') {
       console.log('[Email] HTML content:', html)
@@ -37,13 +38,13 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
     })
 
     if (error) {
-      console.error('[Email] Send error:', error)
+      logger.error('[Email] Send error:', error)
       return { success: false, error: error.message }
     }
 
     return { success: true }
   } catch (err) {
-    console.error('[Email] Exception:', err)
+    logger.error('[Email] Exception:', err)
     return { success: false, error: err instanceof Error ? err.message : 'Failed to send email' }
   }
 }
@@ -68,13 +69,13 @@ export async function getBillingUserEmail(userId: string): Promise<string | null
       .single()
 
     if (error || !data) {
-      console.error('[Email] Failed to get billing user email:', error)
+      logger.error('[Email] Failed to get billing user email:', error)
       return null
     }
 
     return data.email
   } catch (err) {
-    console.error('[Email] Exception getting billing user email:', err)
+    logger.error('[Email] Exception getting billing user email:', err)
     return null
   }
 }
@@ -92,12 +93,12 @@ export async function getStoreAndBillingInfo(storeId: string): Promise<{
       .single()
 
     if (storeError || !storeData) {
-      console.error('[Email] Failed to get store data:', storeError)
+      logger.error('[Email] Failed to get store data:', storeError)
       return null
     }
 
     if (!storeData.billing_user_id) {
-      console.warn('[Email] Store has no billing user:', storeId)
+      logger.warn('[Email] Store has no billing user:', storeId)
       return { storeName: storeData.name, billingUserEmail: null }
     }
 
@@ -108,7 +109,7 @@ export async function getStoreAndBillingInfo(storeId: string): Promise<{
       billingUserEmail,
     }
   } catch (err) {
-    console.error('[Email] Exception getting store and billing info:', err)
+    logger.error('[Email] Exception getting store and billing info:', err)
     return null
   }
 }
@@ -522,7 +523,8 @@ export function getPaymentFailedEmailHtml(params: {
 }): string {
   const { storeName, attemptCount, amountDue, currency, nextRetryDate, updatePaymentUrl } = params
 
-  const currencySymbol = currency.toUpperCase() === 'USD' ? '$' : currency.toUpperCase()
+  const currencySymbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' }
+  const currencySymbol = currencySymbols[currency.toUpperCase()] ?? currency.toUpperCase()
   const formattedAmount = `${currencySymbol}${(parseInt(amountDue) / 100).toFixed(2)}`
 
   const retryMessage = nextRetryDate
@@ -653,7 +655,8 @@ export function getDisputeNotificationEmailHtml(params: {
 }): string {
   const { storeName, disputeAmount, currency, disputeReason, disputeStatus, evidenceDueDate, manageDisputeUrl } = params
 
-  const currencySymbol = currency.toUpperCase() === 'USD' ? '$' : currency.toUpperCase()
+  const currencySymbols: Record<string, string> = { GBP: '£', USD: '$', EUR: '€' }
+  const currencySymbol = currencySymbols[currency.toUpperCase()] ?? currency.toUpperCase()
   const formattedAmount = `${currencySymbol}${(parseInt(disputeAmount) / 100).toFixed(2)}`
 
   const isNeedsResponse = disputeStatus.includes('needs_response') || disputeStatus.includes('warning')
@@ -805,6 +808,112 @@ export function getDisputeNotificationEmailHtml(params: {
             <td style="padding: 20px 40px 40px; border-top: 1px solid #e4e4e7;">
               <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #a1a1aa; text-align: center;">
                 Need help? Contact support or visit your billing dashboard for more information.
+              </p>
+              <p style="margin: 10px 0 0; font-size: 12px; line-height: 1.6; color: #a1a1aa; text-align: center;">
+                © ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
+}
+
+export function getSupplierPortalInviteEmailHtml(params: {
+  supplierName: string
+  storeName: string
+  portalUrl: string
+  permissions: string[]
+}): string {
+  const { supplierName, storeName, portalUrl, permissions } = params
+
+  const permissionLabels: Record<string, string> = {
+    can_view_orders: 'View purchase orders',
+    can_upload_invoices: 'Upload invoices',
+    can_update_catalog: 'Update product catalog & pricing',
+    can_update_order_status: 'Update order status',
+  }
+
+  const permissionList = permissions
+    .map(p => permissionLabels[p] || p)
+    .map(p => `<li>${p}</li>`)
+    .join('\n                  ')
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supplier Portal Access - ${APP_NAME}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center; border-bottom: 1px solid #e4e4e7;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #18181b;">
+                ${APP_NAME}
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 40px;">
+              <h2 style="margin: 0 0 20px; font-size: 20px; font-weight: 600; color: #18181b;">
+                Supplier Portal Access
+              </h2>
+
+              <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+                Hello <strong>${supplierName}</strong>,
+              </p>
+
+              <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #3f3f46;">
+                <strong>${storeName}</strong> has invited you to their supplier portal. You can now manage your orders, invoices, and product catalog online.
+              </p>
+
+              <div style="margin-bottom: 30px; padding: 20px; background-color: #fafafa; border-radius: 8px;">
+                <h3 style="margin: 0 0 12px; font-size: 14px; font-weight: 600; color: #18181b;">
+                  You have access to:
+                </h3>
+                <ul style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8; color: #3f3f46;">
+                  ${permissionList}
+                </ul>
+              </div>
+
+              <!-- CTA Button -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="text-align: center;">
+                    <a href="${portalUrl}" style="display: inline-block; padding: 14px 32px; background-color: #18181b; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
+                      Open Supplier Portal
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 30px 0 0; font-size: 14px; line-height: 1.6; color: #71717a;">
+                If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.6; color: #3b82f6; word-break: break-all;">
+                ${portalUrl}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 40px 40px; border-top: 1px solid #e4e4e7;">
+              <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #a1a1aa; text-align: center;">
+                If you didn't expect this email, you can safely ignore it.
               </p>
               <p style="margin: 10px 0 0; font-size: 12px; line-height: 1.6; color: #a1a1aa; text-align: center;">
                 © ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.

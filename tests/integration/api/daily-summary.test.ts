@@ -144,25 +144,6 @@ describe('Daily Summary Report API Tests', () => {
     })
 
     describe('Authorization', () => {
-      it('should return 403 for Staff users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
-
-        mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === 'profiles') return profileQuery
-          if (table === 'store_users') return storeUsersQuery
-          return profileQuery
-        })
-
-        const { GET } = await import('@/app/api/reports/daily-summary/route')
-
-        const request = createMockRequest({ date: '2025-01-15' })
-        const response = await GET(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
-      })
-
       it('should allow Owner users', async () => {
         const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
 
@@ -243,8 +224,8 @@ describe('Daily Summary Report API Tests', () => {
         expect(data.success).toBe(true)
       })
 
-      it('should allow Driver users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
+      it('should allow Staff users', async () => {
+        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
 
         const stockHistoryQuery = {
           select: vi.fn().mockReturnThis(),

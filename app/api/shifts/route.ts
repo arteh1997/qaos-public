@@ -9,7 +9,12 @@ import {
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { shiftSchema } from '@/lib/validations/shift'
 import { sanitizeNotes } from '@/lib/utils'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { auditLog } from '@/lib/audit'
+import { sendNotification } from '@/lib/services/notifications'
+import { formatShiftDate, formatShiftTime, calculateDuration } from '@/lib/utils/format-shift'
 import { Shift } from '@/types'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/shifts - List shifts with filters
@@ -50,9 +55,15 @@ export async function GET(request: NextRequest) {
         query = query.in('store_id', staffStoreIds)
       }
     } else {
-      // Apply filters for Owner/Manager/Driver
+      // Owner/Manager: scope to their accessible stores
       if (storeId) {
         query = query.eq('store_id', storeId)
+      } else {
+        // No store_id specified — scope to all stores the user belongs to
+        const userStoreIds = context.stores?.map(s => s.store_id) ?? []
+        if (userStoreIds.length > 0) {
+          query = query.in('store_id', userStoreIds)
+        }
       }
       if (userId) {
         query = query.eq('user_id', userId)
@@ -78,7 +89,7 @@ export async function GET(request: NextRequest) {
       pagination: createPaginationMeta(page, pageSize, count ?? 0),
     })
   } catch (error) {
-    console.error('Error listing shifts:', error)
+    logger.error('Error listing shifts:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to list shifts')
   }
 }
@@ -131,7 +142,7 @@ export async function POST(request: NextRequest) {
       .gt('end_time', data.start_time)
 
     if (overlapCheckError) {
-      console.error('Error checking for overlapping shifts:', overlapCheckError)
+      logger.error('Error checking for overlapping shifts:', { error: overlapCheckError })
       throw overlapCheckError
     }
 
@@ -164,12 +175,57 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
+    const admin = createAdminClient()
+    await auditLog(admin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'shift.create',
+      storeId: data.store_id,
+      resourceType: 'shift',
+      resourceId: shift.id,
+      details: {
+        employeeId: data.user_id,
+        employeeName: shift.user?.full_name || undefined,
+        employeeEmail: shift.user?.email || undefined,
+        startTime: data.start_time,
+        endTime: data.end_time,
+        notes: shift.notes || undefined,
+      },
+      request,
+    })
+
+    // Send shift assigned notification (fire-and-forget)
+    // Look up manager's name for the email
+    const { data: managerProfile } = await context.supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', context.user.id)
+      .single()
+
+    const { date, dayOfWeek } = formatShiftDate(data.start_time)
+    sendNotification({
+      type: 'shift_assigned',
+      storeId: data.store_id,
+      recipientUserId: data.user_id,
+      triggeredByUserId: context.user.id,
+      data: {
+        managerName: managerProfile?.full_name || 'Your manager',
+        storeName: shift.store?.name || 'your store',
+        date,
+        dayOfWeek,
+        startTime: formatShiftTime(data.start_time),
+        endTime: formatShiftTime(data.end_time),
+        duration: calculateDuration(data.start_time, data.end_time),
+        notes: shift.notes || null,
+      },
+    }).catch(() => {}) // Swallow errors — notification is best-effort
+
     return apiSuccess(shift as Shift, {
       requestId: context.requestId,
       status: 201,
     })
   } catch (error) {
-    console.error('Error creating shift:', error)
+    logger.error('Error creating shift:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to create shift')
   }
 }

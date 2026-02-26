@@ -28,7 +28,7 @@ export function InventoryHealthChart({ data, completionRate }: InventoryHealthCh
         <CardTitle className="text-base font-semibold">Inventory Health</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
           {/* Donut Chart */}
           <div className="relative w-[120px] h-[120px] shrink-0">
             {data.total === 0 ? (
@@ -70,21 +70,21 @@ export function InventoryHealthChart({ data, completionRate }: InventoryHealthCh
           <div className="flex-1 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                 <span className="text-sm">Healthy</span>
               </div>
               <span className="text-sm font-semibold">{data.healthy}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                 <span className="text-sm">Low Stock</span>
               </div>
               <span className="text-sm font-semibold">{data.lowStock}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <div className="w-2.5 h-2.5 rounded-full bg-destructive" />
                 <span className="text-sm">Out of Stock</span>
               </div>
               <span className="text-sm font-semibold">{data.outOfStock}</span>

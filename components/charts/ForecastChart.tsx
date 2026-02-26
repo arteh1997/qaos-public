@@ -70,7 +70,7 @@ export function ForecastChart({
                 dataKey="upperBound"
                 stackId="confidence"
                 stroke="none"
-                fill="hsl(var(--primary))"
+                fill="hsl(var(--chart-1))"
                 fillOpacity={0.1}
                 name="Upper Bound"
               />
@@ -79,15 +79,15 @@ export function ForecastChart({
                 dataKey="lowerBound"
                 stackId="confidence"
                 stroke="none"
-                fill="white"
+                fill="hsl(var(--card))"
                 fillOpacity={1}
                 name="Lower Bound"
               />
               <Area
                 type="monotone"
                 dataKey="predicted"
-                stroke="hsl(var(--primary))"
-                fill="hsl(var(--primary))"
+                stroke="hsl(var(--chart-1))"
+                fill="hsl(var(--chart-1))"
                 fillOpacity={0.2}
                 strokeWidth={2}
                 name="Predicted Consumption"
@@ -163,8 +163,8 @@ export function StockProjectionChart({
               <Area
                 type="monotone"
                 dataKey="stock"
-                stroke="hsl(var(--primary))"
-                fill="hsl(var(--primary))"
+                stroke="hsl(var(--chart-1))"
+                fill="hsl(var(--chart-1))"
                 fillOpacity={0.15}
                 strokeWidth={2}
                 name="Projected Stock"
@@ -210,7 +210,7 @@ export function WeekdayPatternChart({ itemName, weekdayPattern, unitOfMeasure }:
                 formatter={(value: unknown) => [`${Number(value).toFixed(1)} ${unitOfMeasure}`, 'Avg Consumption']}
                 labelClassName="font-semibold"
               />
-              <Bar dataKey="consumption" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="consumption" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

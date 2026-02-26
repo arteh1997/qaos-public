@@ -117,31 +117,13 @@ describe('Missing Counts Alert API Tests', () => {
     })
 
     describe('Authorization', () => {
-      it('should return 403 for Staff users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
-
-        mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === 'profiles') return profileQuery
-          if (table === 'store_users') return storeUsersQuery
-          return profileQuery
-        })
-
-        const { GET } = await import('@/app/api/alerts/missing-counts/route')
-
-        const request = createMockRequest()
-        const response = await GET(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
-      })
-
       it('should allow Owner users', async () => {
         const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
 
         const storesQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [
               { id: 'store-1', name: 'Store 1' },
               { id: 'store-2', name: 'Store 2' },
@@ -152,7 +134,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const dailyCountsQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [{ store_id: 'store-1' }], // Only store-1 has counts
             error: null,
           }),
@@ -185,7 +168,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const storesQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [{ id: 'store-1', name: 'Store 1' }],
             error: null,
           }),
@@ -193,7 +177,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const dailyCountsQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [{ store_id: 'store-1' }],
             error: null,
           }),
@@ -217,12 +202,13 @@ describe('Missing Counts Alert API Tests', () => {
         expect(data.success).toBe(true)
       })
 
-      it('should allow Driver users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
+      it('should allow Staff users', async () => {
+        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Staff')
 
         const storesQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [],
             error: null,
           }),
@@ -230,7 +216,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const dailyCountsQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [],
             error: null,
           }),
@@ -261,7 +248,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const storesQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [{ id: 'store-1', name: 'Store 1' }],
             error: null,
           }),
@@ -269,7 +257,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const dailyCountsQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [],
             error: null,
           }),
@@ -298,7 +287,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const storesQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [],
             error: null,
           }),
@@ -306,7 +296,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const dailyCountsQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [],
             error: null,
           }),
@@ -340,7 +331,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const storesQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [
               { id: 'store-1', name: 'Store 1' },
               { id: 'store-2', name: 'Store 2' },
@@ -352,7 +344,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const dailyCountsQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [], // No counts submitted
             error: null,
           }),
@@ -383,7 +376,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const storesQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [
               { id: 'store-1', name: 'Store 1' },
               { id: 'store-2', name: 'Store 2' },
@@ -394,7 +388,8 @@ describe('Missing Counts Alert API Tests', () => {
 
         const dailyCountsQuery = {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockResolvedValue({
             data: [
               { store_id: 'store-1' },
               { store_id: 'store-2' },

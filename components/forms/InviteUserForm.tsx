@@ -6,7 +6,6 @@ import { inviteUserSchema, InviteUserFormData } from '@/lib/validations/user'
 import { Store, AppRole } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -73,13 +72,7 @@ export function InviteUserForm({
   }
 
   const handleSubmit = async (data: InviteUserFormData) => {
-    // For Driver role, clear storeId and use storeIds
-    if (data.role === 'Driver') {
-      data.storeId = undefined
-    } else {
-      // For non-Driver roles, clear storeIds
-      data.storeIds = undefined
-    }
+    data.storeIds = undefined
     await onSubmit(data)
     form.reset()
   }
@@ -179,53 +172,6 @@ export function InviteUserForm({
                       {selectedRole === 'Manager' && 'Managers have full operational access to their assigned store'}
                       {selectedRole === 'Staff' && 'Staff members can clock in/out and perform stock counts'}
                     </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {/* Multi-store selection for Drivers */}
-            {selectedRole === 'Driver' && (
-              <FormField
-                control={form.control}
-                name="storeIds"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Assigned Stores (Optional)</FormLabel>
-                    <FormDescription className="mb-2">
-                      Select the stores this driver can access. Leave empty to assign stores later.
-                    </FormDescription>
-                    <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
-                      {stores.filter(s => s.is_active).map((store) => {
-                        const isChecked = field.value?.includes(store.id) ?? false
-                        return (
-                          <div key={store.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`invite-store-${store.id}`}
-                              checked={isChecked}
-                              onCheckedChange={(checked) => {
-                                const currentValues = field.value ?? []
-                                if (checked) {
-                                  field.onChange([...currentValues, store.id])
-                                } else {
-                                  field.onChange(currentValues.filter(id => id !== store.id))
-                                }
-                              }}
-                            />
-                            <label
-                              htmlFor={`invite-store-${store.id}`}
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                            >
-                              {store.name}
-                            </label>
-                          </div>
-                        )
-                      })}
-                      {stores.filter(s => s.is_active).length === 0 && (
-                        <p className="text-sm text-muted-foreground">No active stores available</p>
-                      )}
-                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

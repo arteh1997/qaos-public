@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { withApiAuth } from '@/lib/api/middleware'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/users/account-type - Check if user can create stores
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error checking account type:', error)
+    logger.error('Error checking account type:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to check account type')
   }
 }

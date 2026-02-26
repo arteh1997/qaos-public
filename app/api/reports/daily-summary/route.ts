@@ -2,11 +2,12 @@ import { NextRequest } from 'next/server'
 import { RATE_LIMITS } from '@/lib/rate-limit'
 import { withApiAuth } from '@/lib/api/middleware'
 import { apiSuccess, apiError } from '@/lib/api/response'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Owner', 'Manager', 'Driver'],
+      allowedRoles: ['Owner', 'Manager', 'Staff'],
       rateLimit: { key: 'reports', config: RATE_LIMITS.reports },
     })
 
@@ -26,10 +27,10 @@ export async function GET(request: NextRequest) {
     let query = context.supabase
       .from('stock_history')
       .select(`
-        *,
-        inventory_item:inventory_items(*),
-        store:stores(*),
-        performer:profiles(*)
+        id, created_at, action_type, quantity_before, quantity_after, quantity_change, notes, store_id,
+        inventory_item:inventory_items(id, name, category, unit_of_measure),
+        store:stores(id, name),
+        performer:profiles(id, full_name, email)
       `)
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay)
@@ -47,9 +48,9 @@ export async function GET(request: NextRequest) {
     const { data: dailyCounts } = await context.supabase
       .from('daily_counts')
       .select(`
-        *,
-        store:stores(*),
-        submitter:profiles(*)
+        id, count_date, item_count, store_id, submitted_at,
+        store:stores(id, name),
+        submitter:profiles(id, full_name)
       `)
       .eq('count_date', date)
 
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error fetching daily summary:', error)
+    logger.error('Error fetching daily summary:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to fetch report')
   }
 }

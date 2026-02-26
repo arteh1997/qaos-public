@@ -4,7 +4,7 @@ export const inventoryItemSchema = z.object({
   store_id: z.string().uuid('Invalid store ID'), // Required for multi-tenant isolation
   name: z.string().min(2, 'Item name must be at least 2 characters'),
   category: z.string().optional(),
-  unit_of_measure: z.string().min(1, 'Unit of measure is required'),
+  unit_of_measure: z.string(),
   is_active: z.boolean(),
 })
 
@@ -29,6 +29,7 @@ export const stockReceptionSchema = z.object({
   items: z.array(z.object({
     inventory_item_id: z.string().uuid('Invalid inventory item'),
     quantity: z.number().min(0, 'Quantity cannot be negative'),
+    total_cost: z.number().min(0, 'Cost cannot be negative').optional(),
   })).min(1, 'At least one item is required'),
   notes: z.string().optional(),
 })

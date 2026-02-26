@@ -38,7 +38,7 @@ vi.mock('@/lib/rate-limit', () => ({
   RATE_LIMITS: { api: { limit: 100, windowMs: 60000 } },
   getRateLimitHeaders: vi.fn(() => ({})),
 }))
-vi.mock('@/lib/audit', () => ({ auditLog: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/audit', () => ({ auditLog: vi.fn().mockResolvedValue(undefined), computeFieldChanges: vi.fn().mockReturnValue([]) }))
 vi.mock('@/lib/csrf', () => ({
   validateCSRFToken: vi.fn().mockResolvedValue(true),
   getCSRFToken: vi.fn().mockResolvedValue('test-csrf-token'),
@@ -91,7 +91,7 @@ describe('Purchase Orders API', () => {
 
       const posQuery = createChainableMock({
         data: [
-          { id: PO_UUID, store_id: STORE_UUID, po_number: 'PO-2026-0001', status: 'draft', total_amount: 250, supplier: { id: SUPPLIER_UUID, name: 'Fresh Foods' } },
+          { id: PO_UUID, store_id: STORE_UUID, po_number: 'PO-2026-0001', status: 'open', total_amount: 250, supplier: { id: SUPPLIER_UUID, name: 'Fresh Foods' } },
         ],
         error: null,
         count: 1,
@@ -145,14 +145,14 @@ describe('Purchase Orders API', () => {
       })
 
       const poInsertQuery = createChainableMock({
-        data: { id: PO_UUID, store_id: STORE_UUID, po_number: 'PO-2026-0001', status: 'draft', total_amount: 250 },
+        data: { id: PO_UUID, store_id: STORE_UUID, po_number: 'PO-2026-0001', status: 'open', total_amount: 250 },
         error: null,
       })
 
       const poItemsInsertQuery = createChainableMock({ data: null, error: null })
 
       const completePOQuery = createChainableMock({
-        data: { id: PO_UUID, store_id: STORE_UUID, po_number: 'PO-2026-0001', status: 'draft', total_amount: 250, supplier: { id: SUPPLIER_UUID, name: 'Fresh Foods' } },
+        data: { id: PO_UUID, store_id: STORE_UUID, po_number: 'PO-2026-0001', status: 'open', total_amount: 250, supplier: { id: SUPPLIER_UUID, name: 'Fresh Foods' } },
         error: null,
       })
 
@@ -210,21 +210,6 @@ describe('Purchase Orders API', () => {
       expect(response.status).toBe(400)
     })
 
-    it('should return 403 for Driver', async () => {
-      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver', STORE_UUID)
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') return profileQuery
-        if (table === 'store_users') return storeUsersQuery
-        return profileQuery
-      })
-      const { POST } = await import('@/app/api/stores/[storeId]/purchase-orders/route')
-      const request = createMockRequest('POST', `/api/stores/${STORE_UUID}/purchase-orders`, {
-        supplier_id: SUPPLIER_UUID,
-        items: [{ inventory_item_id: ITEM_UUID, quantity_ordered: 10, unit_price: 5 }],
-      })
-      const response = await POST(request, { params: Promise.resolve({ storeId: STORE_UUID }) })
-      expect(response.status).toBe(403)
-    })
   })
 
   describe('PUT /api/stores/[storeId]/purchase-orders/[poId]', () => {
@@ -232,12 +217,12 @@ describe('Purchase Orders API', () => {
       const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner', STORE_UUID)
 
       const currentPOQuery = createChainableMock({
-        data: { status: 'draft' },
+        data: { status: 'open' },
         error: null,
       })
 
       const updatePOQuery = createChainableMock({
-        data: { id: PO_UUID, status: 'submitted', supplier: { id: SUPPLIER_UUID, name: 'Fresh Foods' } },
+        data: { id: PO_UUID, status: 'awaiting_delivery', supplier: { id: SUPPLIER_UUID, name: 'Fresh Foods' } },
         error: null,
       })
 
@@ -255,7 +240,7 @@ describe('Purchase Orders API', () => {
 
       const { PUT } = await import('@/app/api/stores/[storeId]/purchase-orders/[poId]/route')
       const request = createMockRequest('PUT', `/api/stores/${STORE_UUID}/purchase-orders/${PO_UUID}`, {
-        status: 'submitted',
+        status: 'awaiting_delivery',
       })
       const response = await PUT(request, { params: Promise.resolve({ storeId: STORE_UUID, poId: PO_UUID }) })
       const data = await response.json()
@@ -281,7 +266,7 @@ describe('Purchase Orders API', () => {
 
       const { PUT } = await import('@/app/api/stores/[storeId]/purchase-orders/[poId]/route')
       const request = createMockRequest('PUT', `/api/stores/${STORE_UUID}/purchase-orders/${PO_UUID}`, {
-        status: 'draft',
+        status: 'open',
       })
       const response = await PUT(request, { params: Promise.resolve({ storeId: STORE_UUID, poId: PO_UUID }) })
       expect(response.status).toBe(400)
@@ -289,11 +274,11 @@ describe('Purchase Orders API', () => {
   })
 
   describe('DELETE /api/stores/[storeId]/purchase-orders/[poId]', () => {
-    it('should delete draft PO', async () => {
+    it('should delete open PO', async () => {
       const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner', STORE_UUID)
 
       const statusQuery = createChainableMock({
-        data: { status: 'draft' },
+        data: { status: 'open' },
         error: null,
       })
 
@@ -320,11 +305,11 @@ describe('Purchase Orders API', () => {
       expect(data.success).toBe(true)
     })
 
-    it('should reject deleting non-draft PO', async () => {
+    it('should reject deleting non-open PO', async () => {
       const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner', STORE_UUID)
 
       const statusQuery = createChainableMock({
-        data: { status: 'submitted' },
+        data: { status: 'awaiting_delivery' },
         error: null,
       })
 

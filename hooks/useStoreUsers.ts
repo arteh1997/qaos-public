@@ -2,6 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { StoreUser, Profile } from '@/types'
+import { useCSRF } from './useCSRF'
+import { useAuth } from './useAuth'
 import { toast } from 'sonner'
 
 export interface StoreUserWithProfile extends StoreUser {
@@ -54,6 +56,8 @@ export function useStoreUsersQuery(storeId: string | null) {
  */
 export function useAddUserToStore(storeId: string | null) {
   const queryClient = useQueryClient()
+  const { csrfFetch } = useCSRF()
+  const { refreshProfile } = useAuth()
 
   return useMutation({
     mutationFn: async ({
@@ -65,7 +69,7 @@ export function useAddUserToStore(storeId: string | null) {
     }) => {
       if (!storeId) throw new Error('Store ID is required')
 
-      const response = await fetch(`/api/stores/${storeId}/users`, {
+      const response = await csrfFetch(`/api/stores/${storeId}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, role }),
@@ -73,7 +77,7 @@ export function useAddUserToStore(storeId: string | null) {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to add user to store')
+        throw new Error(errorData.message || 'Failed to add user to store')
       }
 
       return response.json()
@@ -82,6 +86,7 @@ export function useAddUserToStore(storeId: string | null) {
       if (storeId) {
         queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
       }
+      refreshProfile()
       toast.success('User added to store')
     },
     onError: (err) => {
@@ -95,18 +100,20 @@ export function useAddUserToStore(storeId: string | null) {
  */
 export function useRemoveUserFromStore(storeId: string | null) {
   const queryClient = useQueryClient()
+  const { csrfFetch } = useCSRF()
+  const { refreshProfile } = useAuth()
 
   return useMutation({
     mutationFn: async (userId: string) => {
       if (!storeId) throw new Error('Store ID is required')
 
-      const response = await fetch(`/api/stores/${storeId}/users/${userId}`, {
+      const response = await csrfFetch(`/api/stores/${storeId}/users/${userId}`, {
         method: 'DELETE',
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to remove user from store')
+        throw new Error(errorData.message || 'Failed to remove user from store')
       }
 
       return response.json()
@@ -138,6 +145,7 @@ export function useRemoveUserFromStore(storeId: string | null) {
       if (storeId) {
         queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
       }
+      refreshProfile()
       toast.success('User removed from store')
     },
   })
@@ -148,6 +156,8 @@ export function useRemoveUserFromStore(storeId: string | null) {
  */
 export function useUpdateUserRole(storeId: string | null) {
   const queryClient = useQueryClient()
+  const { csrfFetch } = useCSRF()
+  const { refreshProfile } = useAuth()
 
   return useMutation({
     mutationFn: async ({
@@ -159,7 +169,7 @@ export function useUpdateUserRole(storeId: string | null) {
     }) => {
       if (!storeId) throw new Error('Store ID is required')
 
-      const response = await fetch(`/api/stores/${storeId}/users/${userId}`, {
+      const response = await csrfFetch(`/api/stores/${storeId}/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
@@ -167,7 +177,7 @@ export function useUpdateUserRole(storeId: string | null) {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update user role')
+        throw new Error(errorData.message || 'Failed to update user role')
       }
 
       return response.json()
@@ -201,6 +211,7 @@ export function useUpdateUserRole(storeId: string | null) {
       if (storeId) {
         queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
       }
+      refreshProfile()
       toast.success('User role updated')
     },
   })

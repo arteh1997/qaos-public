@@ -138,7 +138,7 @@ export function TagForm({ storeId, tag, open, onOpenChange, onSuccess }: TagForm
           {/* Color Picker */}
           <div className="space-y-2">
             <Label>Color</Label>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {/* Preset Colors */}
               <div className="flex gap-2 flex-wrap">
                 {PRESET_COLORS.map((color) => (

@@ -43,6 +43,11 @@ vi.mock('@/lib/email', () => ({
   sendDisputeNotificationEmail: vi.fn(() => Promise.resolve({ success: true })),
 }))
 
+// Mock notification service (fire-and-forget emails added to billing webhook)
+vi.mock('@/lib/services/notifications', () => ({
+  sendNotification: vi.fn(() => Promise.resolve()),
+}))
+
 // Helper to create mock NextRequest
 function createMockRequest(payload: string, signature: string | null): NextRequest {
   const url = new URL('http://localhost:3000/api/billing/webhook')
@@ -206,7 +211,7 @@ describe('Billing Webhook API Tests', () => {
           },
         } as any)
 
-        // Mock needs to handle both deduplication check AND update calls
+        // Mock needs to handle deduplication check, update calls, and notification lookups
         mockAdminClient.from.mockImplementation((table: string) => {
           if (table === 'billing_events') {
             // Deduplication check - return null (no duplicate found)
@@ -216,10 +221,20 @@ describe('Billing Webhook API Tests', () => {
               single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
             }
           }
-          // For subscriptions and stores tables (update calls)
+          if (table === 'store_users') {
+            // Billing owner lookup for notification
+            return {
+              select: vi.fn().mockReturnThis(),
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: { user_id: 'user-123' }, error: null }),
+            }
+          }
+          // For subscriptions and stores tables (update + select calls)
           return {
+            select: vi.fn().mockReturnThis(),
             update: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockResolvedValue({ error: null }),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: { name: 'Test Store' }, error: null }),
           }
         })
 
@@ -254,7 +269,7 @@ describe('Billing Webhook API Tests', () => {
           },
         } as any)
 
-        // Mock needs to handle both deduplication check AND subscription query
+        // Mock needs to handle deduplication check, subscription query, and store lookup
         mockAdminClient.from.mockImplementation((table: string) => ({
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
@@ -272,6 +287,10 @@ describe('Billing Webhook API Tests', () => {
                 },
                 error: null,
               })
+            }
+            // Store name lookup for payment receipt notification
+            if (table === 'stores') {
+              return Promise.resolve({ data: { name: 'Test Store' }, error: null })
             }
             return Promise.resolve({ data: null, error: { code: 'PGRST116' } })
           }),

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { withApiAuth, canManageStore } from '@/lib/api/middleware'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { auditLog } from '@/lib/audit'
+import { sendNotification } from '@/lib/services/notifications'
 import {
   apiSuccess,
   apiError,
@@ -10,6 +11,7 @@ import {
   apiNotFound,
 } from '@/lib/api/response'
 import { RATE_LIMITS } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ storeId: string; userId: string }>
@@ -89,7 +91,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         .in('id', shiftIds)
 
       if (clockOutError) {
-        console.error('Error auto clocking out shifts:', clockOutError)
+        logger.error('Error auto clocking out shifts:', { error: clockOutError })
         // Continue with removal even if clock out fails
       }
     }
@@ -121,6 +123,33 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       request,
     })
 
+    // Send removed-from-store notification (fire-and-forget)
+    // Get store name for the email
+    const { data: store } = await supabaseAdmin
+      .from('stores')
+      .select('name')
+      .eq('id', storeId)
+      .single()
+
+    // Get the remover's name
+    const { data: removerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', context.user.id)
+      .single()
+
+    sendNotification({
+      type: 'removed_from_store',
+      storeId,
+      recipientUserId: userId,
+      triggeredByUserId: context.user.id,
+      data: {
+        storeName: store?.name || 'the store',
+        removedByName: removerProfile?.full_name || 'A manager',
+        activeShiftsEnded: activeShifts?.length || 0,
+      },
+    }).catch(() => {})
+
     return apiSuccess(
       {
         message: 'User removed from store successfully',
@@ -129,7 +158,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       { requestId: context.requestId }
     )
   } catch (error) {
-    console.error('Error removing user from store:', error)
+    logger.error('Error removing user from store:', { error: error })
     return apiError(error instanceof Error ? error.message : 'Failed to remove user')
   }
 }

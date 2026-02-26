@@ -19,6 +19,7 @@ import {
 import { Plus, Edit, Trash2, Loader2, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
+import { PageGuide } from '@/components/help/PageGuide'
 
 interface CategoryListProps {
   storeId: string
@@ -96,10 +97,13 @@ export function CategoryList({ storeId }: CategoryListProps) {
             Organize your inventory into categories
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="mr-2 size-4" />
-          New Category
-        </Button>
+        <div className="flex items-center gap-1">
+          <PageGuide pageKey="categories" />
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="mr-2 size-4" />
+            New Category
+          </Button>
+        </div>
       </div>
 
       {/* Categories List */}

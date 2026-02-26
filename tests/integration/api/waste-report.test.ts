@@ -59,6 +59,7 @@ vi.mock('@/lib/rate-limit', () => ({
 
 vi.mock('@/lib/audit', () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
+  computeFieldChanges: vi.fn().mockReturnValue([]),
 }))
 
 vi.mock('@/lib/csrf', () => ({
@@ -154,27 +155,6 @@ describe('Waste Report API', () => {
 
       expect(response.status).toBe(401)
       expect(data.code).toBe('UNAUTHORIZED')
-    })
-
-    it('should return 403 for Driver users', async () => {
-      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver', STORE_UUID)
-
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'profiles') return profileQuery
-        if (table === 'store_users') return storeUsersQuery
-        return profileQuery
-      })
-
-      const { POST } = await import('@/app/api/stores/[storeId]/waste/route')
-
-      const request = createMockRequest('POST', `/api/stores/${STORE_UUID}/waste`, {
-        items: [{ inventory_item_id: ITEM_UUID_1, quantity: 2, reason: 'spoilage' }],
-      })
-      const response = await POST(request, { params: Promise.resolve({ storeId: STORE_UUID }) })
-      const data = await response.json()
-
-      expect(response.status).toBe(403)
-      expect(data.code).toBe('FORBIDDEN')
     })
 
     it('should return 400 for empty items array', async () => {

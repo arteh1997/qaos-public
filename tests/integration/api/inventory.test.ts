@@ -284,28 +284,6 @@ describe('Inventory API Integration Tests', () => {
         expect(data.code).toBe('FORBIDDEN')
       })
 
-      it('should return 403 for Driver users', async () => {
-        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Driver')
-
-        mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === 'profiles') return profileQuery
-          if (table === 'store_users') return storeUsersQuery
-          return profileQuery
-        })
-
-        const { POST } = await import('@/app/api/inventory/route')
-
-        const request = createMockRequest('POST', {
-          name: 'New Item',
-          unit_of_measure: 'kg',
-          is_active: true,
-        })
-        const response = await POST(request)
-        const data = await response.json()
-
-        expect(response.status).toBe(403)
-        expect(data.code).toBe('FORBIDDEN')
-      })
     })
 
     describe('Validation', () => {
@@ -332,7 +310,7 @@ describe('Inventory API Integration Tests', () => {
         expect(data.code).toBe('BAD_REQUEST')
       })
 
-      it('should return 400 for missing unit_of_measure', async () => {
+      it('should return 400 for missing store_id', async () => {
         const { profileQuery, storeUsersQuery } = setupAuthenticatedUser('Owner')
 
         mockSupabaseClient.from.mockImplementation((table: string) => {
