@@ -210,15 +210,15 @@ export async function auditLog(
           .from('audit_logs')
           .insert(baseData)
         if (retryError) {
-          logger.error('[Audit] Failed to write audit log:', retryError)
+          logger.error('[Audit] Failed to write audit log:', { error: retryError })
         }
       } else {
-        logger.error('[Audit] Failed to write audit log:', error)
+        logger.error('[Audit] Failed to write audit log:', { error })
       }
     }
   } catch (err) {
     // Catch any unexpected errors
-    logger.error('[Audit] Exception writing audit log:', err)
+    logger.error('[Audit] Exception writing audit log:', { error: err })
   }
 }
 
