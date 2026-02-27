@@ -1,7 +1,8 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 import { LoginForm } from '@/components/forms/LoginForm'
 import { SignupForm } from '@/components/forms/SignupForm'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,8 +29,15 @@ function FormSkeleton() {
 function AuthContent() {
   const searchParams = useSearchParams()
   const signupParam = searchParams.get('signup')
+  const errorParam = searchParams.get('error')
   // Initialize tab from URL param - use key prop on parent to reset when param changes
   const [activeTab, setActiveTab] = useState(signupParam === 'true' ? 'signup' : 'signin')
+
+  useEffect(() => {
+    if (errorParam) {
+      toast.error('Sign in failed. Please try again.')
+    }
+  }, [errorParam])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
