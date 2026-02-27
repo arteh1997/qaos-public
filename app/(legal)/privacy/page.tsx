@@ -4,8 +4,8 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | RestaurantOS',
-  description: 'Privacy Policy for RestaurantOS restaurant inventory management software.',
+  title: 'Privacy Policy | Qaos',
+  description: 'Privacy Policy for Qaos inventory management software.',
 }
 
 export default function PrivacyPolicyPage() {
@@ -17,9 +17,9 @@ export default function PrivacyPolicyPage() {
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
-                <span className="text-xl font-bold text-primary-foreground">R</span>
+                <span className="text-xl font-bold text-primary-foreground">Q</span>
               </div>
-              <span className="text-xl font-bold text-foreground">RestaurantOS</span>
+              <span className="text-xl font-bold text-foreground">Qaos</span>
             </Link>
             <Button variant="ghost" asChild>
               <Link href="/">
@@ -45,9 +45,9 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">1. Introduction</h2>
               <p className="text-muted-foreground leading-relaxed">
-                RestaurantOS (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting your privacy.
+                Qaos (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting your privacy.
                 This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use
-                our restaurant inventory management service. Please read this policy carefully. By using our Service,
+                our inventory management service. Please read this policy carefully. By using our Service,
                 you consent to the practices described in this Privacy Policy.
               </p>
             </section>
@@ -58,7 +58,7 @@ export default function PrivacyPolicyPage() {
               <h3 className="text-xl font-medium text-foreground mb-3 mt-6">2.1 Information You Provide</h3>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
                 <li><strong>Account Information:</strong> Name, email address, password, and contact details</li>
-                <li><strong>Business Information:</strong> Restaurant name, address, and operational details</li>
+                <li><strong>Business Information:</strong> Business name, address, and operational details</li>
                 <li><strong>Payment Information:</strong> Billing address and payment card details (processed securely via Stripe)</li>
                 <li><strong>Inventory Data:</strong> Stock levels, product information, supplier details</li>
                 <li><strong>Staff Information:</strong> Employee names, roles, schedules, and clock-in/out times</li>
@@ -138,8 +138,8 @@ export default function PrivacyPolicyPage() {
               </ul>
               <p className="text-muted-foreground leading-relaxed mt-4">
                 To exercise these rights, please contact us at{' '}
-                <a href="mailto:privacy@restaurantos.com" className="text-primary hover:underline">
-                  privacy@restaurantos.com
+                <a href="mailto:privacy@qaos.co.uk" className="text-primary hover:underline">
+                  privacy@qaos.co.uk
                 </a>
               </p>
             </section>
@@ -178,8 +178,8 @@ export default function PrivacyPolicyPage() {
                 If you have any questions about this Privacy Policy or our data practices, please contact us at:
               </p>
               <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-                <p className="text-foreground font-medium">RestaurantOS Data Protection</p>
-                <p className="text-muted-foreground">Email: <a href="mailto:privacy@restaurantos.com" className="text-primary hover:underline">privacy@restaurantos.com</a></p>
+                <p className="text-foreground font-medium">Qaos Data Protection</p>
+                <p className="text-muted-foreground">Email: <a href="mailto:privacy@qaos.co.uk" className="text-primary hover:underline">privacy@qaos.co.uk</a></p>
               </div>
             </section>
           </div>
@@ -191,7 +191,7 @@ export default function PrivacyPolicyPage() {
         <div className="container mx-auto px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} RestaurantOS. All rights reserved.
+              &copy; {new Date().getFullYear()} Qaos. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm">
               <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">

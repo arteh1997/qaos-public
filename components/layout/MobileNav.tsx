@@ -295,7 +295,7 @@ export function MobileNav({ role, variant = 'default' }: MobileNavProps) {
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0 flex flex-col bg-sidebar text-sidebar-foreground border-sidebar-border">
         <div className="flex h-14 items-center border-b border-sidebar-border px-6">
-          <SheetTitle className="font-semibold text-lg text-sidebar-foreground">RestaurantOS</SheetTitle>
+          <SheetTitle className="font-semibold text-lg text-sidebar-foreground">Qaos</SheetTitle>
         </div>
 
         {/* Store Selector for multi-store users */}

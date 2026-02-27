@@ -72,12 +72,12 @@ export function PageGuide({ pageKey, className }: PageGuideProps) {
       </TooltipProvider>
 
       <Sheet open={isOpen} onOpenChange={handleOpenChange}>
-        <SheetContent side="right" className="bg-card p-0 gap-0 flex flex-col">
+        <SheetContent side="right" className="bg-card p-0 gap-0 flex flex-col overflow-hidden">
           <SheetHeader className="px-6 pt-6 pb-5 border-b border-border shrink-0">
             <SheetTitle>{guide.title}</SheetTitle>
             <SheetDescription>{guide.overview}</SheetDescription>
           </SheetHeader>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="px-6 py-5 space-y-5">
               {guide.tips.map((tip, index) => (
                 <TipItem key={index} tip={tip} index={index} />

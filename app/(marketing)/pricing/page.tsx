@@ -81,7 +81,7 @@ export default function PricingPage() {
                   Software that pays for itself
                 </h1>
                 <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed">
-                  RestaurantOS isn&apos;t an expense — it&apos;s an investment that saves you
+                  Qaos isn&apos;t an expense — it&apos;s an investment that saves you
                   multiples of its cost every single month.
                 </p>
               </div>
@@ -95,7 +95,7 @@ export default function PricingPage() {
             <ScrollReveal>
               <div className="mx-auto max-w-3xl text-center mb-16">
                 <h2 className="mb-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                  How RestaurantOS saves you money
+                  How Qaos saves you money
                 </h2>
                 <p className="text-muted-foreground leading-relaxed">
                   Estimated savings based on industry waste reduction and time savings
@@ -161,7 +161,7 @@ export default function PricingPage() {
 
                   <div className="text-center mb-10 pt-4">
                     <h3 className="text-2xl font-bold text-foreground mb-3">Professional</h3>
-                    <p className="text-muted-foreground">For serious restaurant operators</p>
+                    <p className="text-muted-foreground">For serious operators</p>
                   </div>
 
                   <div className="text-center mb-10">
@@ -270,7 +270,7 @@ export default function PricingPage() {
                 {[
                   {
                     q: 'How does the free trial work?',
-                    a: `You get full access to all features for 30 days, no credit card required. At the end of your trial, subscribe to keep your data and continue using RestaurantOS.`,
+                    a: `You get full access to all features for 30 days, no credit card required. At the end of your trial, subscribe to keep your data and continue using Qaos.`,
                   },
                   {
                     q: 'What happens to my data if I cancel?',
@@ -312,7 +312,7 @@ export default function PricingPage() {
             <ScrollReveal>
               <div className="mx-auto max-w-3xl text-center">
                 <h2 className="mb-6 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                  Your restaurant deserves better
+                  Your business deserves better
                 </h2>
                 <p className="mb-10 text-lg text-muted-foreground">
                   Start saving thousands every month with better inventory management.

@@ -22,8 +22,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'Restaurant Inventory Management',
-  description: 'Multi-location restaurant inventory management system',
+  title: 'Qaos - Inventory Management',
+  description: 'Multi-location inventory management system',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

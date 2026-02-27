@@ -174,10 +174,10 @@ export default function OnboardingPage() {
     <div className="mx-auto max-w-2xl">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-          Welcome to RestaurantOS
+          Welcome to Qaos
         </h1>
         <p className="text-muted-foreground">
-          Let&apos;s set up your first restaurant location.
+          Let&apos;s set up your first location.
         </p>
       </div>
 
@@ -185,15 +185,15 @@ export default function OnboardingPage() {
         {/* Store Setup Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Your Restaurant</CardTitle>
+            <CardTitle>Your Business</CardTitle>
             <CardDescription>
-              Enter your restaurant details to get started.
+              Enter your business details to get started.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="storeName">Restaurant Name *</Label>
+                <Label htmlFor="storeName">Business Name *</Label>
                 <Input
                   id="storeName"
                   placeholder="e.g., Mario's Kitchen"
@@ -240,7 +240,7 @@ export default function OnboardingPage() {
               <span className="text-2xl font-bold">£299<span className="text-sm font-normal text-muted-foreground">/mo</span></span>
             </CardTitle>
             <CardDescription>
-              Everything you need to run your restaurant efficiently.
+              Everything you need to run your business efficiently.
             </CardDescription>
           </CardHeader>
           <CardContent>

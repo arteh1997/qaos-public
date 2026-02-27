@@ -168,7 +168,7 @@ async function getOrCreatePrice(currency?: string): Promise<string> {
   } else {
     const product = await stripe.products.create({
       name: BILLING_CONFIG.PRODUCT_NAME,
-      description: 'Complete restaurant inventory management solution',
+      description: 'Complete inventory management solution',
     })
     productId = product.id
   }

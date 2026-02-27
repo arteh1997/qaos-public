@@ -29,7 +29,7 @@ export const Navbar = memo(function Navbar({ role }: NavbarProps) {
             href="/"
             className="font-semibold text-lg text-navbar-foreground hover:opacity-80 transition-opacity"
           >
-            RestaurantOS
+            Qaos
           </Link>
         </div>
         <div className="flex items-center gap-1">

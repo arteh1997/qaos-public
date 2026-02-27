@@ -11,12 +11,12 @@ export function Footer() {
           <div className="sm:col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-                <span className="text-lg font-bold text-white">R</span>
+                <span className="text-lg font-bold text-white">Q</span>
               </div>
-              <span className="text-lg font-semibold text-white">RestaurantOS</span>
+              <span className="text-lg font-semibold text-white">Qaos</span>
             </Link>
             <p className="text-sm text-[#8a8279] leading-relaxed max-w-xs">
-              The all-in-one platform for restaurant inventory, team management, and cost control.
+              The all-in-one platform for inventory, team management, and cost control.
             </p>
           </div>
 
@@ -47,7 +47,7 @@ export function Footer() {
             <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Resources</h4>
             <ul className="space-y-3 text-sm">
               <li>
-                <a href="mailto:support@restaurantos.com" className="text-[#8a8279] hover:text-white transition-colors">
+                <a href="mailto:support@qaos.co.uk" className="text-[#8a8279] hover:text-white transition-colors">
                   Help Centre
                 </a>
               </li>
@@ -64,7 +64,7 @@ export function Footer() {
             <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Company</h4>
             <ul className="space-y-3 text-sm">
               <li>
-                <a href="mailto:hello@restaurantos.com" className="text-[#8a8279] hover:text-white transition-colors">
+                <a href="mailto:hello@qaos.co.uk" className="text-[#8a8279] hover:text-white transition-colors">
                   Contact
                 </a>
               </li>
@@ -90,7 +90,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t border-white/10">
           <p className="text-sm text-[#8a8279]">
-            &copy; {currentYear} RestaurantOS. All rights reserved.
+            &copy; {currentYear} Qaos. All rights reserved.
           </p>
         </div>
       </div>

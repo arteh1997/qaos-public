@@ -4,8 +4,8 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export const metadata: Metadata = {
-  title: 'Cookie Policy | RestaurantOS',
-  description: 'Cookie Policy for RestaurantOS restaurant inventory management software.',
+  title: 'Cookie Policy | Qaos',
+  description: 'Cookie Policy for Qaos inventory management software.',
 }
 
 export default function CookiePolicyPage() {
@@ -17,9 +17,9 @@ export default function CookiePolicyPage() {
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
-                <span className="text-xl font-bold text-primary-foreground">R</span>
+                <span className="text-xl font-bold text-primary-foreground">Q</span>
               </div>
-              <span className="text-xl font-bold text-foreground">RestaurantOS</span>
+              <span className="text-xl font-bold text-foreground">Qaos</span>
             </Link>
             <Button variant="ghost" asChild>
               <Link href="/">
@@ -55,7 +55,7 @@ export default function CookiePolicyPage() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">2. How We Use Cookies</h2>
               <p className="text-muted-foreground leading-relaxed mb-4">
-                RestaurantOS uses cookies for the following purposes:
+                Qaos uses cookies for the following purposes:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
                 <li><strong>Authentication:</strong> To keep you signed in and secure your session</li>
@@ -197,8 +197,8 @@ export default function CookiePolicyPage() {
               <h2 className="text-2xl font-semibold text-foreground mb-4">7. Contact Us</h2>
               <p className="text-muted-foreground leading-relaxed">
                 If you have any questions about our use of cookies, please contact us at:{' '}
-                <a href="mailto:privacy@restaurantos.com" className="text-primary hover:underline">
-                  privacy@restaurantos.com
+                <a href="mailto:privacy@qaos.co.uk" className="text-primary hover:underline">
+                  privacy@qaos.co.uk
                 </a>
               </p>
             </section>
@@ -211,7 +211,7 @@ export default function CookiePolicyPage() {
         <div className="container mx-auto px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} RestaurantOS. All rights reserved.
+              &copy; {new Date().getFullYear()} Qaos. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm">
               <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">

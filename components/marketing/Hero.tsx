@@ -20,20 +20,29 @@ export function Hero() {
 
       <div className="container mx-auto px-6 lg:px-8">
         {/* Centred copy */}
-        <div className="mx-auto max-w-3xl text-center pb-12 lg:pb-16">
-          {/* Headline — staggered word animation */}
-          <h1 className="mb-8 text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl xl:text-[4.25rem] leading-[1.08]">
-            <span className="inline-block animate-fade-in-up stagger-1">Stop losing money</span>
-            <br />
-            <span className="inline-block animate-fade-in-up stagger-2">on</span>{' '}
-            <span className="inline-block animate-fade-in-up stagger-3 text-gradient">inventory chaos</span>
+        <div className="mx-auto max-w-4xl text-center pb-12 lg:pb-16">
+          {/*
+            One headline, one statement. The colors tell the story:
+            - "chaos"  = #b58a3a (warm gold — the problem)
+            - "quiet"  = #2d7a4f (calm green — the solution)
+            - "Qaos"   = Q(#2d7a4f) + aos(#b58a3a) — the brand is the fusion
+          */}
+          <h1 className="mb-8 text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl xl:text-7xl leading-[1.12] animate-fade-in-up">
+            Make the{' '}
+            <span className="text-[#b58a3a]">chaos</span>{' '}
+            in your business{' '}
+            <span className="text-[#2d7a4f]">quiet</span>{' '}
+            with{' '}
+            <span className="whitespace-nowrap">
+              <span className="text-[#2d7a4f]">Q</span>
+              <span className="text-[#b58a3a]">aos</span>
+            </span>.
           </h1>
 
-          {/* Subheadline */}
+          {/* Subheadline — generic, whole-operation */}
           <p className="mb-10 mx-auto max-w-xl text-lg text-muted-foreground lg:text-xl leading-relaxed animate-fade-in-up stagger-4">
-            Finally, restaurant management software that actually works.
-            Track inventory, manage shifts, and control costs across all your locations{' '}
-            <strong className="text-foreground font-medium">from one powerful dashboard.</strong>
+            One platform for your entire operation. Inventory, team, suppliers, and costs{' '}
+            <strong className="text-foreground font-medium">all from one powerful dashboard.</strong>
           </p>
 
           {/* CTA Buttons */}
@@ -81,7 +90,7 @@ export function Hero() {
           <div className="relative mx-auto">
             <Image
               src="/images/dashboard-screenshot.png"
-              alt="RestaurantOS Dashboard — inventory tracking, stock alerts, and daily checklists"
+              alt="Qaos Dashboard — inventory tracking, stock alerts, and daily checklists"
               width={5120}
               height={2880}
               priority

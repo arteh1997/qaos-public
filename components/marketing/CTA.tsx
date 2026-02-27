@@ -21,10 +21,10 @@ export function CTA() {
             <div className="absolute inset-0 dot-grid opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #faf8f5 1px, transparent 1px)' }} />
 
             <h2 className="mb-6 text-3xl font-bold tracking-tight text-[#faf8f5] sm:text-4xl lg:text-5xl xl:text-6xl leading-tight">
-              Your restaurant deserves better
+              Your business deserves better
             </h2>
             <p className="mx-auto mb-12 max-w-2xl text-lg lg:text-xl text-[#faf8f5]/70 leading-relaxed">
-              Join restaurant operators who&apos;ve stopped losing money to inventory chaos.
+              Join operators who&apos;ve stopped losing money to inventory chaos.
               Start your free trial today — no credit card required.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">

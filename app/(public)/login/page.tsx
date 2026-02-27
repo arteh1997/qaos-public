@@ -45,9 +45,9 @@ function AuthContent() {
         {/* Logo */}
         <Link href="/" className="flex items-center justify-center gap-2 mb-8">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <span className="text-xl font-bold text-primary-foreground">R</span>
+            <span className="text-xl font-bold text-primary-foreground">Q</span>
           </div>
-          <span className="text-2xl font-bold text-foreground">RestaurantOS</span>
+          <span className="text-2xl font-bold text-foreground">Qaos</span>
         </Link>
 
         <Card>
@@ -57,7 +57,7 @@ function AuthContent() {
             </CardTitle>
             <CardDescription>
               {activeTab === 'signin'
-                ? 'Sign in to manage your restaurant'
+                ? 'Sign in to manage your business'
                 : 'Create your account to start your free trial'}
             </CardDescription>
           </CardHeader>

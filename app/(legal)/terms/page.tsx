@@ -4,8 +4,8 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | RestaurantOS',
-  description: 'Terms of Service for RestaurantOS restaurant inventory management software.',
+  title: 'Terms of Service | Qaos',
+  description: 'Terms of Service for Qaos inventory management software.',
 }
 
 export default function TermsOfServicePage() {
@@ -17,9 +17,9 @@ export default function TermsOfServicePage() {
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
-                <span className="text-xl font-bold text-primary-foreground">R</span>
+                <span className="text-xl font-bold text-primary-foreground">Q</span>
               </div>
-              <span className="text-xl font-bold text-foreground">RestaurantOS</span>
+              <span className="text-xl font-bold text-foreground">Qaos</span>
             </Link>
             <Button variant="ghost" asChild>
               <Link href="/">
@@ -45,7 +45,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">1. Agreement to Terms</h2>
               <p className="text-muted-foreground leading-relaxed">
-                By accessing or using RestaurantOS (&quot;the Service&quot;), you agree to be bound by these Terms of Service.
+                By accessing or using Qaos (&quot;the Service&quot;), you agree to be bound by these Terms of Service.
                 If you do not agree to these terms, you may not access or use the Service. These terms apply to all
                 visitors, users, and others who access or use the Service.
               </p>
@@ -54,7 +54,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">2. Description of Service</h2>
               <p className="text-muted-foreground leading-relaxed">
-                RestaurantOS provides a cloud-based restaurant inventory management platform that enables users to
+                Qaos provides a cloud-based inventory management platform that enables users to
                 track inventory, manage shifts, generate reports, and oversee multi-location operations. The Service
                 is provided on a subscription basis.
               </p>
@@ -137,7 +137,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">9. Limitation of Liability</h2>
               <p className="text-muted-foreground leading-relaxed">
-                To the maximum extent permitted by law, RestaurantOS shall not be liable for any indirect, incidental,
+                To the maximum extent permitted by law, Qaos shall not be liable for any indirect, incidental,
                 special, consequential, or punitive damages, including but not limited to loss of profits, data, or
                 business opportunities. Our total liability shall not exceed the amount you paid for the Service in
                 the twelve months preceding the claim.
@@ -147,7 +147,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground mb-4">10. Indemnification</h2>
               <p className="text-muted-foreground leading-relaxed">
-                You agree to indemnify and hold harmless RestaurantOS, its officers, directors, employees, and agents
+                You agree to indemnify and hold harmless Qaos, its officers, directors, employees, and agents
                 from any claims, damages, losses, or expenses arising from your use of the Service or violation of
                 these Terms.
               </p>
@@ -175,8 +175,8 @@ export default function TermsOfServicePage() {
               <h2 className="text-2xl font-semibold text-foreground mb-4">13. Contact Us</h2>
               <p className="text-muted-foreground leading-relaxed">
                 If you have any questions about these Terms of Service, please contact us at:{' '}
-                <a href="mailto:legal@restaurantos.com" className="text-primary hover:underline">
-                  legal@restaurantos.com
+                <a href="mailto:legal@qaos.co.uk" className="text-primary hover:underline">
+                  legal@qaos.co.uk
                 </a>
               </p>
             </section>
@@ -189,7 +189,7 @@ export default function TermsOfServicePage() {
         <div className="container mx-auto px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} RestaurantOS. All rights reserved.
+              &copy; {new Date().getFullYear()} Qaos. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-sm">
               <Link href="/terms" className="text-primary font-medium">

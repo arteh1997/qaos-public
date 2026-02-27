@@ -87,9 +87,9 @@ export function DashboardMockup({ className = '', compact = false }: DashboardMo
       <div className="flex items-center justify-between bg-[#1f1d1a] px-3 py-2">
         <div className="flex items-center gap-2">
           <div className="h-5 w-5 rounded-md bg-primary flex items-center justify-center">
-            <span className="text-[9px] font-bold text-primary-foreground">R</span>
+            <span className="text-[9px] font-bold text-primary-foreground">Q</span>
           </div>
-          <span className="text-[11px] font-semibold text-white/90">RestaurantOS</span>
+          <span className="text-[11px] font-semibold text-white/90">Qaos</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-1 rounded-md bg-white/5 px-2 py-1">
@@ -114,7 +114,7 @@ export function DashboardMockup({ className = '', compact = false }: DashboardMo
             <div className="h-4 w-4 rounded bg-primary/10 flex items-center justify-center">
               <span className="text-[7px] font-bold text-primary">M</span>
             </div>
-            <span className="text-[9px] font-medium text-[#2d2a26] truncate">My Restaurant</span>
+            <span className="text-[9px] font-medium text-[#2d2a26] truncate">My Business</span>
           </div>
 
           {/* Nav items */}

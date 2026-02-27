@@ -12,7 +12,7 @@ export function PainPoints() {
               We know what you&apos;re dealing with
             </h2>
             <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed">
-              Running a restaurant is hard enough. Your software shouldn&apos;t make it harder.
+              Running a business is hard enough. Your software shouldn&apos;t make it harder.
             </p>
           </div>
         </ScrollReveal>
@@ -39,7 +39,7 @@ export function PainPoints() {
                 <div className="text-sm font-medium text-foreground mb-4">Monthly Waste Reduction</div>
                 <div className="space-y-3">
                   {[
-                    { label: 'Before RestaurantOS', value: 82, color: 'bg-destructive/70' },
+                    { label: 'Before Qaos', value: 82, color: 'bg-destructive/70' },
                     { label: 'After 1 month', value: 55, color: 'bg-[#b58a3a]' },
                     { label: 'After 3 months', value: 28, color: 'bg-[#2d7a4f]' },
                   ].map((bar, i) => (
@@ -74,7 +74,7 @@ export function PainPoints() {
               <div className="order-2 lg:order-1 rounded-2xl border border-border/60 bg-card p-6 shadow-card">
                 <div className="grid grid-cols-2 gap-3">
                   {/* Before: messy spreadsheet look */}
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 min-w-0">
                     <div className="text-[10px] font-medium text-destructive mb-2 uppercase tracking-wider">Before</div>
                     <div className="space-y-1">
                       {[1, 2, 3, 4, 5].map(r => (
@@ -85,10 +85,10 @@ export function PainPoints() {
                         </div>
                       ))}
                     </div>
-                    <div className="mt-2 text-[9px] text-destructive/60">spreadsheet_v3_FINAL_v2.xlsx</div>
+                    <div className="mt-2 text-[9px] text-destructive/60 truncate">spreadsheet_v3_FINAL_v2.xlsx</div>
                   </div>
                   {/* After: clean dashboard */}
-                  <div className="rounded-lg border border-[#2d7a4f]/20 bg-[#2d7a4f]/5 p-3">
+                  <div className="rounded-lg border border-[#2d7a4f]/20 bg-[#2d7a4f]/5 p-3 min-w-0">
                     <div className="text-[10px] font-medium text-[#2d7a4f] mb-2 uppercase tracking-wider">After</div>
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5">

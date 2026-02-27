@@ -5,7 +5,7 @@ import { ScrollReveal } from './ScrollReveal'
 const faqs = [
   {
     q: 'How does the free trial work?',
-    a: 'You get full access to every feature for 30 days, no credit card required. If you decide RestaurantOS is right for you, subscribe to keep your data and continue using it. If not, no charge.',
+    a: 'You get full access to every feature for 30 days, no credit card required. If you decide Qaos is right for you, subscribe to keep your data and continue using it. If not, no charge.',
   },
   {
     q: 'Can I cancel anytime?',
@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: 'How quickly can my team get started?',
-    a: 'Most restaurants are up and running in under 15 minutes. Import your inventory via CSV, invite your team, and you\'re live. No training needed — if your staff can use a phone, they can use RestaurantOS.',
+    a: 'Most teams are up and running in under 15 minutes. Import your inventory via CSV, invite your team, and you\'re live. No training needed — if your staff can use a phone, they can use Qaos.',
   },
   {
     q: 'Is my data secure?',

@@ -105,7 +105,7 @@ function PaymentForm({
         throw new Error(data.message || 'Failed to create subscription')
       }
 
-      toast.success(`🎉 Trial started! Welcome to RestaurantOS.`)
+      toast.success(`Trial started! Welcome to Qaos.`)
       onSuccess()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -267,7 +267,7 @@ export default function SubscribePage({ params }: PageProps) {
             Start Managing <span className="text-blue-600">{store?.store?.name}</span>
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
-            Join hundreds of restaurants saving time and reducing waste with smart inventory management
+            Join hundreds of teams saving time and reducing waste with smart inventory management
           </p>
         </div>
 

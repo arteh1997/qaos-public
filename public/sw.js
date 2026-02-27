@@ -132,7 +132,7 @@ self.addEventListener('push', (event) => {
     };
 
     event.waitUntil(
-      self.registration.showNotification(data.title || 'RestaurantOS', options)
+      self.registration.showNotification(data.title || 'Qaos', options)
     );
   } catch {
     // Invalid push data

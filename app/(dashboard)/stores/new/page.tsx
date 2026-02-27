@@ -181,7 +181,7 @@ export default function NewStorePage() {
         </h1>
         <p className="text-sm text-muted-foreground">
           {isFirstStore
-            ? 'Get started by setting up billing and creating your restaurant.'
+            ? 'Get started by setting up billing and creating your first location.'
             : `You currently manage ${currentStoreCount} location${currentStoreCount !== 1 ? 's' : ''}. Add another to keep growing.`
           }
         </p>
@@ -299,7 +299,7 @@ export default function NewStorePage() {
             <CardContent className="pt-6 space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="storeName" className="text-sm font-medium">
-                  Restaurant Name
+                  Location Name
                 </Label>
                 <Input
                   id="storeName"

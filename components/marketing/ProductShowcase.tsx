@@ -41,7 +41,7 @@ export function ProductShowcase() {
               See it in action
             </h2>
             <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed">
-              One dashboard to run your entire restaurant operation.
+              One dashboard to run your entire operation.
               Here&apos;s what your team sees every day.
             </p>
           </div>
@@ -65,7 +65,7 @@ export function ProductShowcase() {
               <div className="relative">
                 <Image
                   src="/images/dashboard-screenshot.png"
-                  alt="RestaurantOS Dashboard"
+                  alt="Qaos Dashboard"
                   width={1920}
                   height={1080}
                   unoptimized
@@ -93,7 +93,7 @@ export function ProductShowcase() {
               <div className="relative">
                 <Image
                   src="/images/dashboard-screenshot.png"
-                  alt="RestaurantOS Dashboard"
+                  alt="Qaos Dashboard"
                   width={1920}
                   height={1080}
                   unoptimized
