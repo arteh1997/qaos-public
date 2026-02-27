@@ -187,8 +187,8 @@ export async function rateLimit(
 
 // Preset rate limit configurations
 export const RATE_LIMITS = {
-  // General API endpoints
-  api: { limit: 100, windowMs: 60 * 1000 }, // 100 requests per minute
+  // General API endpoints (dashboard pages fire 3-5 parallel queries per navigation)
+  api: { limit: 200, windowMs: 60 * 1000 }, // 200 requests per minute
 
   // Authentication endpoints (more restrictive)
   auth: { limit: 10, windowMs: 60 * 1000 }, // 10 requests per minute

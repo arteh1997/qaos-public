@@ -41,9 +41,15 @@ export function QueryProvider({ children }: { children: ReactNode }) {
             // Refetch on reconnect: Re-fetch when network connection is restored
             refetchOnReconnect: true,
 
-            // Retry failed requests: 3 attempts with exponential backoff
-            // Reduces impact of temporary network issues
-            retry: 3,
+            // Retry failed requests with exponential backoff
+            // Never retry rate limits (429) or auth errors — only transient failures
+            retry: (failureCount, error) => {
+              if (failureCount >= 3) return false
+              const msg = (error as Error)?.message || ''
+              if (msg.includes('429') || msg.includes('Too Many Requests')) return false
+              if (msg.includes('401') || msg.includes('403')) return false
+              return true
+            },
             retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
 
             // Network mode: 'online' | 'always' | 'offlineFirst'
