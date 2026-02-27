@@ -38,36 +38,63 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiForbidden('You do not have access to this store', context.requestId)
     }
 
-    // Build query
+    // Low stock: use server-side RPC for accurate pagination
+    if (lowStock) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rpcData, error: rpcError } = await (context.supabase as any)
+        .rpc('get_low_stock_inventory', {
+          p_store_id: storeId,
+          p_category: category || null,
+          p_limit: pageSize,
+          p_offset: from,
+        })
+
+      if (rpcError) throw rpcError
+
+      const rows = rpcData ?? []
+      const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0
+
+      // Transform RPC rows to match expected inventory shape
+      const inventory = rows.map((row: Record<string, unknown>) => ({
+        store_id: row.store_id,
+        inventory_item_id: row.inventory_item_id,
+        quantity: row.quantity,
+        par_level: row.par_level,
+        last_updated_at: row.last_updated_at,
+        last_updated_by: row.last_updated_by,
+        inventory_item: {
+          id: row.item_id,
+          name: row.item_name,
+          category: row.item_category,
+          unit_of_measure: row.item_unit_of_measure,
+          sku: row.item_sku,
+        },
+      }))
+
+      return apiSuccess(inventory, {
+        requestId: context.requestId,
+        pagination: createPaginationMeta(page, pageSize, totalCount),
+      })
+    }
+
+    // Standard query: all inventory items (explicit columns to avoid over-fetching)
     let query = context.supabase
       .from('store_inventory')
       .select(`
-        *,
-        inventory_item:inventory_items(*)
+        id, store_id, inventory_item_id, quantity, par_level, unit_cost, cost_currency, last_updated_at, last_updated_by,
+        inventory_item:inventory_items(id, name, category, category_id, unit_of_measure, is_active)
       `, { count: 'exact' })
       .eq('store_id', storeId)
 
-    // Filter by category
     if (category) {
       query = query.eq('inventory_item.category', category)
-    }
-
-    // Filter low stock items
-    if (lowStock) {
-      query = query.not('par_level', 'is', null)
     }
 
     const { data, error, count } = await query.range(from, to)
 
     if (error) throw error
 
-    // Post-filter for low stock (since we need to compare quantity to par_level)
-    let inventory = data as StoreInventory[]
-    if (lowStock) {
-      inventory = inventory.filter(item =>
-        item.par_level !== null && item.quantity < item.par_level
-      )
-    }
+    const inventory = data as StoreInventory[]
 
     return apiSuccess(inventory, {
       requestId: context.requestId,

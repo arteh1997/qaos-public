@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useWasteTracking } from '@/hooks/useWasteTracking'
 import { useStoreInventory } from '@/hooks/useStoreInventory'

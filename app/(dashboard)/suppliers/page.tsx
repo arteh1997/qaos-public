@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { Suspense, useEffect, useState, useCallback, useMemo } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { usePurchaseOrders, usePurchaseOrderDetail } from '@/hooks/usePurchaseOrders'

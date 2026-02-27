@@ -57,6 +57,8 @@ export function usePosConnections(storeId: string | null) {
     queryKey: ['pos-connections', storeId],
     queryFn: fetchConnections,
     enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 
@@ -97,6 +99,8 @@ export function usePosItemMappings(storeId: string | null, connectionId: string 
     queryKey: ['pos-mappings', storeId, connectionId],
     queryFn: fetchMappings,
     enabled: !!storeId && !!connectionId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 
@@ -115,5 +119,7 @@ export function usePosSaleEvents(storeId: string | null, connectionId?: string |
     queryKey: ['pos-events', storeId, connectionId],
     queryFn: fetchEvents,
     enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }

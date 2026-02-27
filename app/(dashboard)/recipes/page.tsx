@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useCSRF } from '@/hooks/useCSRF'
 import { useRecipes, useRecipeDetail } from '@/hooks/useRecipes'

@@ -94,7 +94,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get current inventory levels
-    const currentInventoryMap = await getCurrentInventoryMap(context.supabase, storeId)
+    const currentInventoryMap = await getCurrentInventoryMap(context.supabase, storeId, itemIds)
 
     const now = new Date().toISOString()
     const sanitizedNotes = sanitizeNotes(notes)

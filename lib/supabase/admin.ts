@@ -2,11 +2,22 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 import { clientEnv, getServerEnv } from '@/lib/env'
 
-// Cached singleton — safe because admin client uses static credentials
+/** Cached singleton — safe because the service role key is static per deployment. */
 let cachedAdminClient: SupabaseClient<Database> | null = null
 
-// Admin client with service role key - bypasses RLS
-// Use this ONLY for admin operations like creating users, etc.
+/**
+ * Create (or return cached) Supabase admin client that bypasses Row-Level Security.
+ *
+ * Uses the `SUPABASE_SERVICE_ROLE_KEY` — this key has full database access.
+ * **Only use after `withApiAuth` has verified the caller's identity and permissions.**
+ *
+ * The client is cached as a module-level singleton because the service role key
+ * never changes at runtime, and re-creating the client per request adds overhead
+ * on the hot path (every authenticated API call that needs admin access).
+ *
+ * Auth options disable token refresh and session persistence since the service
+ * role key doesn't represent a user session.
+ */
 export function createAdminClient() {
   if (!cachedAdminClient) {
     const serverEnv = getServerEnv()

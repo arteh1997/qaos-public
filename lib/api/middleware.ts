@@ -59,6 +59,33 @@ export interface ApiMiddlewareOptions {
 }
 
 /**
+ * Extract store ID from query params or URL path.
+ * Checks query params first, then falls back to the /api/stores/[storeId] path pattern.
+ */
+function extractStoreId(request: NextRequest): string | null {
+  return (
+    request.nextUrl.searchParams.get('store_id') ||
+    request.nextUrl.searchParams.get('storeId') ||
+    request.nextUrl.pathname.match(/\/api\/stores\/([^/]+)/)?.[1] ||
+    null
+  )
+}
+
+/**
+ * Check if a store's subscription status allows access.
+ * Returns true (allow) if no store context, no subscription data, or status is active/trialing.
+ */
+function checkSubscriptionStatus(
+  storeId: string | null,
+  stores: StoreUserWithStore[]
+): boolean {
+  if (!storeId) return true
+  const targetStore = stores.find(s => s.store_id === storeId)
+  if (!targetStore?.store?.subscription_status) return true
+  return ['active', 'trialing'].includes(targetStore.store.subscription_status)
+}
+
+/**
  * Authenticate and authorize an API request
  * Returns the auth context if successful, or an error response
  */
@@ -128,18 +155,25 @@ export async function withApiAuth(
     }
   }
 
+  // Local types for the specific columns we select (avoids dependency on generated types)
+  interface ProfileRow {
+    role: string | null
+    store_id: string | null
+    is_platform_admin: boolean
+    default_store_id: string | null
+    full_name: string | null
+  }
+
   // Fetch profile and store memberships in parallel
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabaseAny = supabase as any
   const [profileResult, storesResult] = await Promise.all([
-    supabaseAny
+    supabase
       .from('profiles')
       .select('role, store_id, is_platform_admin, default_store_id, full_name')
       .eq('id', user.id)
-      .single(),
-    supabaseAny
+      .single<ProfileRow>(),
+    supabase
       .from('store_users')
-      .select('*, store:stores(id, name, is_active, subscription_status, opening_time, closing_time, created_at, updated_at)')
+      .select('id, store_id, user_id, role, is_billing_owner, store:stores(id, name, is_active, subscription_status)')
       .eq('user_id', user.id),
   ])
 
@@ -149,8 +183,8 @@ export async function withApiAuth(
   }
 
   // Filter out any memberships without valid store data
-  const stores: StoreUserWithStore[] = (storesResult.data || []).filter(
-    (s: StoreUserWithStore) => s.store !== null && s.store !== undefined
+  const stores = ((storesResult.data || []) as StoreUserWithStore[]).filter(
+    (s) => s.store !== null && s.store !== undefined
   )
 
   // Check platform admin requirement
@@ -183,7 +217,8 @@ export async function withApiAuth(
 
   // Check role at specific store if required
   if (requireRoleAtStore && requireRoleAtStore.length > 0) {
-    const storeId = request.nextUrl.searchParams.get('store_id')
+    // Check query params first, then extract from URL path
+    const storeId = extractStoreId(request)
     if (storeId) {
       const roleAtStore = getRoleAtStore(stores, storeId)
       if (!roleAtStore || !requireRoleAtStore.includes(roleAtStore)) {
@@ -202,41 +237,14 @@ export async function withApiAuth(
 
   // Check subscription status if required
   if (requireActiveSubscription && !profile.is_platform_admin) {
-    // Try to get store_id from query params or request body
-    let targetStoreId = request.nextUrl.searchParams.get('store_id') || request.nextUrl.searchParams.get('storeId')
-
-    // If not in query params, try to parse from body for POST/PUT/PATCH
-    if (!targetStoreId) {
-      const method = request.method.toUpperCase()
-      if (['POST', 'PUT', 'PATCH'].includes(method)) {
-        try {
-          const bodyClone = request.clone()
-          const body = await bodyClone.json()
-          targetStoreId = body.store_id || body.storeId
-        } catch {
-          // Body parsing failed, continue without store_id
-        }
-      }
-    }
-
-    // If we have a store_id, check its subscription status
-    if (targetStoreId) {
-      const targetStore = stores.find(s => s.store_id === targetStoreId)
-
-      if (targetStore?.store) {
-        const subscriptionStatus = targetStore.store.subscription_status
-
-        // Allow access if subscription is active or in trial
-        const allowedStatuses = ['active', 'trialing']
-        if (subscriptionStatus && !allowedStatuses.includes(subscriptionStatus)) {
-          return {
-            success: false,
-            response: apiForbidden(
-              'This store\'s subscription has expired. Please renew to continue.',
-              requestId
-            ),
-          }
-        }
+    const targetStoreId = extractStoreId(request)
+    if (!checkSubscriptionStatus(targetStoreId, stores)) {
+      return {
+        success: false,
+        response: apiForbidden(
+          "This store's subscription has expired. Please renew to continue.",
+          requestId
+        ),
       }
     }
   }

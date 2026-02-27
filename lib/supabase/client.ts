@@ -7,9 +7,15 @@ import { clientEnv } from '@/lib/env'
 const SUPABASE_URL = clientEnv.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// For auth operations only - use the SSR client
+/** Singleton browser client — safe to cache because credentials are static. */
 let authClient: ReturnType<typeof createBrowserClient<Database>> | null = null
 
+/**
+ * Create (or return cached) Supabase browser client for client components.
+ *
+ * Uses the public anon key. All queries respect RLS via the user's JWT.
+ * Cached as a singleton to avoid re-creating the client on every render.
+ */
 export function createClient() {
   if (!authClient) {
     authClient = createBrowserClient<Database>(SUPABASE_URL, SUPABASE_KEY)
@@ -27,7 +33,11 @@ interface JWTPayload {
   role?: string
 }
 
-// Helper to decode JWT without verification (we trust Supabase signed it)
+/**
+ * Decode a JWT without signature verification.
+ * Safe here because the token comes from Supabase-signed cookies — we trust the origin.
+ * Used by `getUserFromCookies` for the fast-path auth check that avoids a network call.
+ */
 function decodeJWT(token: string): JWTPayload | null {
   try {
     const parts = token.split('.')
@@ -47,7 +57,15 @@ function decodeJWT(token: string): JWTPayload | null {
   }
 }
 
-// Get user info directly from the JWT in cookies - completely bypasses Supabase client
+/**
+ * Extract user info directly from the JWT stored in Supabase auth cookies.
+ *
+ * Bypasses the Supabase client entirely to avoid async `getSession()` calls
+ * that can hang or race during SSR hydration. Used by AuthProvider's fast path
+ * to show the UI immediately while the full session loads in the background.
+ *
+ * Returns null if no valid, non-expired token is found.
+ */
 export function getUserFromCookies(): { id: string; email?: string } | null {
   const token = getAccessTokenFromCookies()
   if (token === SUPABASE_KEY) {
@@ -71,8 +89,17 @@ export function getUserFromCookies(): { id: string; email?: string } | null {
   }
 }
 
-// Helper to get the current user's access token directly from cookies
-// This completely bypasses the Supabase client to avoid hanging issues
+/**
+ * Read the Supabase access token directly from document.cookie.
+ *
+ * Handles multiple cookie formats used by Supabase SSR:
+ * - Single cookie: `sb-<ref>-auth-token`
+ * - Chunked cookies: `sb-<ref>-auth-token.0`, `.1`, `.2`, ...
+ * - Encoding: raw JSON, `base64-` prefixed, or direct JWT
+ * - Value format: array `[access_token, refresh_token]` or object `{ access_token }`
+ *
+ * Returns the anon key as fallback (lets PostgREST work without auth).
+ */
 function getAccessTokenFromCookies(): string {
   if (typeof document === 'undefined') return SUPABASE_KEY
 
@@ -189,6 +216,13 @@ interface QueryOptions {
   count?: boolean
 }
 
+/**
+ * Query a Supabase table via PostgREST REST API using the user's JWT from cookies.
+ *
+ * Bypasses the Supabase JS client to avoid SSR hydration issues in client components.
+ * Supports select, ordering, filtering, pagination (range), and exact count.
+ * All queries respect RLS because the user's access token is sent as the Bearer header.
+ */
 export async function supabaseFetch<T>(
   table: string,
   options: QueryOptions = {}
@@ -254,6 +288,7 @@ export async function supabaseFetch<T>(
   }
 }
 
+/** Insert a single row via PostgREST. Returns the created row. */
 export async function supabaseInsert<T>(
   table: string,
   data: Record<string, unknown>
@@ -283,6 +318,7 @@ export async function supabaseInsert<T>(
   }
 }
 
+/** Update a row by `id` via PostgREST PATCH. Returns the updated row. */
 export async function supabaseUpdate<T>(
   table: string,
   id: string,
@@ -313,6 +349,7 @@ export async function supabaseUpdate<T>(
   }
 }
 
+/** Delete a row by `id` via PostgREST DELETE. */
 export async function supabaseDelete(
   table: string,
   id: string
@@ -338,6 +375,7 @@ export async function supabaseDelete(
   }
 }
 
+/** Upsert one or more rows via PostgREST with `resolution=merge-duplicates`. */
 export async function supabaseUpsert<T>(
   table: string,
   data: Record<string, unknown> | Record<string, unknown>[],
@@ -368,6 +406,7 @@ export async function supabaseUpsert<T>(
   }
 }
 
+/** Insert multiple rows via PostgREST. Returns all created rows. */
 export async function supabaseInsertMany<T>(
   table: string,
   data: Record<string, unknown>[]

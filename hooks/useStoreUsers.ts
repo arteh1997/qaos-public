@@ -48,6 +48,7 @@ export function useStoreUsersQuery(storeId: string | null) {
     enabled: !!storeId,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 }
 

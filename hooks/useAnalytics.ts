@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 export interface AnalyticsData {
   period: { start: string; end: string; days: number }
@@ -13,20 +13,9 @@ export interface AnalyticsData {
 }
 
 export function useAnalytics(storeId: string | null, days: number = 30) {
-  const [data, setData] = useState<AnalyticsData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
-  const fetchAnalytics = useCallback(async () => {
-    if (!storeId) {
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
+  const query = useQuery({
+    queryKey: ['analytics', storeId, days],
+    queryFn: async () => {
       const response = await fetch(`/api/reports/analytics?store_id=${storeId}&days=${days}`)
       const json = await response.json()
 
@@ -34,17 +23,17 @@ export function useAnalytics(storeId: string | null, days: number = 30) {
         throw new Error(json.message || 'Failed to fetch analytics')
       }
 
-      setData(json.data)
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch analytics'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [storeId, days])
+      return json.data as AnalyticsData
+    },
+    enabled: !!storeId,
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
+  })
 
-  useEffect(() => {
-    fetchAnalytics()
-  }, [fetchAnalytics])
-
-  return { data, isLoading, error, refetch: fetchAnalytics }
+  return {
+    data: query.data ?? null,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  }
 }

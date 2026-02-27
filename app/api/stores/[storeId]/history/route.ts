@@ -39,12 +39,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiForbidden('You do not have access to this store', context.requestId)
     }
 
-    // Build query
+    // Build query (explicit columns to avoid over-fetching)
     let query = context.supabase
       .from('stock_history')
       .select(`
-        *,
-        inventory_item:inventory_items(*),
+        id, store_id, inventory_item_id, action_type, quantity_before, quantity_after, quantity_change, performed_by, notes, created_at,
+        inventory_item:inventory_items(id, name, category, unit_of_measure),
         performer:profiles(id, full_name, email)
       `, { count: 'exact' })
       .eq('store_id', storeId)

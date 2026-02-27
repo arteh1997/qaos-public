@@ -40,6 +40,8 @@ export function useTags(storeId: string) {
       return data.data.tags as Tag[]
     },
     enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 

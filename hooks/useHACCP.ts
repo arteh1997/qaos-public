@@ -119,6 +119,7 @@ export function useHACCPTemplates(storeId: string | null) {
     },
     enabled: !!storeId,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 
@@ -139,6 +140,7 @@ export function useHACCPChecks(storeId: string | null, params?: HACCPChecksParam
     },
     enabled: !!storeId,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 
@@ -160,6 +162,7 @@ export function useHACCPTemperatureLogs(storeId: string | null, params?: HACCPTe
     },
     enabled: !!storeId,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 
@@ -178,6 +181,7 @@ export function useHACCPCorrectiveActions(storeId: string | null, params?: HACCP
     },
     enabled: !!storeId,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 
@@ -193,6 +197,7 @@ export function useHACCPDashboard(storeId: string | null) {
     },
     enabled: !!storeId,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 

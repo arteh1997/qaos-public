@@ -93,7 +93,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get current inventory levels
-    const currentInventoryMap = await getCurrentInventoryMap(context.supabase, storeId)
+    const currentInventoryMap = await getCurrentInventoryMap(context.supabase, storeId, itemIds)
 
     // Prepare operation data
     const now = new Date().toISOString()

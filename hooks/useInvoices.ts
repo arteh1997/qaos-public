@@ -50,6 +50,7 @@ export function useInvoices({ storeId, status, supplierId, page = 1, pageSize = 
     queryFn: () => fetchJSON<InvoiceListResponse>(`/api/stores/${storeId}/invoices?${params}`),
     enabled: !!storeId,
     staleTime: 15_000,
+    gcTime: 5 * 60 * 1000,
   })
 
   return {
@@ -69,6 +70,7 @@ export function useInvoiceDetail(storeId: string | undefined, invoiceId: string 
     ).then(res => res.data),
     enabled: !!storeId && !!invoiceId,
     staleTime: 10_000,
+    gcTime: 5 * 60 * 1000,
   })
 
   return {

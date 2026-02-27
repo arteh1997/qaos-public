@@ -7,7 +7,7 @@
  * and getSession() for reliable auth state management.
  */
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, ReactNode } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient, supabaseFetch } from '@/lib/supabase/client'
 import { Profile, AppRole, StoreUserWithStore } from '@/types'
@@ -64,14 +64,12 @@ const emptyState: AuthState = {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  debugLog('AuthProvider', '[AuthProvider] RENDER - component is rendering')
-
   const [authState, setAuthState] = useState<AuthState>({
     ...emptyState,
     isLoading: true,
   })
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Race condition prevention: Track latest request ID
   const latestRequestIdRef = useRef(0)
@@ -108,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileResult.error) {
         console.error('[AuthProvider] Profile fetch error:', profileResult.error)
-        return { data: { ...emptyState, user: user as User }, requestId }
+        return { data: emptyState, requestId }
       }
 
       const profile = profileResult.data?.[0] || null
@@ -117,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
 
       if (!profile) {
-        return { data: { ...emptyState, user: user as User }, requestId }
+        return { data: emptyState, requestId }
       }
 
       // Determine current store
@@ -155,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('[AuthProvider] Error fetching user data:', error)
-      return { data: { ...emptyState, user: user as User }, requestId }
+      return { data: emptyState, requestId }
     }
   }, [])
 
@@ -166,31 +164,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initAuth = async () => {
       // Get a new request ID for this initialization
       const requestId = ++latestRequestIdRef.current
-      debugLog("AuthProvider", `[AuthProvider] 1. initAuth started (request ${requestId})`)
-      debugLog('AuthProvider', '[AuthProvider] 2. document.visibilityState:', document.visibilityState)
+      debugLog('AuthProvider', `initAuth (request ${requestId})`)
 
       try {
-        // First, try to get user from cookies (instant, no network)
-        // This bypasses the potentially hanging getSession() call
         const { getUserFromCookies } = await import('@/lib/supabase/client')
         const cookieUser = getUserFromCookies()
-        debugLog('AuthProvider', '[AuthProvider] 3. Cookie user:', cookieUser ? cookieUser.id : 'null')
 
         if (cookieUser) {
-          // We have a valid JWT in cookies - fetch user data directly
-          debugLog('AuthProvider', '[AuthProvider] 4. Fetching user data from cookie user...')
+          debugLog('AuthProvider', `Cookie user found: ${cookieUser.id}`)
           const result = await fetchUserData({ id: cookieUser.id, email: cookieUser.email }, requestId)
-          debugLog('AuthProvider', '[AuthProvider] 5. User data fetched')
 
           // Check if this request is still valid
           if (result && mounted && result.requestId === latestRequestIdRef.current) {
             setAuthState(result.data)
           }
 
-          // Also call getSession in background to ensure Supabase client is synced
-          // and update with full User object when it completes
+          // Background getSession to sync Supabase client and update with full User object
           supabase.auth.getSession().then(({ data: { session } }) => {
-            debugLog('AuthProvider', '[AuthProvider] 6. Background getSession completed, session:', session ? 'exists' : 'null')
             if (mounted && session?.user && requestId === latestRequestIdRef.current) {
               // Update with the full User object from Supabase
               setAuthState(prev => ({ ...prev, user: session.user }))
@@ -199,18 +189,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // No cookie user - try getSession (for cases like OAuth callback)
-        debugLog('AuthProvider', '[AuthProvider] 4. No cookie user, calling getSession...')
-        const startTime = Date.now()
+        // No cookie user — fall back to getSession (e.g. OAuth callback)
+        debugLog('AuthProvider', 'No cookie user, calling getSession')
         const { data: { session }, error } = await supabase.auth.getSession()
-        debugLog('AuthProvider', '[AuthProvider] 5. getSession returned after', Date.now() - startTime, 'ms')
-        debugLog('AuthProvider', '[AuthProvider] 6. session:', session ? 'exists' : 'null', 'error:', error)
 
-        // Check if this request is still valid
-        if (requestId !== latestRequestIdRef.current) {
-          debugLog("AuthProvider", `[AuthProvider] Request ${requestId} cancelled after getSession`)
-          return
-        }
+        if (requestId !== latestRequestIdRef.current) return
 
         if (error) {
           console.error('[AuthProvider] getSession error:', error)
@@ -219,16 +202,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (session?.user) {
-          debugLog('AuthProvider', '[AuthProvider] 7. User found, fetching user data...')
           const result = await fetchUserData(session.user, requestId)
-          debugLog('AuthProvider', '[AuthProvider] 8. User data fetched')
 
           // Check if this request is still valid
           if (result && mounted && result.requestId === latestRequestIdRef.current) {
             setAuthState(result.data)
           }
         } else {
-          debugLog('AuthProvider', '[AuthProvider] 7. No session, setting empty state')
           if (mounted && requestId === latestRequestIdRef.current) {
             setAuthState(emptyState)
           }
@@ -241,7 +221,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    debugLog('AuthProvider', '[AuthProvider] 0. useEffect running, calling initAuth')
     initAuth()
 
     // Listen for auth changes
@@ -249,11 +228,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Unhandled events (like INITIAL_SESSION) must NOT invalidate in-flight initAuth() requests.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        debugLog("AuthProvider", `[AuthProvider] Auth state changed: ${event}`)
+        debugLog('AuthProvider', `Auth event: ${event}`)
 
         if (event === 'SIGNED_IN' && session?.user) {
           const requestId = ++latestRequestIdRef.current
-          debugLog("AuthProvider", `[AuthProvider] SIGNED_IN - fetching user data (request ${requestId})`)
           const result = await fetchUserData(session.user, requestId)
           if (result && mounted && result.requestId === latestRequestIdRef.current) {
             setAuthState(result.data)
@@ -287,7 +265,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // This works around browser throttling of background events
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        debugLog('AuthProvider', '[AuthProvider] Tab became visible, re-checking auth...')
         initAuth()
       }
     }
@@ -296,7 +273,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Cross-tab sync: when another tab changes the current store, update this tab
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === CURRENT_STORE_KEY && e.newValue) {
-        debugLog('AuthProvider', '[AuthProvider] Store changed in another tab, syncing...')
         setAuthState(prev => {
           const newStore = prev.stores.find(s => s.store_id === e.newValue)
           if (!newStore) return prev
@@ -325,9 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Mark as intentional sign-out to prevent flash of content
     isSigningOutRef.current = true
 
-    // Cancel any in-flight requests by incrementing the request ID
     ++latestRequestIdRef.current
-    debugLog("AuthProvider", `[AuthProvider] Sign out - invalidating in-flight requests (new latest: ${latestRequestIdRef.current})`)
 
     // Set loading to prevent flash of content
     setAuthState(prev => ({ ...prev, isLoading: true }))
@@ -343,11 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase])
 
   const refreshProfile = useCallback(async () => {
-    // Prevent concurrent refresh calls
-    if (refreshInProgressRef.current) {
-      debugLog('AuthProvider', '[AuthProvider] Refresh already in progress, skipping')
-      return
-    }
+    if (refreshInProgressRef.current) return
 
     if (!authState.user) {
       return
@@ -356,15 +326,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       refreshInProgressRef.current = true
       const requestId = ++latestRequestIdRef.current
-      debugLog("AuthProvider", `[AuthProvider] Refresh profile started (request ${requestId})`)
-
       const result = await fetchUserData(authState.user, requestId)
 
       if (result && result.requestId === latestRequestIdRef.current) {
         setAuthState(result.data)
-        debugLog("AuthProvider", `[AuthProvider] Refresh profile completed (request ${requestId})`)
-      } else {
-        debugLog("AuthProvider", `[AuthProvider] Refresh profile cancelled (request ${requestId})`)
       }
     } finally {
       refreshInProgressRef.current = false
@@ -389,18 +354,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }))
   }, [authState.stores])
 
-  const canManageCurrentStore = authState.currentStore
-    ? canManageStore(authState.stores, authState.currentStore.store_id)
-    : false
+  const canManageCurrentStore = useMemo(
+    () => authState.currentStore
+      ? canManageStore(authState.stores, authState.currentStore.store_id)
+      : false,
+    [authState.currentStore, authState.stores]
+  )
 
-  const canManageUsersAtCurrentStore = authState.currentStore
-    ? canManageUsersAtStore(authState.stores, authState.currentStore.store_id)
-    : false
+  const canManageUsersAtCurrentStore = useMemo(
+    () => authState.currentStore
+      ? canManageUsersAtStore(authState.stores, authState.currentStore.store_id)
+      : false,
+    [authState.currentStore, authState.stores]
+  )
 
-  const isMultiStoreUser = authState.stores.length > 1 ||
-    authState.stores.some(s => isMultiStoreRole(s.role))
+  const isMultiStoreUser = useMemo(
+    () => authState.stores.length > 1 ||
+      authState.stores.some(s => isMultiStoreRole(s.role)),
+    [authState.stores]
+  )
 
-  const value: AuthContextValue = {
+  const value = useMemo<AuthContextValue>(() => ({
     ...authState,
     signOut,
     refreshProfile,
@@ -408,7 +382,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     canManageCurrentStore,
     canManageUsersAtCurrentStore,
     isMultiStoreUser,
-  }
+  }), [
+    authState, signOut, refreshProfile, setCurrentStore,
+    canManageCurrentStore, canManageUsersAtCurrentStore, isMultiStoreUser,
+  ])
 
   return (
     <AuthContext.Provider value={value}>

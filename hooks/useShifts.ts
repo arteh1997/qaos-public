@@ -1,79 +1,61 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { supabaseFetch } from '@/lib/supabase/client'
+import { useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCSRFHeaders } from '@/hooks/useCSRF'
 import { Shift } from '@/types'
 import { ShiftFormData } from '@/lib/validations/shift'
 import { toast } from 'sonner'
+import { supabaseFetch } from '@/lib/supabase/client'
+
+async function fetchShiftsData(
+  storeId?: string | null,
+  userId?: string | null,
+  dateRange?: { from: string; to: string } | null
+): Promise<Shift[]> {
+  const filter: Record<string, string> = {}
+
+  if (storeId) {
+    filter['store_id'] = `eq.${storeId}`
+  }
+
+  if (userId) {
+    filter['user_id'] = `eq.${userId}`
+  }
+
+  if (dateRange?.from && dateRange?.to) {
+    filter['and'] = `(start_time.gte.${dateRange.from},start_time.lte.${dateRange.to})`
+  }
+
+  const { data, error } = await supabaseFetch<Shift>('shifts', {
+    select: '*,store:stores!shifts_store_id_fkey(*),user:profiles!shifts_user_id_fkey(*)',
+    order: 'start_time.desc',
+    filter,
+  })
+
+  if (error) {
+    if (error.message?.includes('does not exist')) {
+      return []
+    }
+    throw error
+  }
+
+  return data || []
+}
 
 export function useShifts(storeId?: string | null, userId?: string | null, dateRange?: { from: string; to: string } | null) {
-  const [shifts, setShifts] = useState<Shift[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+  const queryClient = useQueryClient()
+  const queryKey = ['shifts', storeId, userId, dateRange?.from, dateRange?.to]
 
-  const fetchShifts = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+  const query = useQuery({
+    queryKey,
+    queryFn: () => fetchShiftsData(storeId, userId, dateRange),
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+  })
 
-    try {
-      const filter: Record<string, string> = {}
-
-      if (storeId) {
-        filter['store_id'] = `eq.${storeId}`
-      }
-
-      if (userId) {
-        filter['user_id'] = `eq.${userId}`
-      }
-
-      if (dateRange?.from && dateRange?.to) {
-        filter['and'] = `(start_time.gte.${dateRange.from},start_time.lte.${dateRange.to})`
-      }
-
-      const { data, error: fetchError } = await supabaseFetch<Shift>('shifts', {
-        select: '*,store:stores!shifts_store_id_fkey(*),user:profiles!shifts_user_id_fkey(*)',
-        order: 'start_time.desc',
-        filter,
-      })
-
-      if (fetchError) {
-        if (fetchError.message?.includes('does not exist')) {
-          setShifts([])
-          return
-        }
-        throw fetchError
-      }
-
-      setShifts(data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch shifts'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [storeId, userId, dateRange?.from, dateRange?.to])
-
-  useEffect(() => {
-    fetchShifts()
-  }, [fetchShifts])
-
-  const createShift = useCallback(async (data: ShiftFormData) => {
-    const optimisticShift: Shift = {
-      id: crypto.randomUUID(),
-      store_id: data.store_id,
-      user_id: data.user_id,
-      start_time: data.start_time,
-      end_time: data.end_time,
-      notes: data.notes || null,
-      clock_in_time: null,
-      clock_out_time: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    setShifts(prev => [optimisticShift, ...prev])
-
-    try {
+  const createMutation = useMutation({
+    mutationFn: async (data: ShiftFormData) => {
       const response = await fetch('/api/shifts', {
         method: 'POST',
         headers: getCSRFHeaders(),
@@ -86,21 +68,19 @@ export function useShifts(storeId?: string | null, userId?: string | null, dateR
         throw new Error(errorData.message || 'Failed to create shift')
       }
 
+      return response.json()
+    },
+    onSuccess: () => {
       toast.success('Shift created successfully')
-      fetchShifts()
-    } catch (err) {
-      setShifts(prev => prev.filter(s => s.id !== optimisticShift.id))
+      queryClient.invalidateQueries({ queryKey: ['shifts'] })
+    },
+    onError: (err) => {
       toast.error('Failed to create shift: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      throw err
-    }
-  }, [fetchShifts])
+    },
+  })
 
-  const updateShift = useCallback(async ({ id, data }: { id: string; data: Partial<ShiftFormData> }) => {
-    setShifts(prev => prev.map(shift =>
-      shift.id === id ? { ...shift, ...data, updated_at: new Date().toISOString() } : shift
-    ))
-
-    try {
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<ShiftFormData> }) => {
       const response = await fetch(`/api/shifts/${id}`, {
         method: 'PATCH',
         headers: getCSRFHeaders(),
@@ -113,19 +93,19 @@ export function useShifts(storeId?: string | null, userId?: string | null, dateR
         throw new Error(errorData.message || 'Failed to update shift')
       }
 
+      return response.json()
+    },
+    onSuccess: () => {
       toast.success('Shift updated successfully')
-      fetchShifts()
-    } catch (err) {
-      fetchShifts()
+      queryClient.invalidateQueries({ queryKey: ['shifts'] })
+    },
+    onError: (err) => {
       toast.error('Failed to update shift: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      throw err
-    }
-  }, [fetchShifts])
+    },
+  })
 
-  const deleteShift = useCallback(async (id: string) => {
-    setShifts(prev => prev.filter(shift => shift.id !== id))
-
-    try {
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
       const response = await fetch(`/api/shifts/${id}`, {
         method: 'DELETE',
         headers: getCSRFHeaders(),
@@ -137,22 +117,19 @@ export function useShifts(storeId?: string | null, userId?: string | null, dateR
         throw new Error(errorData.message || 'Failed to delete shift')
       }
 
+      return response.json()
+    },
+    onSuccess: () => {
       toast.success('Shift deleted successfully')
-    } catch (err) {
-      fetchShifts()
+      queryClient.invalidateQueries({ queryKey: ['shifts'] })
+    },
+    onError: (err) => {
       toast.error('Failed to delete shift: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      throw err
-    }
-  }, [fetchShifts])
+    },
+  })
 
-  const clockIn = useCallback(async (shiftId: string) => {
-    const now = new Date().toISOString()
-
-    setShifts(prev => prev.map(shift =>
-      shift.id === shiftId ? { ...shift, clock_in_time: now } : shift
-    ))
-
-    try {
+  const clockInMutation = useMutation({
+    mutationFn: async (shiftId: string) => {
       const response = await fetch(`/api/shifts/${shiftId}/clock-in`, {
         method: 'POST',
         headers: getCSRFHeaders(),
@@ -164,22 +141,19 @@ export function useShifts(storeId?: string | null, userId?: string | null, dateR
         throw new Error(errorData.message || 'Failed to clock in')
       }
 
+      return response.json()
+    },
+    onSuccess: () => {
       toast.success('Clocked in successfully')
-    } catch (err) {
-      fetchShifts()
+      queryClient.invalidateQueries({ queryKey: ['shifts'] })
+    },
+    onError: (err) => {
       toast.error('Failed to clock in: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      throw err
-    }
-  }, [fetchShifts])
+    },
+  })
 
-  const clockOut = useCallback(async (shiftId: string) => {
-    const now = new Date().toISOString()
-
-    setShifts(prev => prev.map(shift =>
-      shift.id === shiftId ? { ...shift, clock_out_time: now } : shift
-    ))
-
-    try {
+  const clockOutMutation = useMutation({
+    mutationFn: async (shiftId: string) => {
       const response = await fetch(`/api/shifts/${shiftId}/clock-out`, {
         method: 'POST',
         headers: getCSRFHeaders(),
@@ -191,37 +165,44 @@ export function useShifts(storeId?: string | null, userId?: string | null, dateR
         throw new Error(errorData.message || 'Failed to clock out')
       }
 
+      return response.json()
+    },
+    onSuccess: () => {
       toast.success('Clocked out successfully')
-    } catch (err) {
-      fetchShifts()
+      queryClient.invalidateQueries({ queryKey: ['shifts'] })
+    },
+    onError: (err) => {
       toast.error('Failed to clock out: ' + (err instanceof Error ? err.message : 'Unknown error'))
-      throw err
-    }
-  }, [fetchShifts])
+    },
+  })
+
+  const shifts = query.data || []
 
   // Find current shift (started but not ended)
-  const currentShift = shifts.find(shift => {
+  const currentShift = useMemo(() => shifts.find(shift => {
     const now = new Date()
     const start = new Date(shift.start_time)
     const end = new Date(shift.end_time)
     return now >= start && now <= end && !shift.clock_out_time
-  })
+  }), [shifts])
 
   // Get today's shifts
-  const today = new Date().toISOString().split('T')[0]
-  const todayShifts = shifts.filter(shift => shift.start_time.startsWith(today))
+  const todayShifts = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    return shifts.filter(shift => shift.start_time.startsWith(today))
+  }, [shifts])
 
   return {
     shifts,
     currentShift,
     todayShifts,
-    isLoading,
-    error,
-    createShift,
-    updateShift,
-    deleteShift,
-    clockIn,
-    clockOut,
-    refetch: fetchShifts,
+    isLoading: query.isLoading,
+    error: query.error,
+    createShift: createMutation.mutateAsync,
+    updateShift: updateMutation.mutateAsync,
+    deleteShift: deleteMutation.mutateAsync,
+    clockIn: clockInMutation.mutateAsync,
+    clockOut: clockOutMutation.mutateAsync,
+    refetch: query.refetch,
   }
 }

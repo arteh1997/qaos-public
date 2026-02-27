@@ -28,18 +28,24 @@ export function useBilling() {
     queryKey: ['billing', 'subscriptions'],
     queryFn: () => fetchJSON<SubscriptionWithStore[]>('/api/billing/subscriptions'),
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   const paymentMethodsQuery = useQuery({
     queryKey: ['billing', 'payment-methods'],
     queryFn: () => fetchJSON<PaymentMethod[]>('/api/billing/payment-methods'),
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   const invoicesQuery = useQuery({
     queryKey: ['billing', 'invoices'],
     queryFn: () => fetchJSON<Invoice[]>('/api/billing/invoices'),
     staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   // ── Payment Method Mutations ──

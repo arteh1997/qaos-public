@@ -1,8 +1,9 @@
 'use client'
 
-import { memo, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { AppRole, LegacyAppRole } from '@/types'
 import {
@@ -221,9 +222,22 @@ interface SidebarProps {
 // Routes accessible during store setup (everything else is locked)
 const SETUP_ALLOWED_HREFS = new Set(['/', '/stores', '/billing', '/profile'])
 
+// Map sidebar routes to their primary TanStack Query keys for prefetching
+const PREFETCH_MAP: Record<string, (storeId: string) => { queryKey: string[]; url: string }> = {
+  '/inventory': (sid) => ({ queryKey: ['inventory', sid], url: `/api/stores/${sid}/inventory?page=1&page_size=25` }),
+  '/suppliers': (sid) => ({ queryKey: ['suppliers', sid], url: `/api/stores/${sid}/suppliers` }),
+  '/recipes': (sid) => ({ queryKey: ['recipes', sid], url: `/api/stores/${sid}/recipes` }),
+  '/waste': (sid) => ({ queryKey: ['waste-log', sid], url: `/api/stores/${sid}/waste` }),
+  '/users': (sid) => ({ queryKey: ['store-users', sid], url: `/api/stores/${sid}/users` }),
+  '/shifts': (sid) => ({ queryKey: ['shifts', sid], url: `/api/stores/${sid}/shifts` }),
+  '/activity': (sid) => ({ queryKey: ['audit-logs', sid], url: `/api/stores/${sid}/activity` }),
+  '/haccp': (sid) => ({ queryKey: ['haccp-checks', sid], url: `/api/stores/${sid}/haccp/checks` }),
+}
+
 export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname()
   const { currentStore } = useAuth()
+  const queryClient = useQueryClient()
 
   const normalizedRole = normalizeRole(role)
   const isBillingOwner = currentStore?.is_billing_owner === true
@@ -245,6 +259,25 @@ export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
     }
     return groups
   }, [normalizedRole, isBillingOwner, isInSetup])
+
+  const storeId = currentStore?.store_id
+
+  const handlePrefetch = useCallback((href: string) => {
+    if (!storeId) return
+    const config = PREFETCH_MAP[href]
+    if (!config) return
+    const { queryKey, url } = config(storeId)
+    queryClient.prefetchQuery({
+      queryKey,
+      queryFn: async () => {
+        const res = await fetch(url, { credentials: 'include' })
+        if (!res.ok) return null
+        const json = await res.json()
+        return json.data
+      },
+      staleTime: 30_000,
+    })
+  }, [storeId, queryClient])
 
   const visibleSections = SECTION_ORDER.filter(s => groupedItems[s]?.length)
 
@@ -286,6 +319,7 @@ export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onMouseEnter={() => handlePrefetch(item.href)}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
                       isActive

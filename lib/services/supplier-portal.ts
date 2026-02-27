@@ -104,6 +104,7 @@ export async function validatePortalToken(token: string): Promise<{
 
 // ── Activity Logging ──
 
+/** Record an activity event in the supplier portal audit trail. */
 export async function logPortalActivity(params: {
   supplierId: string
   storeId: string

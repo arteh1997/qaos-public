@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { NotificationPreference } from '@/types'
-import { useCSRF } from './useCSRF'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 
 interface UseNotificationPreferencesResult {
   preferences: NotificationPreference | null
   isLoading: boolean
   error: string | null
-  updatePreferences: (updates: Partial<NotificationPreference>) => Promise<void>
+  updatePreferences: (updates: Partial<NotificationPreference>) => Promise<NotificationPreference>
   isUpdating: boolean
 }
 
@@ -21,22 +21,11 @@ const DEFAULT_PREFERENCES: Omit<NotificationPreference, 'id' | 'store_id' | 'use
 }
 
 export function useNotificationPreferences(storeId: string | null): UseNotificationPreferencesResult {
-  const [preferences, setPreferences] = useState<NotificationPreference | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isUpdating, setIsUpdating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { csrfFetch } = useCSRF()
+  const queryClient = useQueryClient()
 
-  const fetchPreferences = useCallback(async () => {
-    if (!storeId) {
-      setIsLoading(false)
-      return
-    }
-
-    try {
-      setIsLoading(true)
-      setError(null)
-
+  const query = useQuery({
+    queryKey: ['notification-preferences', storeId],
+    queryFn: async () => {
       const response = await fetch(`/api/stores/${storeId}/notification-preferences`)
       const data = await response.json()
 
@@ -44,28 +33,19 @@ export function useNotificationPreferences(storeId: string | null): UseNotificat
         throw new Error(data.message || 'Failed to fetch notification preferences')
       }
 
-      setPreferences(data.data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch notification preferences')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [storeId])
+      return data.data as NotificationPreference
+    },
+    enabled: !!storeId,
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  })
 
-  useEffect(() => {
-    fetchPreferences()
-  }, [fetchPreferences])
-
-  const updatePreferences = useCallback(async (updates: Partial<NotificationPreference>) => {
-    if (!storeId) return
-
-    try {
-      setIsUpdating(true)
-      setError(null)
-
-      const response = await csrfFetch(`/api/stores/${storeId}/notification-preferences`, {
+  const updateMutation = useMutation({
+    mutationFn: async (updates: Partial<NotificationPreference>) => {
+      const response = await fetch(`/api/stores/${storeId}/notification-preferences`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCSRFHeaders() },
         body: JSON.stringify(updates),
       })
 
@@ -75,20 +55,18 @@ export function useNotificationPreferences(storeId: string | null): UseNotificat
         throw new Error(data.message || 'Failed to update notification preferences')
       }
 
-      setPreferences(data.data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update notification preferences')
-      throw err
-    } finally {
-      setIsUpdating(false)
-    }
-  }, [storeId, csrfFetch])
+      return data.data as NotificationPreference
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['notification-preferences', storeId], data)
+    },
+  })
 
   return {
-    preferences: preferences ?? (storeId ? { ...DEFAULT_PREFERENCES, store_id: storeId, user_id: '', id: '', created_at: '', updated_at: '' } as NotificationPreference : null),
-    isLoading,
-    error,
-    updatePreferences,
-    isUpdating,
+    preferences: query.data ?? (storeId ? { ...DEFAULT_PREFERENCES, store_id: storeId, user_id: '', id: '', created_at: '', updated_at: '' } as NotificationPreference : null),
+    isLoading: query.isLoading,
+    error: query.error?.message ?? updateMutation.error?.message ?? null,
+    updatePreferences: updateMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
   }
 }

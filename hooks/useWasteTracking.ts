@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { useCSRF } from './useCSRF'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 import type { WasteLog, WasteReason } from '@/types'
 
 export interface WasteReportItem {
@@ -59,32 +59,48 @@ interface UseWasteTrackingResult {
 }
 
 export function useWasteTracking(storeId: string | null): UseWasteTrackingResult {
-  const { csrfFetch } = useCSRF()
+  const queryClient = useQueryClient()
 
-  // Submit state
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  // History query
+  const historyQuery = useQuery({
+    queryKey: ['waste-history', storeId],
+    queryFn: async () => {
+      const response = await fetch(`/api/stores/${storeId}/waste`)
+      const data = await response.json()
 
-  // History state
-  const [wasteHistory, setWasteHistory] = useState<WasteLog[]>([])
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-  const [historyError, setHistoryError] = useState<string | null>(null)
+      if (!response.ok) throw new Error(data.message || 'Failed to fetch waste history')
 
-  // Analytics state
-  const [analytics, setAnalytics] = useState<WasteAnalytics | null>(null)
-  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false)
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
+      return (data.data || []) as WasteLog[]
+    },
+    enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+  })
 
-  const submitWasteReport = useCallback(async (payload: WasteReportPayload) => {
-    if (!storeId) return
+  // Analytics query
+  const analyticsQuery = useQuery({
+    queryKey: ['waste-analytics', storeId],
+    queryFn: async () => {
+      const response = await fetch(`/api/stores/${storeId}/waste-analytics`)
+      const data = await response.json()
 
-    try {
-      setIsSubmitting(true)
-      setSubmitError(null)
+      if (!response.ok) throw new Error(data.message || 'Failed to fetch waste analytics')
 
-      const response = await csrfFetch(`/api/stores/${storeId}/waste`, {
+      return data.data as WasteAnalytics
+    },
+    enabled: !!storeId,
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
+  })
+
+  // Submit mutation
+  const submitMutation = useMutation({
+    mutationFn: async (payload: WasteReportPayload) => {
+      if (!storeId) throw new Error('No store selected')
+
+      const response = await fetch(`/api/stores/${storeId}/waste`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCSRFHeaders() },
         body: JSON.stringify(payload),
       })
 
@@ -93,91 +109,64 @@ export function useWasteTracking(storeId: string | null): UseWasteTrackingResult
       if (!response.ok) {
         throw new Error(data.message || 'Failed to submit waste report')
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to submit waste report'
-      setSubmitError(message)
-      throw err
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [storeId, csrfFetch])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['waste-history', storeId] })
+      queryClient.invalidateQueries({ queryKey: ['waste-analytics', storeId] })
+    },
+  })
 
-  const fetchWasteHistory = useCallback(async (options?: {
-    reason?: WasteReason
-    from?: string
-    to?: string
-    page?: number
-  }) => {
-    if (!storeId) return
-
-    try {
-      setIsLoadingHistory(true)
-      setHistoryError(null)
-
+  // Backward-compatible fetchWasteHistory with filter options
+  const fetchWasteHistory = async (options?: { reason?: WasteReason; from?: string; to?: string; page?: number }) => {
+    if (options && Object.keys(options).length > 0) {
+      if (!storeId) return
       const params = new URLSearchParams()
-      if (options?.reason) params.set('reason', options.reason)
-      if (options?.from) params.set('from', options.from)
-      if (options?.to) params.set('to', options.to)
-      if (options?.page) params.set('page', String(options.page))
-
+      if (options.reason) params.set('reason', options.reason)
+      if (options.from) params.set('from', options.from)
+      if (options.to) params.set('to', options.to)
+      if (options.page) params.set('page', String(options.page))
       const queryString = params.toString()
       const url = `/api/stores/${storeId}/waste${queryString ? `?${queryString}` : ''}`
-
       const response = await fetch(url)
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch waste history')
+      if (response.ok) {
+        queryClient.setQueryData(['waste-history', storeId], data.data || [])
       }
-
-      setWasteHistory(data.data || [])
-    } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : 'Failed to fetch waste history')
-    } finally {
-      setIsLoadingHistory(false)
+    } else {
+      await historyQuery.refetch()
     }
-  }, [storeId])
+  }
 
-  const fetchAnalytics = useCallback(async (options?: { from?: string; to?: string }) => {
-    if (!storeId) return
-
-    try {
-      setIsLoadingAnalytics(true)
-      setAnalyticsError(null)
-
+  // Backward-compatible fetchAnalytics with date range
+  const fetchAnalytics = async (options?: { from?: string; to?: string }) => {
+    if (options && Object.keys(options).length > 0) {
+      if (!storeId) return
       const params = new URLSearchParams()
-      if (options?.from) params.set('from', options.from)
-      if (options?.to) params.set('to', options.to)
-
+      if (options.from) params.set('from', options.from)
+      if (options.to) params.set('to', options.to)
       const queryString = params.toString()
       const url = `/api/stores/${storeId}/waste-analytics${queryString ? `?${queryString}` : ''}`
-
       const response = await fetch(url)
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch waste analytics')
+      if (response.ok) {
+        queryClient.setQueryData(['waste-analytics', storeId], data.data)
       }
-
-      setAnalytics(data.data)
-    } catch (err) {
-      setAnalyticsError(err instanceof Error ? err.message : 'Failed to fetch waste analytics')
-    } finally {
-      setIsLoadingAnalytics(false)
+    } else {
+      await analyticsQuery.refetch()
     }
-  }, [storeId])
+  }
 
   return {
-    submitWasteReport,
-    isSubmitting,
-    submitError,
-    wasteHistory,
-    isLoadingHistory,
-    historyError,
+    submitWasteReport: submitMutation.mutateAsync,
+    isSubmitting: submitMutation.isPending,
+    submitError: submitMutation.error?.message ?? null,
+    wasteHistory: historyQuery.data || [],
+    isLoadingHistory: historyQuery.isLoading,
+    historyError: historyQuery.error?.message ?? null,
     fetchWasteHistory,
-    analytics,
-    isLoadingAnalytics,
-    analyticsError,
+    analytics: analyticsQuery.data ?? null,
+    isLoadingAnalytics: analyticsQuery.isLoading,
+    analyticsError: analyticsQuery.error?.message ?? null,
     fetchAnalytics,
   }
 }

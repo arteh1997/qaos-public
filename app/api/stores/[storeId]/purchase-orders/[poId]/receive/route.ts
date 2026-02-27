@@ -123,8 +123,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return apiBadRequest('No items with positive quantity to receive', context.requestId)
     }
 
-    // Get current inventory levels
-    const currentInventoryMap = await getCurrentInventoryMap(context.supabase, storeId)
+    // Get current inventory levels (filtered to only items being received)
+    const receivedItemIds = inventoryUpdates.map(u => u.inventory_item_id)
+    const currentInventoryMap = await getCurrentInventoryMap(context.supabase, storeId, receivedItemIds)
     const now = new Date().toISOString()
 
     // Calculate new quantities (current + received)

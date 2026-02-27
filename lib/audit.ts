@@ -166,19 +166,12 @@ function getUserAgent(request?: NextRequest): string | null {
   return request.headers.get('user-agent')
 }
 
-/**
- * Log an audit event
- *
- * @param supabase - Supabase admin client (with service role)
- * @param entry - Audit log entry details
- */
-/**
- * Transform an audit log entry into database insert format
- */
+/** Transform an audit log entry into the column format expected by the `audit_logs` table. */
 function transformAuditLogEntry(entry: AuditLogEntry) {
   return {
     user_id: entry.userId || null,
     user_email: entry.userEmail || null,
+    user_name: entry.userName || null,
     action: entry.action,
     action_category: getCategoryFromAction(entry.action),
     store_id: entry.storeId || null,
@@ -190,34 +183,26 @@ function transformAuditLogEntry(entry: AuditLogEntry) {
   }
 }
 
+/**
+ * Write a single audit log entry. Called fire-and-forget (without `await`) in most
+ * API routes so that audit writes never block the response or cause user-facing errors.
+ *
+ * @param supabase - Supabase client (typically admin client to bypass RLS)
+ * @param entry - Audit log entry with action, userId, storeId, and optional details
+ */
 export async function auditLog(
   supabase: SupabaseClient,
   entry: AuditLogEntry
 ): Promise<void> {
   try {
-    const baseData = transformAuditLogEntry(entry)
-    const userName = entry.userName || null
-
-    // Try with user_name column first
     const { error } = await supabase
       .from('audit_logs')
-      .insert({ ...baseData, user_name: userName })
+      .insert(transformAuditLogEntry(entry))
 
     if (error) {
-      // If user_name column doesn't exist yet, retry without it
-      if (error.code === 'PGRST204' && error.message?.includes('user_name')) {
-        const { error: retryError } = await supabase
-          .from('audit_logs')
-          .insert(baseData)
-        if (retryError) {
-          logger.error('[Audit] Failed to write audit log:', { error: retryError })
-        }
-      } else {
-        logger.error('[Audit] Failed to write audit log:', { error })
-      }
+      logger.error('[Audit] Failed to write audit log:', { error })
     }
   } catch (err) {
-    // Catch any unexpected errors
     logger.error('[Audit] Exception writing audit log:', { error: err })
   }
 }
@@ -245,6 +230,32 @@ export async function auditLogBatch(
 }
 
 /**
+ * Deep equality check for audit comparison.
+ * Handles primitives, arrays, and plain objects.
+ */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (a === null || b === null || a === undefined || b === undefined) return a === b
+  if (typeof a !== typeof b) return false
+
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) return false
+    return a.every((item, i) => deepEqual(item, b[i]))
+  }
+
+  if (typeof a === 'object' && typeof b === 'object') {
+    const aObj = a as Record<string, unknown>
+    const bObj = b as Record<string, unknown>
+    const aKeys = Object.keys(aObj)
+    const bKeys = Object.keys(bObj)
+    if (aKeys.length !== bKeys.length) return false
+    return aKeys.every(key => key in bObj && deepEqual(aObj[key], bObj[key]))
+  }
+
+  return false
+}
+
+/**
  * Compute field-level changes between an old record and new update data.
  * Returns an array of { field, from, to } for fields that actually changed.
  * Used to enrich audit log details with before/after context.
@@ -256,10 +267,9 @@ export function computeFieldChanges(
   const changes: Array<{ field: string; from: unknown; to: unknown }> = []
   for (const [key, newValue] of Object.entries(newData)) {
     const oldValue = oldRecord[key]
-    // Normalize values before comparison to avoid false positives
     const normOld = normalizeForComparison(oldValue)
     const normNew = normalizeForComparison(newValue)
-    if (JSON.stringify(normOld) !== JSON.stringify(normNew)) {
+    if (!deepEqual(normOld, normNew)) {
       changes.push({ field: key, from: oldValue ?? null, to: newValue ?? null })
     }
   }

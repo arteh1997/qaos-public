@@ -246,61 +246,95 @@ export async function processSaleEvent(
   let itemsDeducted = 0
   let itemsSkipped = 0
 
-  // 4. Process each sold item
+  // 4. Batch process all sold items
+  const multiplier = event.event_type === 'refund' ? -1 : 1
+
+  // Step 1: Collect unique inventory_item_ids from mapped items
+  const inventoryItemIds = [...new Set(
+    event.items
+      .map(item => mappingMap.get(item.pos_item_id)?.inventory_item_id)
+      .filter((id): id is string => !!id)
+  )]
+
+  // Step 2: Batch-fetch current inventory in ONE query
+  const inventoryMap = new Map<string, number>()
+  if (inventoryItemIds.length > 0) {
+    const { data: currentInventory } = await adminClient
+      .from('store_inventory')
+      .select('inventory_item_id, quantity')
+      .eq('store_id', storeId)
+      .in('inventory_item_id', inventoryItemIds)
+
+    for (const row of currentInventory ?? []) {
+      inventoryMap.set(row.inventory_item_id, row.quantity as number)
+    }
+  }
+
+  // Step 3: Calculate all changes in memory (dedup multiple POS items → same inventory item)
+  const changes = new Map<string, { deduction: number; notes: string[] }>()
+
   for (const soldItem of event.items) {
     const mapping = mappingMap.get(soldItem.pos_item_id)
-
     if (!mapping) {
       itemsSkipped++
       continue
     }
 
-    // Calculate deduction amount
-    const multiplier = event.event_type === 'refund' ? -1 : 1
     const deductionAmount = soldItem.quantity * mapping.quantity_per_sale * multiplier
+    const existing = changes.get(mapping.inventory_item_id)
 
-    // Get current inventory quantity
-    const { data: current } = await adminClient
-      .from('store_inventory')
-      .select('quantity')
-      .eq('store_id', storeId)
-      .eq('inventory_item_id', mapping.inventory_item_id)
-      .single()
-
-    const currentQty = current?.quantity ?? 0
-    const newQty = Math.max(0, currentQty - deductionAmount)
-
-    // Update inventory
-    const { error: updateError } = await adminClient
-      .from('store_inventory')
-      .upsert({
-        store_id: storeId,
-        inventory_item_id: mapping.inventory_item_id,
-        quantity: newQty,
-        last_updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'store_id,inventory_item_id',
+    if (existing) {
+      existing.deduction += deductionAmount
+      existing.notes.push(`${soldItem.pos_item_name} x${soldItem.quantity}`)
+    } else {
+      changes.set(mapping.inventory_item_id, {
+        deduction: deductionAmount,
+        notes: [`${soldItem.pos_item_name} x${soldItem.quantity}`],
       })
-
-    if (updateError) {
-      itemsSkipped++
-      continue
     }
 
-    // Record stock history
-    await adminClient
-      .from('stock_history')
-      .insert({
+    itemsDeducted++
+  }
+
+  // Step 4: Batch upsert ALL inventory changes in ONE query
+  if (changes.size > 0) {
+    const upsertRows = [...changes.entries()].map(([inventoryItemId, change]) => {
+      const currentQty = inventoryMap.get(inventoryItemId) ?? 0
+      return {
         store_id: storeId,
-        inventory_item_id: mapping.inventory_item_id,
-        action_type: 'Sale',
+        inventory_item_id: inventoryItemId,
+        quantity: Math.max(0, currentQty - change.deduction),
+        last_updated_at: new Date().toISOString(),
+      }
+    })
+
+    const { error: upsertError } = await adminClient
+      .from('store_inventory')
+      .upsert(upsertRows, { onConflict: 'store_id,inventory_item_id' })
+
+    if (upsertError) {
+      itemsSkipped += itemsDeducted
+      itemsDeducted = 0
+    }
+  }
+
+  // Step 5: Batch insert ALL stock history records in ONE query
+  if (itemsDeducted > 0 && changes.size > 0) {
+    const historyRows = [...changes.entries()].map(([inventoryItemId, change]) => {
+      const currentQty = inventoryMap.get(inventoryItemId) ?? 0
+      const newQty = Math.max(0, currentQty - change.deduction)
+      return {
+        store_id: storeId,
+        inventory_item_id: inventoryItemId,
+        action_type: 'Sale' as const,
         quantity_before: currentQty,
         quantity_after: newQty,
-        quantity_change: -(deductionAmount),
-        notes: `POS ${event.event_type}: ${soldItem.pos_item_name} x${soldItem.quantity}`,
-      })
+        quantity_change: -(change.deduction),
+        notes: `POS ${event.event_type}: ${change.notes.join(', ')}`,
+      }
+    })
 
-    itemsDeducted++
+    await adminClient.from('stock_history').insert(historyRows)
   }
 
   // 5. Update event status

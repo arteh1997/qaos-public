@@ -4,6 +4,9 @@ import './globals.css'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { Toaster } from '@/components/ui/sonner'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+import { WebVitals } from '@/components/WebVitals'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -62,6 +65,9 @@ export default function RootLayout({
             <Toaster position="top-right" richColors />
           </AuthProvider>
         </QueryProvider>
+        <Analytics />
+        <SpeedInsights />
+        <WebVitals />
       </body>
     </html>
   )

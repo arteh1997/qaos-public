@@ -1,36 +1,78 @@
 # API Documentation
 
-Complete REST API reference for the Restaurant Inventory Management System.
+110 API route handlers across the application. All authenticated endpoints use JWT-based sessions via Supabase Auth. Responses follow a consistent format. CSRF is required for all state-changing operations.
 
-## Base URL
-
-```
-Development: http://localhost:3000/api
-Production:  https://your-domain.com/api
-```
+---
 
 ## Authentication
 
-All API endpoints require authentication via Supabase JWT tokens.
+### Standard Auth (`withApiAuth`)
 
-### Request Headers
+Most endpoints use the `withApiAuth` middleware, which:
 
-```http
-Authorization: Bearer <supabase_jwt_token>
-Content-Type: application/json
+1. Validates the Supabase JWT from the session cookie
+2. Checks the user's role against `allowedRoles`
+3. Applies rate limiting
+4. Validates CSRF token for POST/PUT/PATCH/DELETE (if `requireCSRF: true`)
+5. Returns an `AuthContext` with `context.user.id`, `context.supabase`, `context.stores`, `context.requestId`
+
+### Supplier Portal Auth (`withSupplierAuth`)
+
+Supplier-facing endpoints use token-based auth. Tokens have the format `sp_live_<64 hex chars>` and are passed via the `Authorization: Bearer <token>` header. Each token has granular permissions: `can_view_orders`, `can_upload_invoices`, `can_update_catalog`, `can_update_order_status`.
+
+### Public API Auth (`withApiKey`)
+
+Public API v1 endpoints use API keys with the format `rk_live_<hex>`. Keys are scoped with permissions like `inventory:read`, `stock:read`, `stock:write`. Pass via `Authorization: Bearer <key>` header.
+
+### Cron Auth
+
+Cron endpoints require `Authorization: Bearer <CRON_SECRET>` header.
+
+---
+
+## CSRF Protection
+
+All state-changing endpoints (POST, PUT, PATCH, DELETE) require CSRF validation using the double-submit cookie pattern:
+
+- The server sets a `csrf_token` cookie on first page load
+- The client reads the cookie and sends it as the `x-csrf-token` header
+- The server validates that cookie and header match
+
+```bash
+# Example: include CSRF in a request
+curl -X POST /api/stores/xxx/inventory \
+  -H "x-csrf-token: <token-from-cookie>" \
+  -H "Cookie: csrf_token=<same-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Tomatoes"}'
 ```
 
-### Authentication Flow
+---
 
-1. User logs in via `/login` page
-2. Supabase Auth issues a JWT token
-3. Token is stored in HTTP-only cookies
-4. Middleware validates token on each request
-5. API routes verify user permissions
+## Rate Limits
+
+| Key | Limit | Window | Used By |
+|-----|-------|--------|---------|
+| `api` | 100 requests | 1 minute | Most endpoints |
+| `auth` | 10 requests | 1 minute | Login, signup |
+| `createUser` | 5 requests | 1 minute | User creation |
+| `reports` | 20 requests | 1 minute | Report generation |
+
+Rate limit headers are returned on every response:
+
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 97
+X-RateLimit-Reset: 1709078460
+```
+
+Production uses Upstash Redis (sliding window algorithm). Development falls back to an in-memory Map.
+
+---
 
 ## Response Format
 
-### Success Response
+### Success
 
 ```json
 {
@@ -39,935 +81,305 @@ Content-Type: application/json
   "pagination": {
     "page": 1,
     "pageSize": 20,
-    "totalItems": 100,
-    "totalPages": 5,
-    "hasNext": true,
-    "hasPrev": false
-  },
-  "requestId": "req_abc123"
+    "totalItems": 142,
+    "totalPages": 8
+  }
 }
 ```
 
-### Error Response
+### Error
 
 ```json
 {
   "success": false,
-  "error": {
-    "message": "Error description",
-    "code": "ERROR_CODE"
-  },
+  "message": "Human-readable error message",
+  "code": "BAD_REQUEST",
   "requestId": "req_abc123"
 }
 ```
 
-## Rate Limiting
+Error codes: `UNAUTHORIZED` (401), `FORBIDDEN` (403), `BAD_REQUEST` (400), `NOT_FOUND` (404), `RATE_LIMITED` (429), `INTERNAL_ERROR` (500).
 
-All endpoints are rate-limited per user:
-
-| Endpoint Category | Limit | Window |
-|-------------------|-------|--------|
-| General API | 100 requests | 1 minute |
-| Reports | 20 requests | 1 minute |
-| User Creation | 5 requests | 1 minute |
-| Authentication | 10 requests | 1 minute |
-
-### Rate Limit Headers
-
-```http
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1705340400000
-```
-
-### Rate Limit Exceeded (429)
-
-```json
-{
-  "success": false,
-  "error": {
-    "message": "Too many requests. Please try again later.",
-    "code": "RATE_LIMITED"
-  }
-}
-```
+Error messages are automatically sanitized to remove stack traces, file paths, and credentials before being returned to the client.
 
 ---
 
-## Stores
-
-### List Stores
-
-Retrieve a paginated list of all stores.
-
-```http
-GET /api/stores
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | number | 1 | Page number |
-| `pageSize` | number | 20 | Items per page (max: 100) |
-| `search` | string | - | Search by name or address |
-| `status` | string | - | Filter: `active`, `inactive`, or `all` |
-
-**Authorization:** Admin, Driver, Staff (filtered to own store)
-
-**Example Request:**
-
-```bash
-curl -X GET "http://localhost:3000/api/stores?page=1&pageSize=10&status=active" \
-  -H "Authorization: Bearer <token>"
-```
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "Downtown Location",
-      "address": "123 Main Street, City, ST 12345",
-      "is_active": true,
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "pageSize": 10,
-    "totalItems": 25,
-    "totalPages": 3,
-    "hasNext": true,
-    "hasPrev": false
-  },
-  "requestId": "req_abc123"
-}
-```
-
----
-
-### Create Store
-
-Create a new store location.
-
-```http
-POST /api/stores
-```
-
-**Authorization:** Admin only
-
-**Request Body:**
-
-```json
-{
-  "name": "New Location",
-  "address": "456 Oak Avenue, City, ST 12345",
-  "is_active": true
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Store name (1-100 chars) |
-| `address` | string | No | Store address |
-| `is_active` | boolean | No | Active status (default: true) |
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440001",
-    "name": "New Location",
-    "address": "456 Oak Avenue, City, ST 12345",
-    "is_active": true,
-    "created_at": "2024-01-16T14:20:00Z",
-    "updated_at": "2024-01-16T14:20:00Z"
-  },
-  "requestId": "req_def456"
-}
-```
-
----
-
-### Get Store
-
-Retrieve a specific store by ID.
-
-```http
-GET /api/stores/:storeId
-```
-
-**Authorization:** Admin, Driver, Staff (own store only)
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "Downtown Location",
-    "address": "123 Main Street, City, ST 12345",
-    "is_active": true,
-    "created_at": "2024-01-15T10:30:00Z",
-    "updated_at": "2024-01-15T10:30:00Z"
-  },
-  "requestId": "req_ghi789"
-}
-```
-
----
-
-### Update Store
-
-Update an existing store.
-
-```http
-PATCH /api/stores/:storeId
-```
-
-**Authorization:** Admin only
-
-**Request Body:**
-
-```json
-{
-  "name": "Updated Name",
-  "address": "789 New Street",
-  "is_active": false
-}
-```
-
-All fields are optional. Only provided fields will be updated.
-
----
-
-### Delete Store
-
-Delete a store (soft delete by setting `is_active` to false).
-
-```http
-DELETE /api/stores/:storeId
-```
-
-**Authorization:** Admin only
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "message": "Store deleted successfully"
-  },
-  "requestId": "req_jkl012"
-}
-```
-
----
-
-## Inventory Items
-
-### List Inventory Items
-
-Retrieve the global inventory item catalog.
-
-```http
-GET /api/inventory
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | number | 1 | Page number |
-| `pageSize` | number | 20 | Items per page (max: 100) |
-| `search` | string | - | Search by name |
-| `category` | string | - | Filter by category |
-| `include_inactive` | boolean | false | Include inactive items |
-
-**Authorization:** Admin only
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440000",
-      "name": "Tomatoes",
-      "category": "Produce",
-      "unit_of_measure": "lb",
-      "is_active": true,
-      "created_at": "2024-01-10T08:00:00Z",
-      "updated_at": "2024-01-10T08:00:00Z"
-    }
-  ],
-  "pagination": { ... },
-  "requestId": "req_mno345"
-}
-```
-
----
-
-### Create Inventory Item
-
-Add a new item to the global catalog.
-
-```http
-POST /api/inventory
-```
-
-**Authorization:** Admin only
-
-**Request Body:**
-
-```json
-{
-  "name": "Fresh Salmon",
-  "category": "Seafood",
-  "unit_of_measure": "lb",
-  "is_active": true
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Item name |
-| `category` | string | No | Category (Produce, Meat, Dairy, etc.) |
-| `unit_of_measure` | string | Yes | Unit (lb, kg, each, case, etc.) |
-| `is_active` | boolean | No | Active status (default: true) |
-
----
-
-### Update Inventory Item
-
-```http
-PATCH /api/inventory/:itemId
-```
-
-**Authorization:** Admin only
-
----
-
-### Delete Inventory Item
-
-Soft delete an inventory item.
-
-```http
-DELETE /api/inventory/:itemId
-```
-
-**Authorization:** Admin only
-
----
-
-## Stock Operations
-
-### Submit Stock Count
-
-Record a daily stock count for a store.
-
-```http
-POST /api/stores/:storeId/stock-count
-```
-
-**Authorization:** Admin, Staff (own store only)
-
-**Request Body:**
-
-```json
-{
-  "items": [
-    {
-      "inventory_item_id": "660e8400-e29b-41d4-a716-446655440000",
-      "quantity": 50
-    },
-    {
-      "inventory_item_id": "660e8400-e29b-41d4-a716-446655440001",
-      "quantity": 25
-    }
-  ],
-  "notes": "End of day count - all items verified"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `items` | array | Yes | Array of item counts |
-| `items[].inventory_item_id` | string | Yes | UUID of inventory item |
-| `items[].quantity` | number | Yes | Current quantity (≥ 0) |
-| `notes` | string | No | Optional notes |
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "message": "Stock count submitted successfully",
-    "items_updated": 2,
-    "daily_count_id": "770e8400-e29b-41d4-a716-446655440000"
-  },
-  "requestId": "req_pqr678"
-}
-```
-
-**Side Effects:**
-- Updates `store_inventory` table with new quantities
-- Creates entries in `stock_history` with action_type = 'Count'
-- Creates/updates `daily_counts` record for the store
-
----
-
-### Record Stock Reception
-
-Record incoming stock delivery.
-
-```http
-POST /api/stores/:storeId/stock-reception
-```
-
-**Authorization:** Admin, Driver
-
-**Request Body:**
-
-```json
-{
-  "items": [
-    {
-      "inventory_item_id": "660e8400-e29b-41d4-a716-446655440000",
-      "quantity": 100
-    }
-  ],
-  "notes": "Morning delivery from ABC Supplier"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `items` | array | Yes | Array of received items |
-| `items[].inventory_item_id` | string | Yes | UUID of inventory item |
-| `items[].quantity` | number | Yes | Quantity received (> 0) |
-| `notes` | string | No | Delivery notes |
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "message": "Stock reception recorded successfully",
-    "items_received": 1
-  },
-  "requestId": "req_stu901"
-}
-```
-
-**Side Effects:**
-- Adds quantity to `store_inventory` (existing + received)
-- Creates entries in `stock_history` with action_type = 'Reception'
-
----
-
-### Get Store Inventory
-
-Retrieve current inventory levels for a store.
-
-```http
-GET /api/stores/:storeId/inventory
-```
-
-**Authorization:** Admin, Driver, Staff (own store only)
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "880e8400-e29b-41d4-a716-446655440000",
-      "store_id": "550e8400-e29b-41d4-a716-446655440000",
-      "inventory_item_id": "660e8400-e29b-41d4-a716-446655440000",
-      "quantity": 50,
-      "par_level": 20,
-      "last_updated_at": "2024-01-16T18:00:00Z",
-      "inventory_item": {
-        "id": "660e8400-e29b-41d4-a716-446655440000",
-        "name": "Tomatoes",
-        "category": "Produce",
-        "unit_of_measure": "lb"
-      }
-    }
-  ],
-  "requestId": "req_vwx234"
-}
-```
-
----
-
-### Get Stock History
-
-Retrieve stock change history for a store.
-
-```http
-GET /api/stores/:storeId/history
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | number | 1 | Page number |
-| `pageSize` | number | 50 | Items per page |
-| `action_type` | string | - | Filter: `Count`, `Reception`, `Adjustment` |
-| `start_date` | string | - | Start date (YYYY-MM-DD) |
-| `end_date` | string | - | End date (YYYY-MM-DD) |
-
-**Authorization:** Admin, Driver, Staff (own store only)
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "990e8400-e29b-41d4-a716-446655440000",
-      "store_id": "550e8400-e29b-41d4-a716-446655440000",
-      "inventory_item_id": "660e8400-e29b-41d4-a716-446655440000",
-      "action_type": "Count",
-      "quantity_before": 45,
-      "quantity_after": 50,
-      "quantity_change": 5,
-      "performed_by": "aa0e8400-e29b-41d4-a716-446655440000",
-      "notes": "End of day count",
-      "created_at": "2024-01-16T18:00:00Z",
-      "inventory_item": {
-        "name": "Tomatoes",
-        "unit_of_measure": "lb"
-      },
-      "performer": {
-        "full_name": "John Smith",
-        "email": "john@example.com"
-      }
-    }
-  ],
-  "pagination": { ... },
-  "requestId": "req_yza567"
-}
-```
-
----
-
-## Reports
-
-### Daily Summary
-
-Get a summary of stock activity for a specific date.
-
-```http
-GET /api/reports/daily-summary
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `date` | string | today | Report date (YYYY-MM-DD) |
-| `store_id` | string | - | Filter by store (optional) |
-
-**Authorization:** Admin, Driver
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "date": "2024-01-16",
-    "summary": {
-      "total_counts": 5,
-      "total_receptions": 3,
-      "stores_with_counts": 5,
-      "stores_missing_counts": 2
-    },
-    "by_store": [
-      {
-        "store_id": "550e8400-e29b-41d4-a716-446655440000",
-        "store_name": "Downtown Location",
-        "count_submitted": true,
-        "count_time": "2024-01-16T18:00:00Z",
-        "receptions_today": 1,
-        "items_counted": 45
-      }
-    ]
-  },
-  "requestId": "req_bcd890"
-}
-```
-
----
-
-### Low Stock Report
-
-Get items below their PAR (minimum) level.
-
-```http
-GET /api/reports/low-stock
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `store_id` | string | - | Filter by store (optional) |
-
-**Authorization:** Admin, Driver
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "store_id": "550e8400-e29b-41d4-a716-446655440000",
-      "store_name": "Downtown Location",
-      "inventory_item_id": "660e8400-e29b-41d4-a716-446655440000",
-      "item_name": "Tomatoes",
-      "category": "Produce",
-      "unit_of_measure": "lb",
-      "current_quantity": 5,
-      "par_level": 20,
-      "shortage": 15
-    }
-  ],
-  "requestId": "req_efg123"
-}
-```
-
----
-
-### Missing Counts Alert
-
-Get stores that haven't submitted their daily count.
-
-```http
-GET /api/alerts/missing-counts
-```
-
-**Authorization:** Admin, Driver
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440001",
-      "name": "Airport Location",
-      "address": "Terminal B, Airport",
-      "last_count_date": "2024-01-15"
-    }
-  ],
-  "requestId": "req_hij456"
-}
-```
-
----
-
-## Shifts
-
-### List Shifts
-
-Retrieve shifts with optional filters.
-
-```http
-GET /api/shifts
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | number | 1 | Page number |
-| `pageSize` | number | 20 | Items per page |
-| `store_id` | string | - | Filter by store |
-| `user_id` | string | - | Filter by user |
-| `start_date` | string | - | Start date (YYYY-MM-DD) |
-| `end_date` | string | - | End date (YYYY-MM-DD) |
-
-**Authorization:** Admin (all), Driver/Staff (own shifts only)
-
----
-
-### Create Shift
-
-Schedule a new shift.
-
-```http
-POST /api/shifts
-```
-
-**Authorization:** Admin only
-
-**Request Body:**
-
-```json
-{
-  "store_id": "550e8400-e29b-41d4-a716-446655440000",
-  "user_id": "aa0e8400-e29b-41d4-a716-446655440000",
-  "start_time": "2024-01-17T09:00:00Z",
-  "end_time": "2024-01-17T17:00:00Z",
-  "notes": "Opening shift"
-}
-```
-
----
-
-### Clock In
-
-Record clock-in time for a shift.
-
-```http
-POST /api/shifts/:shiftId/clock-in
-```
-
-**Authorization:** Admin, assigned user
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "message": "Clocked in successfully",
-    "clock_in_time": "2024-01-17T08:55:00Z"
-  },
-  "requestId": "req_klm789"
-}
-```
-
----
-
-### Clock Out
-
-Record clock-out time for a shift.
-
-```http
-POST /api/shifts/:shiftId/clock-out
-```
-
-**Authorization:** Admin, assigned user
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "message": "Clocked out successfully",
-    "clock_out_time": "2024-01-17T17:05:00Z",
-    "total_hours": 8.17
-  },
-  "requestId": "req_nop012"
-}
-```
-
----
-
-## Users
-
-### Invite User
-
-Create a new user and send an invitation.
-
-```http
-POST /api/users/invite
-```
-
-**Authorization:** Admin only
-
-**Request Body:**
-
-```json
-{
-  "email": "newuser@example.com",
-  "fullName": "Jane Doe",
-  "role": "Staff",
-  "storeId": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `email` | string | Yes | User's email address |
-| `fullName` | string | Yes | User's full name |
-| `role` | string | Yes | Role: `Admin`, `Driver`, or `Staff` |
-| `storeId` | string | Conditional | Required for Staff role |
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "message": "User created successfully",
-    "userId": "bb0e8400-e29b-41d4-a716-446655440000",
-    "tempPassword": "abc123-def456-ghi789"
-  },
-  "requestId": "req_qrs345"
-}
-```
-
-**Note:** The temporary password should be securely communicated to the user.
-
----
-
-## Error Codes
-
-| Status | Code | Description |
-|--------|------|-------------|
-| 400 | `BAD_REQUEST` | Invalid request body or parameters |
-| 401 | `UNAUTHORIZED` | Missing or invalid authentication |
-| 403 | `FORBIDDEN` | Insufficient permissions |
-| 404 | `NOT_FOUND` | Resource not found |
-| 409 | `CONFLICT` | Resource conflict (e.g., duplicate) |
-| 422 | `VALIDATION_ERROR` | Request validation failed |
-| 429 | `RATE_LIMITED` | Too many requests |
-| 500 | `INTERNAL_ERROR` | Server error |
-
----
-
-## Validation Errors
-
-When validation fails, the response includes field-specific errors:
-
-```json
-{
-  "success": false,
-  "error": {
-    "message": "Validation failed",
-    "code": "VALIDATION_ERROR",
-    "details": [
-      {
-        "field": "name",
-        "message": "Name is required"
-      },
-      {
-        "field": "email",
-        "message": "Invalid email format"
-      }
-    ]
-  },
-  "requestId": "req_tuv678"
-}
-```
-
----
-
-## Pagination
-
-All list endpoints support pagination with consistent parameters:
-
-**Request:**
-```http
-GET /api/stores?page=2&pageSize=25
-```
-
-**Response includes:**
-```json
-{
-  "pagination": {
-    "page": 2,
-    "pageSize": 25,
-    "totalItems": 100,
-    "totalPages": 4,
-    "hasNext": true,
-    "hasPrev": true
-  }
-}
-```
-
----
-
-## Best Practices
-
-### 1. Handle Rate Limits
-
-```typescript
-async function fetchWithRetry(url: string, options: RequestInit) {
-  const response = await fetch(url, options)
-
-  if (response.status === 429) {
-    const resetTime = response.headers.get('X-RateLimit-Reset')
-    const waitMs = Number(resetTime) - Date.now()
-    await new Promise(resolve => setTimeout(resolve, waitMs))
-    return fetchWithRetry(url, options)
-  }
-
-  return response
-}
-```
-
-### 2. Use Pagination
-
-Always paginate large datasets:
-
-```typescript
-async function getAllStores() {
-  const stores = []
-  let page = 1
-  let hasMore = true
-
-  while (hasMore) {
-    const response = await fetch(`/api/stores?page=${page}&pageSize=100`)
-    const data = await response.json()
-    stores.push(...data.data)
-    hasMore = data.pagination.hasNext
-    page++
-  }
-
-  return stores
-}
-```
-
-### 3. Include Request IDs in Bug Reports
-
-Every response includes a `requestId`. Include this in bug reports for easier debugging.
-
----
-
-## SDK Usage
-
-The recommended way to interact with the API is through the provided React hooks:
-
-```typescript
-// Stores
-import { useStores } from '@/hooks/useStores'
-const { stores, createStore, updateStore, deleteStore } = useStores()
-
-// Inventory
-import { useInventory } from '@/hooks/useInventory'
-const { items, createItem, updateItem } = useInventory()
-
-// Stock Operations
-import { useStockCount } from '@/hooks/useStockCount'
-import { useStockReception } from '@/hooks/useStockReception'
-
-// Reports
-import { useLowStockReport, useMissingCounts } from '@/hooks/useReports'
-```
-
-These hooks handle authentication, caching, error handling, and optimistic updates automatically.
+## Endpoints
+
+### System
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/health` | None | Health check (auth, database, authenticated query) |
+| GET | `/api/csrf` | None | Get/set CSRF token cookie |
+
+### Auth
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| POST | `/api/auth/signup` | None (rate limit: auth) | No | Create user account with email/password |
+| POST | `/api/auth/login` | None (rate limit: auth) | No | Login with brute-force protection |
+
+### Stores
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores` | Any role | No | List stores user belongs to (paginated) |
+| POST | `/api/stores` | Owner | Yes | Create a new store |
+| GET | `/api/stores/[storeId]` | Any role | No | Get single store details |
+| PATCH | `/api/stores/[storeId]` | Owner, Manager | Yes | Update store name, settings |
+| DELETE | `/api/stores/[storeId]` | Owner | Yes | Delete store (must be empty) |
+
+### Inventory
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/inventory` | Any role | No | List inventory items (multi-tenant, paginated) |
+| POST | `/api/inventory` | Owner, Manager | Yes | Create inventory item for a store |
+| GET | `/api/inventory/[itemId]` | Any role | No | Get single inventory item |
+| PATCH | `/api/inventory/[itemId]` | Owner, Manager | Yes | Update inventory item fields |
+| DELETE | `/api/inventory/[itemId]` | Owner, Manager | Yes | Soft-delete inventory item |
+| GET | `/api/stores/[storeId]/inventory` | Any role | No | List store inventory with stock levels |
+| PATCH | `/api/stores/[storeId]/inventory/[itemId]` | Owner, Manager | Yes | Update stock quantity, PAR level, unit cost |
+| DELETE | `/api/stores/[storeId]/inventory/[itemId]` | Owner, Manager | Yes | Soft-delete item with cleanup |
+| PATCH | `/api/stores/[storeId]/inventory/batch` | Owner, Manager | Yes | Batch update multiple items |
+| DELETE | `/api/stores/[storeId]/inventory/batch` | Owner, Manager | Yes | Batch soft-delete items |
+| POST | `/api/stores/[storeId]/inventory/import` | Owner, Manager | No | Bulk import from CSV |
+| GET | `/api/stores/[storeId]/inventory/template` | Session auth | No | Download CSV import template |
+| GET | `/api/stores/[storeId]/inventory/[itemId]/tags` | Any role | No | Get item's tags |
+| POST | `/api/stores/[storeId]/inventory/[itemId]/tags` | Owner, Manager | Yes | Add tag to item |
+| DELETE | `/api/stores/[storeId]/inventory/[itemId]/tags` | Owner, Manager | Yes | Remove tag from item |
+
+### Stock Operations
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| POST | `/api/stores/[storeId]/stock-count` | Any role | Yes | Submit stock count (updates inventory + history) |
+| POST | `/api/stores/[storeId]/stock-reception` | Any role | Yes | Record stock reception from delivery |
+| GET | `/api/stores/[storeId]/history` | Any role | No | Get stock history with filtering and pagination |
+
+### Suppliers
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/suppliers` | Owner, Manager | No | List suppliers with optional search filter |
+| POST | `/api/stores/[storeId]/suppliers` | Owner, Manager | Yes | Create supplier |
+| GET | `/api/stores/[storeId]/suppliers/[supplierId]` | Owner, Manager | No | Get supplier details |
+| PATCH | `/api/stores/[storeId]/suppliers/[supplierId]` | Owner, Manager | Yes | Update supplier |
+| DELETE | `/api/stores/[storeId]/suppliers/[supplierId]` | Owner, Manager | Yes | Delete supplier |
+| GET | `/api/stores/[storeId]/suppliers/[supplierId]/items` | Owner, Manager | No | List supplier items (catalog) |
+| POST | `/api/stores/[storeId]/suppliers/[supplierId]/items` | Owner, Manager | Yes | Add item to supplier catalog |
+| GET | `/api/stores/[storeId]/suppliers/[supplierId]/portal-tokens` | Owner, Manager | No | List portal tokens for supplier |
+| POST | `/api/stores/[storeId]/suppliers/[supplierId]/portal-tokens` | Owner, Manager | Yes | Generate new portal token |
+
+### Purchase Orders
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/purchase-orders` | Owner, Manager | No | List purchase orders (paginated) |
+| POST | `/api/stores/[storeId]/purchase-orders` | Owner, Manager | Yes | Create PO with line items |
+| GET | `/api/stores/[storeId]/purchase-orders/[poId]` | Owner, Manager | No | Get PO detail with line items |
+| PUT | `/api/stores/[storeId]/purchase-orders/[poId]` | Owner, Manager | Yes | Update PO status, line items |
+| DELETE | `/api/stores/[storeId]/purchase-orders/[poId]` | Owner, Manager | Yes | Delete draft PO |
+| POST | `/api/stores/[storeId]/purchase-orders/[poId]/receive` | Owner, Manager | Yes | Receive items from PO (updates stock) |
+
+### Recipes & Menu Items
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/recipes` | Any role | No | List recipes with cost calculations |
+| POST | `/api/stores/[storeId]/recipes` | Owner, Manager | Yes | Create recipe |
+| GET | `/api/stores/[storeId]/recipes/[recipeId]` | Any role | No | Get recipe detail with ingredients |
+| PUT | `/api/stores/[storeId]/recipes/[recipeId]` | Owner, Manager | Yes | Update recipe |
+| DELETE | `/api/stores/[storeId]/recipes/[recipeId]` | Owner, Manager | Yes | Delete recipe |
+| POST | `/api/stores/[storeId]/recipes/[recipeId]/ingredients` | Owner, Manager | Yes | Add/remove recipe ingredients |
+| GET | `/api/stores/[storeId]/menu-items` | Owner, Manager | No | List menu items with costs |
+| POST | `/api/stores/[storeId]/menu-items` | Owner, Manager | Yes | Create menu item |
+| PUT | `/api/stores/[storeId]/menu-items/[menuItemId]` | Owner, Manager | Yes | Update menu item |
+| DELETE | `/api/stores/[storeId]/menu-items/[menuItemId]` | Owner, Manager | Yes | Delete menu item |
+| GET | `/api/stores/[storeId]/menu-analysis` | Owner, Manager | No | Menu profitability analysis |
+
+### Waste
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/waste` | Owner, Manager | No | Get waste history with filters |
+| POST | `/api/stores/[storeId]/waste` | Any role | Yes | Record waste report |
+| GET | `/api/stores/[storeId]/waste-analytics` | Owner, Manager | No | Waste analytics and trends |
+
+### Categories & Tags
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/categories` | Any role | No | List categories with item counts |
+| POST | `/api/stores/[storeId]/categories` | Owner, Manager | Yes | Create category |
+| PATCH | `/api/stores/[storeId]/categories/[categoryId]` | Owner, Manager | Yes | Update category |
+| DELETE | `/api/stores/[storeId]/categories/[categoryId]` | Owner, Manager | Yes | Delete category |
+| GET | `/api/stores/[storeId]/tags` | Any role | No | List tags with usage counts |
+| POST | `/api/stores/[storeId]/tags` | Owner, Manager | Yes | Create tag |
+| PATCH | `/api/stores/[storeId]/tags/[tagId]` | Owner, Manager | Yes | Update tag |
+| DELETE | `/api/stores/[storeId]/tags/[tagId]` | Owner, Manager | Yes | Delete tag |
+
+### HACCP Food Safety
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/haccp/dashboard` | Any role | No | Compliance score, today's stats |
+| GET | `/api/stores/[storeId]/haccp/templates` | Any role | No | List check templates |
+| POST | `/api/stores/[storeId]/haccp/templates` | Owner, Manager | Yes | Create template |
+| GET | `/api/stores/[storeId]/haccp/templates/[templateId]` | Any role | No | Get template detail |
+| PUT | `/api/stores/[storeId]/haccp/templates/[templateId]` | Owner, Manager | Yes | Update template |
+| DELETE | `/api/stores/[storeId]/haccp/templates/[templateId]` | Owner, Manager | Yes | Deactivate template |
+| GET | `/api/stores/[storeId]/haccp/checks` | Any role | No | List completed checks |
+| POST | `/api/stores/[storeId]/haccp/checks` | Any role | Yes | Submit check (pass/fail/partial) |
+| GET | `/api/stores/[storeId]/haccp/temperature-logs` | Any role | No | List temperature readings |
+| POST | `/api/stores/[storeId]/haccp/temperature-logs` | Any role | Yes | Log temperature reading |
+| GET | `/api/stores/[storeId]/haccp/corrective-actions` | Any role | No | List corrective actions |
+| POST | `/api/stores/[storeId]/haccp/corrective-actions` | Any role | Yes | Create corrective action |
+| PUT | `/api/stores/[storeId]/haccp/corrective-actions/[actionId]` | Owner, Manager | Yes | Resolve corrective action |
+
+### Shifts & Payroll
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/shifts` | Any role | No | List shifts (scoped per role) |
+| POST | `/api/shifts` | Owner, Manager | Yes | Create shift |
+| GET | `/api/shifts/[shiftId]` | Any role | No | Get shift detail |
+| PATCH | `/api/shifts/[shiftId]` | Owner, Manager | Yes | Update shift |
+| DELETE | `/api/shifts/[shiftId]` | Owner, Manager | Yes | Delete shift |
+| POST | `/api/shifts/[shiftId]/clock-in` | Any role | Yes | Clock in to shift |
+| POST | `/api/shifts/[shiftId]/clock-out` | Any role | Yes | Clock out from shift |
+| GET | `/api/stores/[storeId]/payroll/rates` | Owner, Manager | No | List hourly rates |
+| PATCH | `/api/stores/[storeId]/payroll/rates/[userId]` | Owner, Manager | Yes | Update hourly rate |
+| GET | `/api/stores/[storeId]/payroll/earnings` | Any role | No | Calculate earnings for period |
+| GET | `/api/stores/[storeId]/payroll/pay-runs` | Any role | No | List pay runs |
+| POST | `/api/stores/[storeId]/payroll/pay-runs` | Owner, Manager | Yes | Create pay run from shifts |
+| GET | `/api/stores/[storeId]/payroll/pay-runs/[payRunId]` | Any role | No | Get pay run detail |
+| PATCH | `/api/stores/[storeId]/payroll/pay-runs/[payRunId]` | Owner, Manager | Yes | Update pay run status |
+| DELETE | `/api/stores/[storeId]/payroll/pay-runs/[payRunId]` | Owner, Manager | Yes | Delete pay run |
+
+### Users & Invitations
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| DELETE | `/api/stores/[storeId]/users/[userId]` | Owner, Manager | Yes | Remove user from store |
+| POST | `/api/users/invite` | Owner | Yes | Invite user to store |
+| GET | `/api/users/invites` | Owner, Manager | No | List pending invitations |
+| POST | `/api/users/invites/resend` | Owner | Yes | Resend invitation email |
+| POST | `/api/users/bulk-import` | Owner | Yes | Bulk import users from CSV |
+| POST | `/api/users/onboard` | Rate limited | Yes | Complete onboarding |
+| POST | `/api/users/onboard/validate` | Rate limited | No | Validate onboarding token |
+| GET | `/api/users/account-type` | Any role | No | Get account type for current user |
+| PUT | `/api/stores/[storeId]/billing-owner` | Owner | Yes | Transfer billing ownership |
+
+### Reports
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/reports/analytics` | Owner, Manager | No | Comprehensive analytics (stock activity, health) |
+| GET | `/api/reports/benchmark` | Owner, Manager | No | Multi-store comparative analytics |
+| GET | `/api/reports/daily-summary` | Any role | No | Daily summary of counts/receptions |
+| GET | `/api/reports/forecast` | Owner, Manager | No | AI-powered demand forecasting |
+| GET | `/api/reports/low-stock` | Any role | No | Items below PAR level |
+| GET | `/api/stores/[storeId]/reports/food-cost` | Owner, Manager | No | Food cost analysis (requires POS + recipes) |
+| GET | `/api/stores/[storeId]/export` | Owner | No | Export store data as Excel |
+| GET | `/api/audit-logs` | Owner, Manager | No | Retrieve audit logs with filtering |
+| GET | `/api/alerts/missing-counts` | Any role | No | Stores with missing daily counts |
+| GET | `/api/stores/[storeId]/alert-history` | Owner, Manager | No | Alert delivery history |
+| GET | `/api/stores/[storeId]/alert-preferences` | Owner, Manager | No | Get alert preferences |
+| PUT | `/api/stores/[storeId]/alert-preferences` | Owner, Manager | Yes | Update alert preferences |
+| GET | `/api/stores/[storeId]/notification-preferences` | Any role | No | Get notification preferences |
+| PUT | `/api/stores/[storeId]/notification-preferences` | Any role | Yes | Update notification preferences |
+
+### Invoices (OCR)
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/invoices` | Owner, Manager | No | List invoices |
+| POST | `/api/stores/[storeId]/invoices` | Owner, Manager | Yes | Upload invoice file (triggers OCR) |
+| GET | `/api/stores/[storeId]/invoices/[invoiceId]` | Owner, Manager | No | Get invoice detail with line items |
+| PATCH | `/api/stores/[storeId]/invoices/[invoiceId]` | Owner, Manager | Yes | Update invoice (approve/reject line matches) |
+| POST | `/api/stores/[storeId]/invoices/[invoiceId]/apply` | Owner, Manager | Yes | Apply approved invoice to inventory |
+
+### POS Integration
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/pos` | Owner, Manager | No | List POS connections |
+| POST | `/api/stores/[storeId]/pos` | Owner | Yes | Create POS connection |
+| DELETE | `/api/stores/[storeId]/pos` | Owner | Yes | Delete POS connection |
+| GET | `/api/stores/[storeId]/pos/events` | Owner, Manager | No | List recent POS sale events |
+| GET | `/api/stores/[storeId]/pos/mappings` | Owner, Manager | No | List POS item mappings |
+| POST | `/api/stores/[storeId]/pos/mappings` | Owner, Manager | Yes | Create POS item mapping |
+| DELETE | `/api/stores/[storeId]/pos/mappings` | Owner, Manager | Yes | Delete POS item mapping |
+| GET | `/api/stores/[storeId]/pos/menu-items` | Owner, Manager | No | Fetch menu items from POS provider |
+| GET | `/api/integrations/pos/[provider]/auth` | Owner, Manager | No | Initiate POS OAuth flow (redirects) |
+| GET | `/api/integrations/pos/[provider]/callback` | None (OAuth) | No | POS OAuth callback, create connection |
+| POST | `/api/pos/webhook/[connectionId]` | HMAC signature | No | Receive POS sale events (webhook) |
+
+### Accounting Integration
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/accounting` | Owner, Manager | No | Get accounting connection status |
+| GET | `/api/stores/[storeId]/accounting/accounts` | Owner, Manager | No | Fetch chart of accounts from provider |
+| GET | `/api/stores/[storeId]/accounting/config` | Owner, Manager | No | Get GL mapping configuration |
+| PUT | `/api/stores/[storeId]/accounting/config` | Owner, Manager | Yes | Update GL mapping configuration |
+| POST | `/api/stores/[storeId]/accounting/sync` | Owner, Manager | Yes | Trigger sync of invoices to accounting |
+| GET | `/api/integrations/xero/auth` | Owner, Manager | No | Initiate Xero OAuth flow |
+| GET | `/api/integrations/xero/callback` | None (OAuth) | No | Xero OAuth callback |
+| POST | `/api/integrations/xero/disconnect` | Owner, Manager | Yes | Disconnect Xero |
+| GET | `/api/integrations/quickbooks/auth` | Owner, Manager | No | Initiate QuickBooks OAuth flow |
+| GET | `/api/integrations/quickbooks/callback` | None (OAuth) | No | QuickBooks OAuth callback |
+| POST | `/api/integrations/quickbooks/disconnect` | Owner, Manager | Yes | Disconnect QuickBooks |
+
+### Billing (Stripe)
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/billing/subscriptions` | Owner | No | List store subscriptions |
+| POST | `/api/billing/subscriptions` | Owner | Yes | Create subscription |
+| GET | `/api/billing/subscriptions/[subscriptionId]` | Owner | No | Get subscription detail |
+| PATCH | `/api/billing/subscriptions/[subscriptionId]` | Owner | Yes | Cancel / reactivate subscription |
+| GET | `/api/billing/payment-methods` | Owner | No | List payment methods |
+| POST | `/api/billing/payment-methods` | Owner | Yes | Add payment method |
+| PATCH | `/api/billing/payment-methods/[pmId]` | Owner | Yes | Set default payment method |
+| DELETE | `/api/billing/payment-methods/[pmId]` | Owner | Yes | Remove payment method |
+| POST | `/api/billing/setup-intent` | Owner | Yes | Create Stripe SetupIntent |
+| GET | `/api/billing/invoices` | Owner | No | Fetch invoices from Stripe |
+| POST | `/api/billing/webhook` | Stripe signature | No | Stripe webhook (subscription, invoice, dispute events) |
+
+### Supplier Portal (Token Auth)
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/supplier-portal/orders` | Token (can_view_orders) | No | List POs for supplier |
+| PATCH | `/api/supplier-portal/orders/[poId]` | Token (can_update_order_status) | No | Update PO status |
+| POST | `/api/supplier-portal/invoices` | Token (can_upload_invoices) | No | Upload invoice |
+| GET | `/api/supplier-portal/catalog` | Token (can_view_orders) | No | View catalog items |
+| PUT | `/api/supplier-portal/catalog` | Token (can_update_catalog) | No | Update catalog items |
+
+### Public API (API Key Auth)
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/v1/inventory` | API key (inventory:read) | No | List inventory items |
+| GET | `/api/v1/stock` | API key (stock:read) | No | Get stock history |
+| POST | `/api/v1/stock` | API key (stock:write) | No | Submit count/reception |
+| GET | `/api/stores/[storeId]/api-keys` | Owner, Manager | No | List API keys |
+| POST | `/api/stores/[storeId]/api-keys` | Owner | Yes | Create API key |
+| DELETE | `/api/stores/[storeId]/api-keys` | Owner | Yes | Revoke API key |
+
+### Webhooks & Store Config
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| GET | `/api/stores/[storeId]/webhooks` | Owner, Manager | No | List configured webhooks |
+| POST | `/api/stores/[storeId]/webhooks` | Owner, Manager | Yes | Register webhook endpoint |
+
+### Cron Jobs
+
+| Method | Path | Auth | CSRF | Description |
+|--------|------|------|------|-------------|
+| POST | `/api/cron/send-alerts` | CRON_SECRET | No | Process and send scheduled alerts (hourly) |
+| POST | `/api/cron/archive-data` | CRON_SECRET | No | Archive old stock_history and audit_logs (>12 months, weekly) |

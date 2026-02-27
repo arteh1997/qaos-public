@@ -18,6 +18,8 @@ export function useItemTags(storeId: string, itemId: string) {
       return data.data.tag_ids as string[]
     },
     enabled: !!storeId && !!itemId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 

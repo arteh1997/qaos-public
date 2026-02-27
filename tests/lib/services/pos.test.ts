@@ -76,6 +76,7 @@ describe('POS Service', () => {
 
     it('should record event and deduct inventory', async () => {
       let saleEventSelectCalled = false
+      let storeInventoryFetched = false
 
       mockAdminFrom.mockImplementation((table: string) => {
         if (table === 'pos_sale_events') {
@@ -105,12 +106,16 @@ describe('POS Service', () => {
         }
 
         if (table === 'store_inventory') {
-          const mock = createChainableMock({
-            data: { quantity: 50 },
-            error: null,
-          })
-          mock.upsert = vi.fn().mockResolvedValue({ error: null })
-          return mock
+          if (!storeInventoryFetched) {
+            // Batch SELECT — returns array of inventory rows
+            storeInventoryFetched = true
+            return createChainableMock({
+              data: [{ inventory_item_id: 'inv-item-1', quantity: 50 }],
+              error: null,
+            })
+          }
+          // Batch UPSERT
+          return createChainableMock({ data: null, error: null })
         }
 
         if (table === 'stock_history') {
@@ -178,6 +183,7 @@ describe('POS Service', () => {
 
     it('should handle refund events (adds back inventory)', async () => {
       let saleEventSelectCalled = false
+      let storeInventoryFetched = false
 
       const refundEvent = {
         ...baseEvent,
@@ -215,12 +221,16 @@ describe('POS Service', () => {
         }
 
         if (table === 'store_inventory') {
-          const mock = createChainableMock({
-            data: { quantity: 48 },
-            error: null,
-          })
-          mock.upsert = vi.fn().mockResolvedValue({ error: null })
-          return mock
+          if (!storeInventoryFetched) {
+            // Batch SELECT — returns array of inventory rows
+            storeInventoryFetched = true
+            return createChainableMock({
+              data: [{ inventory_item_id: 'inv-item-1', quantity: 48 }],
+              error: null,
+            })
+          }
+          // Batch UPSERT
+          return createChainableMock({ data: null, error: null })
         }
 
         if (table === 'stock_history') {

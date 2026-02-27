@@ -39,6 +39,9 @@ export function useAccountingConnections(storeId: string | undefined) {
     queryKey: ['accounting', storeId],
     queryFn: () => fetchJSON<ConnectionsResponse>(`/api/stores/${storeId}/accounting`),
     enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   return {
@@ -59,6 +62,9 @@ export function useAccountingAccounts(storeId: string | undefined, provider = 'x
     queryFn: () =>
       fetchJSON<AccountsResponse>(`/api/stores/${storeId}/accounting/accounts?provider=${provider}`),
     enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   return {
@@ -78,6 +84,9 @@ export function useAccountingConfig(storeId: string | undefined, provider = 'xer
     queryFn: () =>
       fetchJSON<AccountingConfig>(`/api/stores/${storeId}/accounting/config?provider=${provider}`),
     enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 
   return {

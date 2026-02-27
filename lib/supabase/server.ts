@@ -3,6 +3,15 @@ import { cookies } from 'next/headers'
 import { Database } from '@/types/database'
 import { clientEnv } from '@/lib/env'
 
+/**
+ * Create a Supabase server client for use in Server Components and API routes.
+ *
+ * Uses the anon key + user's session cookies, so all queries respect RLS.
+ * The `setAll` callback silently catches errors when called from Server Components
+ * (cookies are read-only there) — the Next.js middleware handles session refresh.
+ *
+ * Must be called per-request (not cached) because it reads from the cookie store.
+ */
 export async function createClient() {
   const cookieStore = await cookies()
 

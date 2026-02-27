@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { useCSRF } from './useCSRF'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCSRFHeaders } from '@/hooks/useCSRF'
 import type { PurchaseOrder } from '@/types'
 import type {
   CreatePurchaseOrderFormData,
@@ -17,47 +17,30 @@ interface UsePurchaseOrdersResult {
 }
 
 export function usePurchaseOrders(storeId: string | null): UsePurchaseOrdersResult {
-  const { csrfFetch } = useCSRF()
-  const [orders, setOrders] = useState<PurchaseOrder[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const queryClient = useQueryClient()
 
-  const fetchOrders = useCallback(async (options?: { status?: string; supplier_id?: string }) => {
-    if (!storeId) return
-
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      const params = new URLSearchParams()
-      if (options?.status) params.set('status', options.status)
-      if (options?.supplier_id) params.set('supplier_id', options.supplier_id)
-
-      const queryString = params.toString()
-      const url = `/api/stores/${storeId}/purchase-orders${queryString ? `?${queryString}` : ''}`
-
-      const response = await fetch(url)
+  const query = useQuery({
+    queryKey: ['purchase-orders', storeId],
+    queryFn: async () => {
+      const response = await fetch(`/api/stores/${storeId}/purchase-orders`)
       const data = await response.json()
 
       if (!response.ok) throw new Error(data.message || 'Failed to fetch purchase orders')
 
-      setOrders(data.data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch purchase orders')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [storeId])
+      return (data.data || []) as PurchaseOrder[]
+    },
+    enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+  })
 
-  const createOrder = useCallback(async (formData: CreatePurchaseOrderFormData): Promise<PurchaseOrder> => {
-    if (!storeId) throw new Error('No store selected')
+  const createMutation = useMutation({
+    mutationFn: async (formData: CreatePurchaseOrderFormData): Promise<PurchaseOrder> => {
+      if (!storeId) throw new Error('No store selected')
 
-    try {
-      setIsSubmitting(true)
-      const response = await csrfFetch(`/api/stores/${storeId}/purchase-orders`, {
+      const response = await fetch(`/api/stores/${storeId}/purchase-orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCSRFHeaders() },
         body: JSON.stringify(formData),
       })
 
@@ -65,18 +48,38 @@ export function usePurchaseOrders(storeId: string | null): UsePurchaseOrdersResu
       if (!response.ok) throw new Error(data.message || 'Failed to create purchase order')
 
       return data.data
-    } finally {
-      setIsSubmitting(false)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', storeId] })
+    },
+  })
+
+  // Backward-compatible fetchOrders with filter options
+  const fetchOrders = async (options?: { status?: string; supplier_id?: string }) => {
+    if (options && Object.keys(options).length > 0) {
+      if (!storeId) return
+      const params = new URLSearchParams()
+      if (options.status) params.set('status', options.status)
+      if (options.supplier_id) params.set('supplier_id', options.supplier_id)
+      const queryString = params.toString()
+      const url = `/api/stores/${storeId}/purchase-orders${queryString ? `?${queryString}` : ''}`
+      const response = await fetch(url)
+      const data = await response.json()
+      if (response.ok) {
+        queryClient.setQueryData(['purchase-orders', storeId], data.data || [])
+      }
+    } else {
+      await query.refetch()
     }
-  }, [storeId, csrfFetch])
+  }
 
   return {
-    orders,
-    isLoading,
-    error,
+    orders: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error?.message ?? null,
     fetchOrders,
-    createOrder,
-    isSubmitting,
+    createOrder: createMutation.mutateAsync,
+    isSubmitting: createMutation.isPending,
   }
 }
 
@@ -93,40 +96,30 @@ interface UsePurchaseOrderDetailResult {
 }
 
 export function usePurchaseOrderDetail(storeId: string | null, poId: string | null): UsePurchaseOrderDetailResult {
-  const { csrfFetch } = useCSRF()
-  const [order, setOrder] = useState<PurchaseOrder | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const queryClient = useQueryClient()
 
-  const fetchOrder = useCallback(async () => {
-    if (!storeId || !poId) return
-
-    try {
-      setIsLoading(true)
-      setError(null)
-
+  const query = useQuery({
+    queryKey: ['purchase-order-detail', storeId, poId],
+    queryFn: async () => {
       const response = await fetch(`/api/stores/${storeId}/purchase-orders/${poId}`)
       const data = await response.json()
 
       if (!response.ok) throw new Error(data.message || 'Failed to fetch purchase order')
 
-      setOrder(data.data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch purchase order')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [storeId, poId])
+      return data.data as PurchaseOrder
+    },
+    enabled: !!storeId && !!poId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+  })
 
-  const updateOrder = useCallback(async (formData: UpdatePurchaseOrderFormData): Promise<PurchaseOrder> => {
-    if (!storeId || !poId) throw new Error('Missing store or PO')
+  const updateMutation = useMutation({
+    mutationFn: async (formData: UpdatePurchaseOrderFormData): Promise<PurchaseOrder> => {
+      if (!storeId || !poId) throw new Error('Missing store or PO')
 
-    try {
-      setIsSubmitting(true)
-      const response = await csrfFetch(`/api/stores/${storeId}/purchase-orders/${poId}`, {
+      const response = await fetch(`/api/stores/${storeId}/purchase-orders/${poId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCSRFHeaders() },
         body: JSON.stringify(formData),
       })
 
@@ -134,53 +127,57 @@ export function usePurchaseOrderDetail(storeId: string | null, poId: string | nu
       if (!response.ok) throw new Error(data.message || 'Failed to update purchase order')
 
       return data.data
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [storeId, poId, csrfFetch])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-order-detail', storeId, poId] })
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', storeId] })
+    },
+  })
 
-  const receiveItems = useCallback(async (formData: ReceivePurchaseOrderFormData): Promise<void> => {
-    if (!storeId || !poId) throw new Error('Missing store or PO')
+  const receiveMutation = useMutation({
+    mutationFn: async (formData: ReceivePurchaseOrderFormData): Promise<void> => {
+      if (!storeId || !poId) throw new Error('Missing store or PO')
 
-    try {
-      setIsSubmitting(true)
-      const response = await csrfFetch(`/api/stores/${storeId}/purchase-orders/${poId}/receive`, {
+      const response = await fetch(`/api/stores/${storeId}/purchase-orders/${poId}/receive`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCSRFHeaders() },
         body: JSON.stringify(formData),
       })
 
       const data = await response.json()
       if (!response.ok) throw new Error(data.message || 'Failed to receive items')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [storeId, poId, csrfFetch])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-order-detail', storeId, poId] })
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', storeId] })
+    },
+  })
 
-  const deleteOrder = useCallback(async (): Promise<void> => {
-    if (!storeId || !poId) throw new Error('Missing store or PO')
+  const deleteMutation = useMutation({
+    mutationFn: async (): Promise<void> => {
+      if (!storeId || !poId) throw new Error('Missing store or PO')
 
-    try {
-      setIsSubmitting(true)
-      const response = await csrfFetch(`/api/stores/${storeId}/purchase-orders/${poId}`, {
+      const response = await fetch(`/api/stores/${storeId}/purchase-orders/${poId}`, {
         method: 'DELETE',
+        headers: getCSRFHeaders(),
       })
 
       const data = await response.json()
       if (!response.ok) throw new Error(data.message || 'Failed to delete purchase order')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [storeId, poId, csrfFetch])
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders', storeId] })
+    },
+  })
 
   return {
-    order,
-    isLoading,
-    error,
-    fetchOrder,
-    updateOrder,
-    receiveItems,
-    deleteOrder,
-    isSubmitting,
+    order: query.data ?? null,
+    isLoading: query.isLoading,
+    error: query.error?.message ?? null,
+    fetchOrder: async () => { await query.refetch() },
+    updateOrder: updateMutation.mutateAsync,
+    receiveItems: receiveMutation.mutateAsync,
+    deleteOrder: deleteMutation.mutateAsync,
+    isSubmitting: updateMutation.isPending || receiveMutation.isPending || deleteMutation.isPending,
   }
 }

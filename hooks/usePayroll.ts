@@ -43,6 +43,7 @@ export function useStaffRates(storeId: string | null) {
     },
     enabled: !!storeId,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 
   const updateRate = useMutation({
@@ -89,6 +90,7 @@ export function useEarnings(storeId: string | null, from: string, to: string) {
     },
     enabled: !!storeId && !!from && !!to,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 
@@ -106,6 +108,7 @@ export function usePayRuns(storeId: string | null) {
     },
     enabled: !!storeId,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 
@@ -121,6 +124,7 @@ export function usePayRunDetail(storeId: string | null, payRunId: string | null)
     },
     enabled: !!storeId && !!payRunId,
     staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 

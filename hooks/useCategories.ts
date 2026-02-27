@@ -43,6 +43,9 @@ export function useCategories(storeId: string) {
       return data.data.categories as Category[]
     },
     enabled: !!storeId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 }
 

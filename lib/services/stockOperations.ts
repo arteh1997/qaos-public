@@ -68,18 +68,26 @@ export async function verifyActiveItems(
 }
 
 /**
- * Fetch current inventory quantities for all items at a store
+ * Fetch current inventory quantities for items at a store
  *
+ * @param itemIds - Optional list of item IDs to filter by. If omitted, fetches all items.
  * @returns Map of inventory_item_id → current quantity
  */
 export async function getCurrentInventoryMap(
   supabase: SupabaseClient,
-  storeId: string
+  storeId: string,
+  itemIds?: string[]
 ): Promise<Map<string, number>> {
-  const { data: currentInventory } = await supabase
+  let query = supabase
     .from('store_inventory')
     .select('inventory_item_id, quantity')
     .eq('store_id', storeId)
+
+  if (itemIds && itemIds.length > 0) {
+    query = query.in('inventory_item_id', itemIds)
+  }
+
+  const { data: currentInventory } = await query
 
   return new Map(
     (currentInventory ?? []).map((item: { inventory_item_id: string; quantity: number }) => [

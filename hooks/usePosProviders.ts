@@ -33,6 +33,8 @@ export function usePosMenuItems(storeId: string | null, connectionId: string | n
       return json.data
     },
     enabled: !!storeId && !!connectionId,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   })
 }
 

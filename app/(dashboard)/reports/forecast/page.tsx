@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { Suspense, useState, useMemo } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useForecast, type ForecastData } from '@/hooks/useForecast'
 import { Card, CardContent } from '@/components/ui/card'

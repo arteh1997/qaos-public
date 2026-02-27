@@ -1,338 +1,320 @@
 # Restaurant Inventory Management System
 
-A modern, role-based inventory management platform for multi-location restaurant chains. Built with Next.js 16, TypeScript, and Supabase, it enables real-time stock tracking, delivery management, and comprehensive reporting across unlimited store locations.
-
-## Features
-
-- **Multi-Location Support** - Manage inventory across unlimited restaurant locations from a single dashboard
-- **Role-Based Access Control** - Three distinct roles (Admin, Driver, Staff) with granular permissions
-- **Real-Time Stock Tracking** - Daily stock counts with complete audit trails
-- **Delivery Management** - Record and track incoming stock deliveries
-- **Low Stock Alerts** - Automatic notifications when items fall below PAR levels
-- **Shift Management** - Schedule and track staff shifts with clock in/out
-- **Comprehensive Reports** - Daily summaries, low stock reports, and activity tracking
-- **Modern UI** - Dark mode, glassmorphism effects, and responsive design
+Multi-tenant restaurant inventory management SaaS application with POS integration, supplier management, recipe costing, HACCP food safety compliance, and real-time stock tracking. Built for restaurants, food trucks, and multi-location food businesses. Users belong to stores via a `store_users` junction table with role-based access (Owner / Manager / Staff).
 
 ## Tech Stack
 
 | Category | Technology |
 |----------|-----------|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript 5 (strict mode) |
-| Database | PostgreSQL via Supabase |
-| Authentication | Supabase Auth (JWT) |
-| Styling | Tailwind CSS 4 |
-| UI Components | Shadcn UI + Radix UI |
-| State Management | TanStack Query 5 |
-| Forms | React Hook Form + Zod |
-| Testing | Vitest |
+| Framework | Next.js 16 (App Router, React Server Components) |
+| UI | React 19, TypeScript 5 (strict mode) |
+| Database | Supabase (PostgreSQL + Auth + Row-Level Security + PostgREST) |
+| Styling | Tailwind CSS 4, Radix UI via shadcn/ui |
+| State | TanStack Query v5 |
+| Billing | Stripe (multi-currency: GBP, USD, EUR, SAR, AED, AUD, CAD) |
+| Email | Resend (transactional) |
+| Rate Limiting | Upstash Redis (sliding window) |
+| Validation | Zod 4, React Hook Form |
+| Testing | Vitest (1,897 tests across 95 files) |
+| Offline/PWA | Dexie.js (IndexedDB) |
+| Charts | Recharts |
+| Scanning | html5-qrcode (barcode) |
+| Monitoring | Sentry, Vercel Analytics + Speed Insights |
 
-## Installation
+## Features
+
+### Core Inventory
+- **Multi-store inventory** with per-store stock levels, PAR levels, and unit costs
+- **Stock counts** with variance tracking and audit trails
+- **Deliveries & receptions** with automatic stock level updates
+- **Low stock alerts** with configurable thresholds and email notifications
+- **Waste tracking** with reason codes (spoilage, damaged, expired, overproduction)
+- **Bulk CSV import/export** for inventory items
+
+### Supplier Management
+- **Supplier directory** with contact info and payment terms
+- **Purchase orders** with full lifecycle (draft, submitted, acknowledged, shipped, partial, received, cancelled)
+- **Supplier portal** (token-authenticated, no user account needed) for suppliers to view orders, upload invoices, and update catalogs
+
+### Recipe & Menu Costing
+- **Recipe builder** with ingredient costs and yield calculations
+- **Menu items** with selling price and food cost percentage
+- **Menu analysis** (contribution margin, food cost %)
+
+### POS Integration
+- **37 POS provider adapters** (Square, Toast, Clover, Lightspeed, Zettle, SumUp, Epos Now, Tevalis, Foodics, Oracle MICROS, NCR Voyix, SpotOn, Revel, TouchBistro, Gastrofix, iiko, POSRocket, PAR Brink, Heartland, HungerRush, CAKE, Lavu, Focus POS, Shopify POS, Aldelo Express, Squirrel, GoTab, Xenial, Qu POS, Future POS, Upserve, SICOM, POSitouch, Harbortouch, Digital Dining, Maitre'D, Speedline + Custom)
+- **Webhook-based sale processing** with automatic inventory deduction
+- **Item mapping** between POS menu items and inventory items
+
+### Accounting Integration
+- **Xero** (OAuth, chart of accounts, contact/bill sync)
+- **QuickBooks Online** (OAuth, vendor/bill sync, SyncToken updates)
+
+### Invoice OCR
+- **Google Document AI** for invoice scanning
+- **Fuzzy matching** of line items to inventory
+- **Review UI** for manual verification before applying to stock
+
+### HACCP Food Safety
+- **Check templates** (daily/weekly/shift frequency)
+- **Temperature logging** with safe range alerts
+- **Corrective actions** linked to checks
+- **Compliance dashboard** with scoring
+
+### Workforce
+- **Shift scheduling** with timetable view
+- **Clock in/out** with attendance tracking
+- **Payroll** with hourly rates and pay run management
+
+### Reports & Forecasting
+- **AI demand forecast** (SMA, WMA, exponential smoothing with seasonality)
+- **Daily summary**, **low stock**, **benchmark**, **food cost** reports
+- **Activity log** with full audit trail
+
+### Billing
+- **Per-store Stripe subscriptions** with trial support
+- **Multi-currency** (GBP, USD, EUR, SAR, AED, AUD, CAD)
+- **Invoice history** and payment method management
+
+### Public API
+- **API key authentication** (`rk_live_` format) with granular scopes
+- **v1 endpoints** for inventory and stock operations
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
-- Node.js 20 or higher
-- npm 10 or higher
-- A Supabase project ([create one free](https://supabase.com))
+- Node.js 20.9+ (see `engines` in package.json)
+- npm
+- A [Supabase](https://supabase.com) project
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (for migrations)
 
-### Setup
-
-1. **Clone the repository**
+### Installation
 
 ```bash
-git clone https://github.com/your-org/restaurant-inventory-management-system.git
+git clone <repo-url>
 cd restaurant-inventory-management-system
-```
-
-2. **Install dependencies**
-
-```bash
 npm install
 ```
 
-3. **Configure environment variables**
+### Environment Variables
 
-Create a `.env.local` file in the root directory:
+Create a `.env.local` file:
 
 ```bash
-# Supabase Configuration (get these from your Supabase dashboard)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+# === Required ===
+
+# Supabase project URL (e.g., https://xxx.supabase.co)
+NEXT_PUBLIC_SUPABASE_URL=
+
+# Supabase anonymous/public key
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Supabase service role key — never expose client-side
+SUPABASE_SERVICE_ROLE_KEY=
+
+
+# === Optional (features degrade gracefully without these) ===
+
+# Resend — transactional emails (invitations, alerts)
+RESEND_API_KEY=
+
+# Stripe — SaaS billing
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=                # whsec_ prefix
+
+# Upstash Redis — production rate limiting (falls back to in-memory Map in dev)
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# Cron jobs — authenticates scheduled endpoints
+CRON_SECRET=
+
+# Xero accounting integration
+XERO_CLIENT_ID=
+XERO_CLIENT_SECRET=
+XERO_REDIRECT_URI=
+
+# QuickBooks accounting integration
+QUICKBOOKS_CLIENT_ID=
+QUICKBOOKS_CLIENT_SECRET=
+QUICKBOOKS_REDIRECT_URI=
+
+# Google Document AI — invoice OCR scanning
+GOOGLE_CLOUD_PROJECT_ID=
+GOOGLE_DOCUMENT_AI_PROCESSOR_ID=
 ```
 
-4. **Set up the database**
+### Database Setup
 
-Run the SQL migrations in your Supabase SQL editor (located in `/supabase/migrations/` if available, or set up tables as described in [ARCHITECTURE.md](./docs/ARCHITECTURE.md)).
+Supabase manages PostgreSQL. Migrations live in `supabase/migrations/` (000-065).
 
-5. **Start the development server**
+```bash
+# Push all migrations to your Supabase project
+supabase db push
+
+# Regenerate TypeScript types from the database schema
+npm run db:types
+```
+
+This generates `types/database.ts`. RLS is enabled on all tables, scoped by `store_id` via a `get_user_store_ids()` helper function.
+
+### Run the Dev Server
 
 ```bash
 npm run dev
+# Open http://localhost:3000
 ```
 
-6. **Open the application**
-
-Navigate to [http://localhost:3000](http://localhost:3000)
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-side only) |
-
-### Role Permissions
-
-| Feature | Admin | Driver | Staff |
-|---------|:-----:|:------:|:-----:|
-| View all stores | ✅ | ✅ | Own only |
-| Manage stores | ✅ | ❌ | ❌ |
-| Manage inventory items | ✅ | ❌ | ❌ |
-| Manage users | ✅ | ❌ | ❌ |
-| Submit stock counts | ✅ | ❌ | ✅ |
-| Record deliveries | ✅ | ✅ | ❌ |
-| View reports | ✅ | ✅ | ❌ |
-| Manage shifts | ✅ | ❌ | ❌ |
-
-## Usage Examples
-
-### Submitting a Stock Count (Staff/Admin)
-
-```typescript
-import { useStockCount } from '@/hooks/useStockCount'
-
-function StockCountPage({ storeId }: { storeId: string }) {
-  const { submitCount, isLoading } = useStockCount()
-
-  const handleSubmit = async (items: StockCountItem[]) => {
-    await submitCount.mutateAsync({
-      store_id: storeId,
-      items: items.map(item => ({
-        inventory_item_id: item.id,
-        quantity: item.quantity
-      })),
-      notes: 'End of day count'
-    })
-  }
-
-  return <StockCountForm onSubmit={handleSubmit} isLoading={isLoading} />
-}
-```
-
-### Recording a Delivery (Driver/Admin)
-
-```typescript
-import { useStockReception } from '@/hooks/useStockReception'
-
-function DeliveryPage({ storeId }: { storeId: string }) {
-  const { submitReception, isLoading } = useStockReception()
-
-  const handleDelivery = async (items: DeliveryItem[]) => {
-    await submitReception.mutateAsync({
-      store_id: storeId,
-      items: items.map(item => ({
-        inventory_item_id: item.id,
-        quantity: item.quantity
-      })),
-      notes: 'Morning delivery from supplier'
-    })
-  }
-
-  return <DeliveryForm onSubmit={handleDelivery} isLoading={isLoading} />
-}
-```
-
-### Checking User Permissions
-
-```typescript
-import { useAuth } from '@/hooks/useAuth'
-import { canDoStockCount, canDoStockReception } from '@/lib/auth'
-
-function ActionButtons() {
-  const { role } = useAuth()
-
-  return (
-    <div>
-      {canDoStockCount(role) && (
-        <Button>Submit Stock Count</Button>
-      )}
-      {canDoStockReception(role) && (
-        <Button>Record Delivery</Button>
-      )}
-    </div>
-  )
-}
-```
-
-## API Documentation
-
-Full API documentation is available in [docs/API.md](./docs/API.md).
-
-### Quick Reference
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/stores` | GET | List all stores (paginated) |
-| `/api/stores` | POST | Create a new store |
-| `/api/stores/:id/stock-count` | POST | Submit stock count |
-| `/api/stores/:id/stock-reception` | POST | Record delivery |
-| `/api/inventory` | GET | List inventory items |
-| `/api/reports/low-stock` | GET | Get low stock alerts |
-| `/api/reports/daily-summary` | GET | Get daily activity summary |
-
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Browser                               │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Next.js Middleware                        │
-│  • Session validation                                        │
-│  • Profile caching (5 min TTL)                              │
-│  • Route-based access control                               │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              ▼                               ▼
-┌──────────────────────────┐    ┌──────────────────────────┐
-│     React Components      │    │       API Routes         │
-│  • Dashboard views        │    │  • withApiAuth wrapper   │
-│  • Form components        │    │  • Rate limiting         │
-│  • Table components       │    │  • Zod validation        │
-└──────────────────────────┘    └──────────────────────────┘
-              │                               │
-              ▼                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    React Query (TanStack)                    │
-│  • Caching with smart invalidation                          │
-│  • Optimistic updates                                       │
-│  • Background refetching                                    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Supabase Client                         │
-│  • Authentication (JWT)                                      │
-│  • Real-time subscriptions                                   │
-│  • PostgREST queries                                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   PostgreSQL Database                        │
-│  • Row-Level Security (RLS)                                 │
-│  • Stored procedures                                        │
-│  • Audit triggers                                           │
-└─────────────────────────────────────────────────────────────┘
-```
-
-For detailed architecture documentation, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
-
-## Project Structure
-
-```
-├── app/                      # Next.js App Router
-│   ├── (dashboard)/          # Protected dashboard routes
-│   │   ├── stores/           # Store management
-│   │   ├── inventory/        # Inventory management
-│   │   ├── users/            # User management
-│   │   ├── reports/          # Analytics & reports
-│   │   └── my-shifts/        # Staff shift tracking
-│   ├── (public)/             # Public routes (login, etc.)
-│   └── api/                  # API routes
-├── components/               # React components
-│   ├── ui/                   # Shadcn UI primitives
-│   ├── forms/                # Form components
-│   ├── tables/               # Table components
-│   ├── cards/                # Card components
-│   └── layout/               # Layout components
-├── hooks/                    # Custom React hooks
-├── lib/                      # Utilities & business logic
-│   ├── api/                  # API helpers
-│   ├── supabase/             # Supabase clients
-│   └── validations/          # Zod schemas
-├── types/                    # TypeScript definitions
-├── tests/                    # Test files
-└── docs/                     # Documentation
-```
+---
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run test` | Run tests in watch mode |
-| `npm run test:run` | Run tests once |
-| `npm run test:coverage` | Generate coverage report |
-| `npm run test:ui` | Open Vitest UI |
+| `npm run dev` | Start dev server (localhost:3000) |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+| `npm run test` | Vitest in watch mode |
+| `npm run test:run` | Run all 1,897 tests once |
+| `npm run test:coverage` | Coverage report |
+| `npm run test:ui` | Vitest browser UI |
+| `npm run db:types` | Regenerate database types from Supabase |
 
-## Contributing
+### Running specific tests
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+```bash
+# Single file
+npx vitest run tests/integration/api/inventory.test.ts
 
-### Quick Start for Contributors
+# Pattern match
+npx vitest run -t "should return 401"
+```
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`npm run test:run`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+Test setup is in `tests/setup.ts`. API tests mock Supabase client, CSRF, and rate limiting. RLS tests require real Supabase credentials (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`).
 
-## Troubleshooting
+---
 
-### Common Issues
+## Project Structure
 
-#### "Unable to load dashboard" after login
+```
+app/
+  (auth)/                        Auth pages (login, signup, onboard, forgot-password)
+  (dashboard)/                   47 protected dashboard pages
+    inventory/                   Inventory list, stock count, low stock, value
+    suppliers/                   Supplier directory, purchase orders, deliveries
+    recipes/                     Recipe builder, menu items, menu analysis
+    waste/                       Waste tracking
+    shifts/                      Scheduling, timetable, my-shifts
+    reports/                     Daily summary, low stock, forecast, benchmark, food cost
+    haccp/                       Templates, checks, temperatures, corrective actions
+    users/                       User management, invitations
+    settings/                    Store settings, alert preferences
+    billing/                     Subscription, payment methods, invoices
+    integrations/                POS connections, accounting
+    categories/                  Category management
+    tags/                        Tag management
+    activity/                    Audit activity log
+    payroll/                     Pay runs, rates, my-pay
+    profile/                     User profile
+  (supplier-portal)/             Supplier portal (token-authenticated)
+  (marketing)/                   Public marketing pages
+  api/                           110 API route handlers
+    stores/[storeId]/            Core store-scoped CRUD (inventory, suppliers, recipes, etc.)
+    auth/                        Signup, login
+    billing/                     Stripe checkout, portal, webhooks
+    integrations/                POS OAuth, Xero, QuickBooks
+    pos/webhook/                 POS sale event webhooks
+    supplier-portal/             Token-authenticated supplier endpoints
+    v1/                          Public API (API key auth)
+    cron/                        Scheduled jobs (alerts, archival)
+    reports/                     Analytics, forecast, benchmark
 
-This usually means the user profile wasn't created in the database. Ensure:
-1. The user exists in Supabase Auth
-2. A corresponding record exists in the `profiles` table
-3. The profile has a valid `role` (Admin, Driver, or Staff)
+components/                      154 React components
+  ui/                            shadcn/ui primitives (Button, Dialog, Sheet, etc.)
+  dashboard/                     Dashboard-specific (OwnerDashboard, StaffDashboard)
+  providers/                     AuthProvider, QueryProvider
+  layout/                        Sidebar, DashboardShell, PageHeader
 
-#### Page shows blank/white after refresh
+hooks/                           50 custom hooks
+  useAuth.ts                     Auth context consumer
+  useStoreInventory.ts           Inventory queries + optimistic mutations
+  useSuppliers.ts                Supplier CRUD
+  usePurchaseOrders.ts           PO lifecycle
+  useRecipes.ts                  Recipe builder
+  useHACCP.ts                    Food safety hooks
+  useCSRF.ts                     CSRF token management
+  useForecast.ts                 AI demand forecasting
+  ...
 
-This can be caused by browser extensions interfering with Supabase requests. Try:
-1. Opening in incognito/private mode
-2. Disabling extensions (especially Reader Mode, ad blockers)
-3. Whitelisting your Supabase domain in extension settings
+lib/                             107 utility files
+  api/                           middleware.ts, response.ts, api-keys.ts, with-supplier-auth.ts
+  supabase/                      client.ts (browser), server.ts (SSR), admin.ts (bypass RLS)
+  services/
+    pos/                         POS service core, 37 adapters, webhook validators
+    accounting/                  Xero adapter, QuickBooks adapter, types
+    invoice-ocr.ts               Document AI integration
+    supplier-portal.ts           Token auth service
+    stockOperations.ts           Stock count/reception logic
+    alertService.ts              Scheduled alert processing
+  forecasting/engine.ts          Multi-method statistical forecasting
+  validations/                   Zod schemas (store, inventory, user, shift, suppliers, etc.)
+  auth.ts                        Permission checking (multi-tenant)
+  audit.ts                       Audit logging
+  rate-limit.ts                  Redis rate limiter
+  csrf.ts                        Double-submit cookie CSRF
+  email.ts                       Resend templates
+  constants.ts                   Roles, permissions matrix, routes
+  logger.ts                      Structured JSON logger
 
-#### Stock count not saving
+types/
+  database.ts                    Generated from Supabase schema
+  index.ts                       App types (AppRole, StoreUser, InventoryItem, etc.)
 
-Verify:
-1. User has the correct role (Admin or Staff)
-2. User is assigned to the store (Staff only)
-3. All required fields are filled
-4. Network requests are not being blocked
+tests/                           95 test files
+  integration/api/               API route tests (mock Supabase, CSRF, rate limiting)
+  integration/rls/               RLS tests (require real Supabase credentials)
+  hooks/                         Hook tests
+  lib/                           Utility tests
 
-#### Login redirects back to login page
+supabase/migrations/             65+ SQL migrations (000-065)
+```
 
-Check:
-1. Supabase environment variables are correctly set
-2. Cookies are not being blocked
-3. The user's status is 'Active' in the profiles table
+---
 
-### Getting Help
+## Role Permissions
 
-- Check existing [GitHub Issues](https://github.com/your-org/restaurant-inventory-management-system/issues)
-- Review the [API Documentation](./docs/API.md)
-- Contact the development team
+Three roles: **Owner**, **Manager**, **Staff**. Legacy role names (`Admin`) map to `Owner`.
+
+| Permission | Owner | Manager | Staff |
+|------------|:-----:|:-------:|:-----:|
+| Create store | Y | | |
+| Store settings | Y | Y | |
+| Delete store | Y (billing owner) | | |
+| Invite users | Y | | |
+| Manage users | Y | Y | |
+| Manage inventory items | Y | Y | |
+| Stock count | Y | Y | Y |
+| Stock reception | Y | Y | Y |
+| Stock adjustment | Y | Y | |
+| Manage shifts | Y | Y | |
+| View reports | Y | Y | Y |
+| Manage billing | Billing owner only | | |
+
+Billing access is controlled by the `is_billing_owner` flag on `store_users`, not by role.
+
+---
+
+## Deployment
+
+Target platform: **Vercel**. Build with `npm run build`. No Docker or CI/CD pipeline currently.
+
+See [docs/API.md](./docs/API.md) for API endpoint documentation and [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for technical architecture details.
+
+---
 
 ## License
 
 This project is proprietary software. All rights reserved.
-
----
-
-Built with [Next.js](https://nextjs.org) and [Supabase](https://supabase.com)
