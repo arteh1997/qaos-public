@@ -27,7 +27,15 @@ function validateClientEnv() {
     }
   }
 
-  const parsed = clientSchema.safeParse(process.env)
+  // Next.js replaces individual process.env.NEXT_PUBLIC_* references at build time,
+  // but does NOT replace the process.env object as a whole. We must reference each
+  // variable directly so the bundler can inline the values.
+  const raw = {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  }
+
+  const parsed = clientSchema.safeParse(raw)
   if (!parsed.success) {
     const errors = parsed.error.issues.map(i => `  - ${i.path.join('.')}: ${i.message}`).join('\n')
     throw new Error(`Missing or invalid client environment variables:\n${errors}`)
