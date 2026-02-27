@@ -177,6 +177,16 @@ export async function rateLimit(
   identifier: string,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
+  // Skip rate limiting in development — no reason to throttle localhost
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      success: true,
+      remaining: config.limit,
+      resetTime: Date.now() + config.windowMs,
+      limit: config.limit,
+    }
+  }
+
   // Use Redis if available, otherwise fall back to in-memory
   if (redis) {
     return rateLimitRedis(identifier, config)

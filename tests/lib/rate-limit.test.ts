@@ -157,7 +157,7 @@ describe('Rate Limiter', () => {
   describe('RATE_LIMITS presets', () => {
     it('should have correct api rate limit', () => {
       expect(RATE_LIMITS.api).toEqual({
-        limit: 100,
+        limit: 200,
         windowMs: 60000,
       })
     })

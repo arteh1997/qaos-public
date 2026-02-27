@@ -45,9 +45,9 @@ export function QueryProvider({ children }: { children: ReactNode }) {
             // Never retry rate limits (429) or auth errors — only transient failures
             retry: (failureCount, error) => {
               if (failureCount >= 3) return false
-              const msg = (error as Error)?.message || ''
-              if (msg.includes('429') || msg.includes('Too Many Requests')) return false
-              if (msg.includes('401') || msg.includes('403')) return false
+              const msg = ((error as Error)?.message || '').toLowerCase()
+              if (msg.includes('429') || msg.includes('too many requests') || msg.includes('rate limit')) return false
+              if (msg.includes('401') || msg.includes('403') || msg.includes('unauthorized') || msg.includes('forbidden')) return false
               return true
             },
             retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
