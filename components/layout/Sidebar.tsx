@@ -223,14 +223,13 @@ interface SidebarProps {
 const SETUP_ALLOWED_HREFS = new Set(['/', '/stores', '/billing', '/profile'])
 
 // Map sidebar routes to their primary TanStack Query keys for prefetching
+// Only include routes that have matching API endpoints under /api/stores/[storeId]/
 const PREFETCH_MAP: Record<string, (storeId: string) => { queryKey: string[]; url: string }> = {
   '/inventory': (sid) => ({ queryKey: ['inventory', sid], url: `/api/stores/${sid}/inventory?page=1&page_size=25` }),
   '/suppliers': (sid) => ({ queryKey: ['suppliers', sid], url: `/api/stores/${sid}/suppliers` }),
   '/recipes': (sid) => ({ queryKey: ['recipes', sid], url: `/api/stores/${sid}/recipes` }),
   '/waste': (sid) => ({ queryKey: ['waste-log', sid], url: `/api/stores/${sid}/waste` }),
   '/users': (sid) => ({ queryKey: ['store-users', sid], url: `/api/stores/${sid}/users` }),
-  '/shifts': (sid) => ({ queryKey: ['shifts', sid], url: `/api/stores/${sid}/shifts` }),
-  '/activity': (sid) => ({ queryKey: ['audit-logs', sid], url: `/api/stores/${sid}/activity` }),
   '/haccp': (sid) => ({ queryKey: ['haccp-checks', sid], url: `/api/stores/${sid}/haccp/checks` }),
 }
 

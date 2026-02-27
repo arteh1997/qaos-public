@@ -102,15 +102,15 @@ export default function MenuCostsPage() {
 
   useEffect(() => {
     if (storeId) {
-      fetchRecipes()
+      // useRecipes uses TanStack Query — auto-fetches via enabled: !!storeId
+      // Only need to trigger the raw useState hooks manually
       fetchAnalysis()
       fetchMenuItems()
     }
-  }, [storeId, fetchRecipes, fetchAnalysis, fetchMenuItems])
+  }, [storeId, fetchAnalysis, fetchMenuItems])
 
-  useEffect(() => {
-    if (selectedRecipeId) fetchRecipe()
-  }, [selectedRecipeId, fetchRecipe])
+  // useRecipeDetail uses TanStack Query — auto-fetches when selectedRecipeId changes
+  // No manual trigger needed
 
   // Group menu items by category for the Menu tab
   const groupedItems = useMemo(() => {

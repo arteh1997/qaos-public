@@ -18,6 +18,97 @@ interface RouteParams {
 }
 
 /**
+ * PATCH /api/stores/:storeId/users/:userId - Update a user's role at a store
+ */
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { storeId, userId } = await params
+
+    const auth = await withApiAuth(request, {
+      allowedRoles: ['Owner', 'Manager'],
+      rateLimit: { key: 'api', config: RATE_LIMITS.api },
+      requireCSRF: true,
+    })
+
+    if (!auth.success) return auth.response
+    const { context } = auth
+
+    if (!canManageStore(context, storeId)) {
+      return apiForbidden('You do not have permission to manage users at this store', context.requestId)
+    }
+
+    const body = await request.json()
+    const { role } = body
+
+    if (!role) {
+      return apiBadRequest('role is required', context.requestId)
+    }
+
+    const validRoles = ['Owner', 'Manager', 'Staff']
+    if (!validRoles.includes(role)) {
+      return apiBadRequest(`role must be one of: ${validRoles.join(', ')}`, context.requestId)
+    }
+
+    const adminClient = createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const supabaseAdmin = adminClient as any
+
+    // Get the store_users entry
+    const { data: storeUser, error: fetchError } = await supabaseAdmin
+      .from('store_users')
+      .select('id, role, is_billing_owner')
+      .eq('store_id', storeId)
+      .eq('user_id', userId)
+      .single()
+
+    if (fetchError || !storeUser) {
+      return apiNotFound('User', context.requestId)
+    }
+
+    // Prevent changing billing owner's role away from Owner
+    if (storeUser.is_billing_owner && role !== 'Owner') {
+      return apiBadRequest(
+        'Cannot change the billing owner\'s role. Transfer billing ownership first.',
+        context.requestId
+      )
+    }
+
+    const previousRole = storeUser.role
+
+    const { data, error } = await supabaseAdmin
+      .from('store_users')
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq('id', storeUser.id)
+      .select('*, user:profiles(id, email, full_name)')
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    await auditLog(supabaseAdmin, {
+      userId: context.user.id,
+      userEmail: context.user.email,
+      action: 'user.role_update',
+      storeId,
+      resourceType: 'store_users',
+      resourceId: storeUser.id,
+      details: {
+        targetUserId: userId,
+        previousRole,
+        newRole: role,
+      },
+      request,
+    })
+
+    return apiSuccess(data, { requestId: context.requestId })
+  } catch (error) {
+    logger.error('Error updating user role:', { error })
+    return apiError(error instanceof Error ? error.message : 'Failed to update user role')
+  }
+}
+
+/**
  * DELETE /api/stores/:storeId/users/:userId - Remove a user from a store
  * Handles:
  * - Preventing removal of billing owner

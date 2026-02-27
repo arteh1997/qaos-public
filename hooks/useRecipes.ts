@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 import { getCSRFHeaders } from '@/hooks/useCSRF'
 import type { Recipe, RecipeIngredient } from '@/types'
 import type { CreateRecipeFormData, RecipeIngredientFormData } from '@/lib/validations/recipes'
@@ -90,7 +91,7 @@ export function useRecipes(storeId: string | null): UseRecipesResult {
   })
 
   // Backward-compatible fetchRecipes with filter options
-  const fetchRecipes = async (options?: { category?: string; active?: boolean }) => {
+  const fetchRecipes = useCallback(async (options?: { category?: string; active?: boolean }) => {
     if (options) {
       if (!storeId) return
       const params = new URLSearchParams()
@@ -104,9 +105,9 @@ export function useRecipes(storeId: string | null): UseRecipesResult {
         queryClient.setQueryData(['recipes', storeId], data.data || [])
       }
     } else {
-      await query.refetch()
+      await queryClient.refetchQueries({ queryKey: ['recipes', storeId] })
     }
-  }
+  }, [storeId, queryClient])
 
   return {
     recipes: query.data || [],
@@ -191,11 +192,15 @@ export function useRecipeDetail(storeId: string | null, recipeId: string | null)
     },
   })
 
+  const fetchRecipe = useCallback(async () => {
+    await queryClient.refetchQueries({ queryKey: ['recipe-detail', storeId, recipeId] })
+  }, [queryClient, storeId, recipeId])
+
   return {
     recipe: query.data ?? null,
     isLoading: query.isLoading,
     error: query.error?.message ?? null,
-    fetchRecipe: async () => { await query.refetch() },
+    fetchRecipe,
     addIngredient: addIngredientMutation.mutateAsync,
     removeIngredient: removeIngredientMutation.mutateAsync,
     isSubmitting: addIngredientMutation.isPending || removeIngredientMutation.isPending,

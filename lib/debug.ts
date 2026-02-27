@@ -1,29 +1,16 @@
 /**
  * Debug Logging Utility
  *
- * Conditional logging that only runs in development mode.
- * Prevents performance impact and log clutter in production.
+ * Disabled by default. Enable via browser console: localStorage.setItem('debug', '1')
+ * Then refresh the page. To disable again: localStorage.removeItem('debug')
  */
 
-const IS_DEV = process.env.NODE_ENV === 'development'
+// No-op in production. In dev, opt-in via localStorage.
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export function debugLog(_category: string, ..._args: unknown[]): void {}
 
-/**
- * Debug log - only outputs in development
- */
-export function debugLog(category: string, ...args: unknown[]): void {
-  if (IS_DEV) {
-    console.log(`[${category}]`, ...args)
-  }
-}
-
-/**
- * Debug warn - only outputs in development
- */
-export function debugWarn(category: string, ...args: unknown[]): void {
-  if (IS_DEV) {
-    console.warn(`[${category}]`, ...args)
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export function debugWarn(_category: string, ..._args: unknown[]): void {}
 
 /**
  * Debug error - always outputs (errors should be logged even in production)
