@@ -67,6 +67,15 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
 }));
 
+// Mock Admin Supabase client (used by the route handler for DB queries)
+const mockAdminClient = {
+  from: vi.fn(),
+};
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => mockAdminClient),
+}));
+
 // Mock rate limit
 vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn(() => ({
@@ -225,8 +234,17 @@ describe("Audit Logs API Integration Tests", () => {
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === "profiles") return profileQuery;
           if (table === "store_users") return storeUsersQuery;
+          return profileQuery;
+        });
+
+        const profilesAdminQuery = createChainableMock({
+          data: [],
+          error: null,
+        });
+        mockAdminClient.from.mockImplementation((table: string) => {
           if (table === "audit_logs") return auditLogsQuery;
-          return auditLogsQuery;
+          if (table === "profiles") return profilesAdminQuery;
+          return profilesAdminQuery;
         });
 
         const { GET } = await import("@/app/api/audit-logs/route");
@@ -258,6 +276,10 @@ describe("Audit Logs API Integration Tests", () => {
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === "profiles") return profileQuery;
           if (table === "store_users") return storeUsersQuery;
+          return profileQuery;
+        });
+
+        mockAdminClient.from.mockImplementation((table: string) => {
           if (table === "audit_logs") return auditLogsQuery;
           return auditLogsQuery;
         });
@@ -299,8 +321,17 @@ describe("Audit Logs API Integration Tests", () => {
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === "profiles") return profileQuery;
           if (table === "store_users") return storeUsersQuery;
+          return profileQuery;
+        });
+
+        const profilesAdminQuery = createChainableMock({
+          data: [],
+          error: null,
+        });
+        mockAdminClient.from.mockImplementation((table: string) => {
           if (table === "audit_logs") return auditLogsQuery;
-          return auditLogsQuery;
+          if (table === "profiles") return profilesAdminQuery;
+          return profilesAdminQuery;
         });
 
         const { GET } = await import("@/app/api/audit-logs/route");

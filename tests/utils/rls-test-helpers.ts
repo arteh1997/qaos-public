@@ -13,12 +13,17 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
-  throw new Error("Missing Supabase credentials for RLS tests");
-}
+export const hasRlsCredentials = !!(
+  supabaseUrl &&
+  supabaseServiceKey &&
+  supabaseAnonKey
+);
 
-// Admin client for test setup/cleanup
-export const adminClient = createAdminClient();
+// Admin client for test setup/cleanup - only created when credentials are available
+export const adminClient = hasRlsCredentials
+  ? createAdminClient()
+  : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (null as any);
 
 /**
  * Test user credentials
