@@ -1,0 +1,64 @@
+# CodeRabbit Configuration
+# Docs: https://docs.coderabbit.ai/guides/configure-coderabbit
+
+language: "en"
+
+reviews:
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+      - "develop"
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  collapse_walkthrough: false
+  path_filters:
+    - "!pnpm-lock.yaml"
+    - "!package-lock.json"
+    - "!yarn.lock"
+    - "!.next/**"
+    - "!node_modules/**"
+    - "!*.min.js"
+    - "!*.min.css"
+    - "!public/fonts/**"
+    - "!public/images/**"
+    - "!*.generated.*"
+  path_instructions:
+    - path: "src/lib/actions/**"
+      instructions: |
+        These are Next.js Server Actions. Verify:
+        - Every Supabase query filters by store_id (multi-tenant isolation)
+        - Auth is checked at the top of every action
+        - Errors are caught and returned gracefully, never thrown to the client
+        - No console.log statements
+    - path: "src/app/api/**"
+      instructions: |
+        These are API route handlers. Verify:
+        - Auth/webhook signature verification is present
+        - Rate limiting is considered for public endpoints
+        - Error responses don't leak internal details
+        - Stripe webhook handlers verify signatures
+    - path: "src/components/**"
+      instructions: |
+        React components. Verify:
+        - No direct Supabase calls (should use server actions or hooks)
+        - No useEffect for data fetching
+        - Proper loading and error states
+        - Accessibility: buttons have labels, images have alt text
+    - path: "**/*.test.{ts,tsx}"
+      instructions: |
+        Test files. Verify:
+        - Tests are meaningful, not just snapshot tests
+        - Supabase and Stripe are mocked
+        - Both happy path and error cases are covered
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: "auto"
