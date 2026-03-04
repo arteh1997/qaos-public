@@ -1,17 +1,24 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { storeSchema, StoreFormData, DAYS_OF_WEEK, DAY_LABELS, getDefaultWeeklyHours, calculateDefaultShiftPatterns } from '@/lib/validations/store'
-import { Store, DayOfWeek, WeeklyHours, DayHours } from '@/types'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { TimePicker } from '@/components/ui/time-picker'
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  storeSchema,
+  StoreFormData,
+  DAYS_OF_WEEK,
+  DAY_LABELS,
+  getDefaultWeeklyHours,
+  calculateDefaultShiftPatterns,
+} from "@/lib/validations/store";
+import { Store, DayOfWeek, WeeklyHours, DayHours } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { TimePicker } from "@/components/ui/time-picker";
 import {
   Form,
   FormControl,
@@ -20,57 +27,70 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form'
+} from "@/components/ui/form";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from "@/components/ui/dialog";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import { Loader2, Clock, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/collapsible";
+import { Loader2, Clock, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function formatTime12h(time: string): string {
-  const [h, m] = time.split(':').map(Number)
-  if (isNaN(h) || isNaN(m)) return time
-  const period = h >= 12 ? 'PM' : 'AM'
-  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${hour12}:${String(m).padStart(2, '0')} ${period}`
+  const [h, m] = time.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return time;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
 /** Normalize a time value from PostgreSQL TIME format (HH:MM:SS) to HH:MM */
 function normalizeTime(time: string | null | undefined): string | null {
-  if (!time) return null
+  if (!time) return null;
   // Strip seconds if present (PostgreSQL TIME returns HH:MM:SS)
-  const parts = time.split(':')
+  const parts = time.split(":");
   if (parts.length >= 2) {
-    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`
+    return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
   }
-  return time
+  return time;
 }
 
 interface StoreFormProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  store?: Store | null
-  onSubmit: (data: StoreFormData) => Promise<void>
-  isLoading?: boolean
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  store?: Store | null;
+  onSubmit: (data: StoreFormData) => Promise<void>;
+  isLoading?: boolean;
 }
 
-export function StoreForm({
+interface StoreFormBodyProps extends StoreFormProps {
+  initialShowWeeklyHours: boolean;
+  initialWeeklyHours: WeeklyHours | null;
+  initialFormValues: StoreFormData;
+}
+
+function StoreFormBody({
   open,
   onOpenChange,
   store,
   onSubmit,
   isLoading,
-}: StoreFormProps) {
-  const [showWeeklyHours, setShowWeeklyHours] = useState(false)
-  const [weeklyHours, setWeeklyHours] = useState<WeeklyHours | null>(null)
+  initialShowWeeklyHours,
+  initialWeeklyHours,
+  initialFormValues,
+}: StoreFormBodyProps) {
+  const [showWeeklyHours, setShowWeeklyHours] = useState(
+    initialShowWeeklyHours,
+  );
+  const [weeklyHours, setWeeklyHours] = useState<WeeklyHours | null>(
+    initialWeeklyHours,
+  );
   const [expandedDays, setExpandedDays] = useState<Record<DayOfWeek, boolean>>({
     monday: false,
     tuesday: false,
@@ -79,73 +99,52 @@ export function StoreForm({
     friday: false,
     saturday: false,
     sunday: false,
-  })
+  });
 
   const form = useForm<StoreFormData>({
     resolver: zodResolver(storeSchema),
-    defaultValues: {
-      name: '',
-      address: '',
-      is_active: true,
-      opening_time: '09:00', // Default to 9am with :00 minutes for easier adjustment
-      closing_time: '22:00', // Default to 10pm with :00 minutes for easier adjustment
-      weekly_hours: null,
-    },
-  })
-
-  // Reset form when store prop changes or dialog opens
-  useEffect(() => {
-    if (open) {
-      const hasWeeklyHours = !!store?.weekly_hours
-      setShowWeeklyHours(hasWeeklyHours)
-      setWeeklyHours(store?.weekly_hours ?? null)
-
-      form.reset({
-        name: store?.name ?? '',
-        address: store?.address ?? '',
-        is_active: store?.is_active ?? true,
-        opening_time: normalizeTime(store?.opening_time) || '09:00',
-        closing_time: normalizeTime(store?.closing_time) || '22:00',
-        weekly_hours: null, // Managed by local weeklyHours state, not form — avoids silent validation failures
-      })
-    }
-  }, [open, store, form])
+    defaultValues: initialFormValues,
+  });
 
   const handleDefaultTimesChange = () => {
-    const openingTime = form.getValues('opening_time')
-    const closingTime = form.getValues('closing_time')
+    const openingTime = form.getValues("opening_time");
+    const closingTime = form.getValues("closing_time");
 
     // If weekly hours are shown and both default times are set, update all days
     if (showWeeklyHours && openingTime && closingTime && weeklyHours) {
-      const updated = { ...weeklyHours }
-      DAYS_OF_WEEK.forEach(day => {
+      const updated = { ...weeklyHours };
+      DAYS_OF_WEEK.forEach((day) => {
         if (updated[day].is_open) {
           updated[day] = {
             ...updated[day],
             opening_time: openingTime,
             closing_time: closingTime,
-          }
+          };
         }
-      })
-      setWeeklyHours(updated)
+      });
+      setWeeklyHours(updated);
     }
-  }
+  };
 
   const handleToggleWeeklyHours = (enabled: boolean) => {
-    setShowWeeklyHours(enabled)
+    setShowWeeklyHours(enabled);
 
     if (enabled) {
-      const openingTime = form.getValues('opening_time') || '09:00'
-      const closingTime = form.getValues('closing_time') || '22:00'
-      const defaultHours = getDefaultWeeklyHours(openingTime, closingTime)
-      setWeeklyHours(defaultHours)
+      const openingTime = form.getValues("opening_time") || "09:00";
+      const closingTime = form.getValues("closing_time") || "22:00";
+      const defaultHours = getDefaultWeeklyHours(openingTime, closingTime);
+      setWeeklyHours(defaultHours);
     } else {
-      setWeeklyHours(null)
+      setWeeklyHours(null);
     }
-  }
+  };
 
-  const handleDayChange = (day: DayOfWeek, field: keyof DayHours, value: boolean | string | null) => {
-    if (!weeklyHours) return
+  const handleDayChange = (
+    day: DayOfWeek,
+    field: keyof DayHours,
+    value: boolean | string | null,
+  ) => {
+    if (!weeklyHours) return;
 
     const updated = {
       ...weeklyHours,
@@ -153,45 +152,63 @@ export function StoreForm({
         ...weeklyHours[day],
         [field]: value,
       },
-    }
+    };
 
     // When opening/closing times change, recalculate shift patterns for that day
-    if ((field === 'opening_time' || field === 'closing_time') && updated[day].is_open) {
-      const openTime = field === 'opening_time' ? value as string : updated[day].opening_time
-      const closeTime = field === 'closing_time' ? value as string : updated[day].closing_time
+    if (
+      (field === "opening_time" || field === "closing_time") &&
+      updated[day].is_open
+    ) {
+      const openTime =
+        field === "opening_time"
+          ? (value as string)
+          : updated[day].opening_time;
+      const closeTime =
+        field === "closing_time"
+          ? (value as string)
+          : updated[day].closing_time;
       if (openTime && closeTime) {
-        const newShifts = calculateDefaultShiftPatterns(openTime, closeTime)
+        const newShifts = calculateDefaultShiftPatterns(openTime, closeTime);
         // Preserve user-customised mid-range times, but always lock:
         //   opening.start_time = store opening time
         //   closing.end_time = store closing time
-        const existingShifts = updated[day].shifts || {}
+        const existingShifts = updated[day].shifts || {};
         updated[day].shifts = {
           opening: {
             start_time: openTime, // Locked to store opening
-            end_time: existingShifts.opening?.end_time || newShifts?.opening?.end_time || '',
+            end_time:
+              existingShifts.opening?.end_time ||
+              newShifts?.opening?.end_time ||
+              "",
           },
           mid: existingShifts.mid || newShifts?.mid,
           closing: {
-            start_time: existingShifts.closing?.start_time || newShifts?.closing?.start_time || '',
+            start_time:
+              existingShifts.closing?.start_time ||
+              newShifts?.closing?.start_time ||
+              "",
             end_time: closeTime, // Locked to store closing
           },
-        }
+        };
       }
     }
 
-    setWeeklyHours(updated)
-  }
+    setWeeklyHours(updated);
+  };
 
   const handleShiftChange = (
     day: DayOfWeek,
-    shiftType: 'opening' | 'mid' | 'closing',
-    timeField: 'start_time' | 'end_time',
-    value: string
+    shiftType: "opening" | "mid" | "closing",
+    timeField: "start_time" | "end_time",
+    value: string,
   ) => {
-    if (!weeklyHours) return
+    if (!weeklyHours) return;
 
-    const currentShifts = weeklyHours[day].shifts || {}
-    const currentShift = currentShifts[shiftType] || { start_time: '', end_time: '' }
+    const currentShifts = weeklyHours[day].shifts || {};
+    const currentShift = currentShifts[shiftType] || {
+      start_time: "",
+      end_time: "",
+    };
 
     const updated = {
       ...weeklyHours,
@@ -205,39 +222,42 @@ export function StoreForm({
           },
         },
       },
-    }
-    setWeeklyHours(updated)
-  }
+    };
+    setWeeklyHours(updated);
+  };
 
   const toggleDayExpanded = (day: DayOfWeek) => {
-    setExpandedDays(prev => ({
+    setExpandedDays((prev) => ({
       ...prev,
       [day]: !prev[day],
-    }))
-  }
+    }));
+  };
 
   const handleSubmit = async (data: StoreFormData) => {
     try {
       await onSubmit({
         ...data,
         weekly_hours: showWeeklyHours ? weeklyHours : null,
-      })
-      form.reset()
-      setShowWeeklyHours(false)
-      setWeeklyHours(null)
+      });
+      form.reset();
+      setShowWeeklyHours(false);
+      setWeeklyHours(null);
     } catch {
       // Error handled by parent component
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{store ? 'Edit Store' : 'Add Store'}</DialogTitle>
+          <DialogTitle>{store ? "Edit Store" : "Add Store"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="name"
@@ -259,10 +279,7 @@ export function StoreForm({
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Enter store address"
-                      {...field}
-                    />
+                    <Textarea placeholder="Enter store address" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -289,8 +306,8 @@ export function StoreForm({
                           <TimePicker
                             value={field.value}
                             onChange={(v) => {
-                              field.onChange(v)
-                              handleDefaultTimesChange()
+                              field.onChange(v);
+                              handleDefaultTimesChange();
                             }}
                             placeholder="Opens"
                           />
@@ -309,8 +326,8 @@ export function StoreForm({
                           <TimePicker
                             value={field.value}
                             onChange={(v) => {
-                              field.onChange(v)
-                              handleDefaultTimesChange()
+                              field.onChange(v);
+                              handleDefaultTimesChange();
                             }}
                             placeholder="Closes"
                           />
@@ -337,8 +354,8 @@ export function StoreForm({
               {showWeeklyHours && weeklyHours && (
                 <div className="space-y-2.5">
                   {DAYS_OF_WEEK.map((day) => {
-                    const dayData = weeklyHours[day]
-                    const isOpen = dayData.is_open
+                    const dayData = weeklyHours[day];
+                    const isOpen = dayData.is_open;
 
                     return (
                       <Collapsible
@@ -348,8 +365,8 @@ export function StoreForm({
                       >
                         <div
                           className={cn(
-                            'rounded-lg border p-3 transition-colors',
-                            isOpen ? 'bg-background' : 'bg-muted/30'
+                            "rounded-lg border p-3 transition-colors",
+                            isOpen ? "bg-background" : "bg-muted/30",
                           )}
                         >
                           {/* Day header row */}
@@ -358,18 +375,26 @@ export function StoreForm({
                               <Checkbox
                                 checked={isOpen}
                                 onCheckedChange={(checked) =>
-                                  handleDayChange(day, 'is_open', checked as boolean)
+                                  handleDayChange(
+                                    day,
+                                    "is_open",
+                                    checked as boolean,
+                                  )
                                 }
                               />
-                              <span className={cn(
-                                'text-sm font-medium',
-                                !isOpen && 'text-muted-foreground'
-                              )}>
+                              <span
+                                className={cn(
+                                  "text-sm font-medium",
+                                  !isOpen && "text-muted-foreground",
+                                )}
+                              >
                                 {DAY_LABELS[day]}
                               </span>
                             </div>
                             {!isOpen && (
-                              <span className="text-xs text-muted-foreground italic">Closed</span>
+                              <span className="text-xs text-muted-foreground italic">
+                                Closed
+                              </span>
                             )}
                           </div>
 
@@ -380,14 +405,20 @@ export function StoreForm({
                               <div className="flex items-center gap-2">
                                 <TimePicker
                                   value={dayData.opening_time}
-                                  onChange={(v) => handleDayChange(day, 'opening_time', v)}
+                                  onChange={(v) =>
+                                    handleDayChange(day, "opening_time", v)
+                                  }
                                   placeholder="Opens"
                                   className="flex-1"
                                 />
-                                <span className="text-sm text-muted-foreground shrink-0">to</span>
+                                <span className="text-sm text-muted-foreground shrink-0">
+                                  to
+                                </span>
                                 <TimePicker
                                   value={dayData.closing_time}
-                                  onChange={(v) => handleDayChange(day, 'closing_time', v)}
+                                  onChange={(v) =>
+                                    handleDayChange(day, "closing_time", v)
+                                  }
                                   placeholder="Closes"
                                   className="flex-1"
                                 />
@@ -401,74 +432,123 @@ export function StoreForm({
                                   size="sm"
                                   className="h-7 px-2 -ml-2 text-muted-foreground hover:text-foreground"
                                 >
-                                  <ChevronDown className={cn(
-                                    'h-3.5 w-3.5 transition-transform',
-                                    expandedDays[day] && 'rotate-180'
-                                  )} />
-                                  <span className="text-xs ml-1.5">Shift times</span>
+                                  <ChevronDown
+                                    className={cn(
+                                      "h-3.5 w-3.5 transition-transform",
+                                      expandedDays[day] && "rotate-180",
+                                    )}
+                                  />
+                                  <span className="text-xs ml-1.5">
+                                    Shift times
+                                  </span>
                                 </Button>
                               </CollapsibleTrigger>
 
                               {/* Shift patterns */}
                               <CollapsibleContent>
                                 <div className="rounded-md bg-muted/40 p-3 space-y-2.5">
-                                  {(['opening', 'mid', 'closing'] as const).map((shiftType) => {
-                                    const shiftStyles = {
-                                      opening: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-                                      mid: 'text-blue-700 bg-blue-50 border-blue-200',
-                                      closing: 'text-purple-700 bg-purple-50 border-purple-200',
-                                    }
-                                    const shiftLabels = { opening: 'Opening', mid: 'Mid', closing: 'Closing' }
+                                  {(["opening", "mid", "closing"] as const).map(
+                                    (shiftType) => {
+                                      const shiftStyles = {
+                                        opening:
+                                          "text-emerald-700 bg-emerald-50 border-emerald-200",
+                                        mid: "text-blue-700 bg-blue-50 border-blue-200",
+                                        closing:
+                                          "text-purple-700 bg-purple-50 border-purple-200",
+                                      };
+                                      const shiftLabels = {
+                                        opening: "Opening",
+                                        mid: "Mid",
+                                        closing: "Closing",
+                                      };
 
-                                    // Opening start is locked to store opening, closing end is locked to store closing
-                                    const isStartLocked = shiftType === 'opening'
-                                    const isEndLocked = shiftType === 'closing'
+                                      // Opening start is locked to store opening, closing end is locked to store closing
+                                      const isStartLocked =
+                                        shiftType === "opening";
+                                      const isEndLocked =
+                                        shiftType === "closing";
 
-                                    return (
-                                      <div key={shiftType} className="flex items-center gap-2">
-                                        <span className={cn(
-                                          'text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0',
-                                          shiftStyles[shiftType]
-                                        )}>
-                                          {shiftLabels[shiftType]}
-                                        </span>
-                                        {isStartLocked ? (
-                                          <span className="flex-1 h-8 px-2.5 text-sm flex items-center rounded-md border bg-muted/50 text-muted-foreground">
-                                            {dayData.opening_time ? formatTime12h(dayData.opening_time) : '—'}
+                                      return (
+                                        <div
+                                          key={shiftType}
+                                          className="flex items-center gap-2"
+                                        >
+                                          <span
+                                            className={cn(
+                                              "text-[11px] font-semibold px-2 py-0.5 rounded-full border shrink-0",
+                                              shiftStyles[shiftType],
+                                            )}
+                                          >
+                                            {shiftLabels[shiftType]}
                                           </span>
-                                        ) : (
-                                          <TimePicker
-                                            size="sm"
-                                            value={dayData.shifts?.[shiftType]?.start_time}
-                                            onChange={(v) => handleShiftChange(day, shiftType, 'start_time', v)}
-                                            placeholder="Start"
-                                            className="flex-1"
-                                          />
-                                        )}
-                                        <span className="text-xs text-muted-foreground">–</span>
-                                        {isEndLocked ? (
-                                          <span className="flex-1 h-8 px-2.5 text-sm flex items-center rounded-md border bg-muted/50 text-muted-foreground">
-                                            {dayData.closing_time ? formatTime12h(dayData.closing_time) : '—'}
+                                          {isStartLocked ? (
+                                            <span className="flex-1 h-8 px-2.5 text-sm flex items-center rounded-md border bg-muted/50 text-muted-foreground">
+                                              {dayData.opening_time
+                                                ? formatTime12h(
+                                                    dayData.opening_time,
+                                                  )
+                                                : "—"}
+                                            </span>
+                                          ) : (
+                                            <TimePicker
+                                              size="sm"
+                                              value={
+                                                dayData.shifts?.[shiftType]
+                                                  ?.start_time
+                                              }
+                                              onChange={(v) =>
+                                                handleShiftChange(
+                                                  day,
+                                                  shiftType,
+                                                  "start_time",
+                                                  v,
+                                                )
+                                              }
+                                              placeholder="Start"
+                                              className="flex-1"
+                                            />
+                                          )}
+                                          <span className="text-xs text-muted-foreground">
+                                            –
                                           </span>
-                                        ) : (
-                                          <TimePicker
-                                            size="sm"
-                                            value={dayData.shifts?.[shiftType]?.end_time}
-                                            onChange={(v) => handleShiftChange(day, shiftType, 'end_time', v)}
-                                            placeholder="End"
-                                            className="flex-1"
-                                          />
-                                        )}
-                                      </div>
-                                    )
-                                  })}
+                                          {isEndLocked ? (
+                                            <span className="flex-1 h-8 px-2.5 text-sm flex items-center rounded-md border bg-muted/50 text-muted-foreground">
+                                              {dayData.closing_time
+                                                ? formatTime12h(
+                                                    dayData.closing_time,
+                                                  )
+                                                : "—"}
+                                            </span>
+                                          ) : (
+                                            <TimePicker
+                                              size="sm"
+                                              value={
+                                                dayData.shifts?.[shiftType]
+                                                  ?.end_time
+                                              }
+                                              onChange={(v) =>
+                                                handleShiftChange(
+                                                  day,
+                                                  shiftType,
+                                                  "end_time",
+                                                  v,
+                                                )
+                                              }
+                                              placeholder="End"
+                                              className="flex-1"
+                                            />
+                                          )}
+                                        </div>
+                                      );
+                                    },
+                                  )}
                                 </div>
                               </CollapsibleContent>
                             </div>
                           )}
                         </div>
                       </Collapsible>
-                    )
+                    );
                   })}
                 </div>
               )}
@@ -502,12 +582,46 @@ export function StoreForm({
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {store ? 'Update' : 'Create'}
+                {store ? "Update" : "Create"}
               </Button>
             </div>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
+}
+
+export function StoreForm({
+  open,
+  onOpenChange,
+  store,
+  onSubmit,
+  isLoading,
+}: StoreFormProps) {
+  // Compute initial values from props — inner component remounts with fresh state via key
+  const initialShowWeeklyHours = !!store?.weekly_hours;
+  const initialWeeklyHours = store?.weekly_hours ?? null;
+  const initialFormValues: StoreFormData = {
+    name: store?.name ?? "",
+    address: store?.address ?? "",
+    is_active: store?.is_active ?? true,
+    opening_time: normalizeTime(store?.opening_time) || "09:00",
+    closing_time: normalizeTime(store?.closing_time) || "22:00",
+    weekly_hours: null, // Managed by local weeklyHours state, not form
+  };
+
+  return (
+    <StoreFormBody
+      key={`${open}-${store?.id ?? "new"}`}
+      open={open}
+      onOpenChange={onOpenChange}
+      store={store}
+      onSubmit={onSubmit}
+      isLoading={isLoading}
+      initialShowWeeklyHours={initialShowWeeklyHours}
+      initialWeeklyHours={initialWeeklyHours}
+      initialFormValues={initialFormValues}
+    />
+  );
 }

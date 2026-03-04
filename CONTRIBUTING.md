@@ -46,8 +46,7 @@ npm install
 3. **Set up environment variables**
 
 ```bash
-cp .env.local.example .env.local
-# Edit .env.local with your Supabase credentials
+# Create .env.local with your Supabase credentials (see README.md for required vars)
 ```
 
 4. **Start the development server**
@@ -89,6 +88,7 @@ type(scope): description
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -128,9 +128,9 @@ test(inventory): add unit tests for validation
 ```typescript
 // Good
 interface StoreFormData {
-  name: string
-  address?: string
-  is_active: boolean
+  name: string;
+  address?: string;
+  is_active: boolean;
 }
 
 function createStore(data: StoreFormData): Promise<Store> {
@@ -153,9 +153,9 @@ function createStore(data: any): any {
 ```typescript
 // Good
 interface StoreCardProps {
-  store: Store
-  onEdit?: (store: Store) => void
-  onDelete?: (store: Store) => void
+  store: Store;
+  onEdit?: (store: Store) => void;
+  onDelete?: (store: Store) => void;
 }
 
 export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
@@ -187,13 +187,13 @@ lib/
 
 ### Naming Conventions
 
-| Type | Convention | Example |
-|------|------------|---------|
-| Components | PascalCase | `StoreCard.tsx` |
-| Hooks | camelCase with `use` | `useStores.ts` |
-| Utilities | camelCase | `formatDate.ts` |
-| Constants | SCREAMING_SNAKE | `MAX_PAGE_SIZE` |
-| Types/Interfaces | PascalCase | `StoreFormData` |
+| Type             | Convention           | Example         |
+| ---------------- | -------------------- | --------------- |
+| Components       | PascalCase           | `StoreCard.tsx` |
+| Hooks            | camelCase with `use` | `useStores.ts`  |
+| Utilities        | camelCase            | `formatDate.ts` |
+| Constants        | SCREAMING_SNAKE      | `MAX_PAGE_SIZE` |
+| Types/Interfaces | PascalCase           | `StoreFormData` |
 
 ### Styling
 
@@ -274,26 +274,15 @@ npm run test:ui
 
 ### Test File Location
 
-Place test files next to the code they test:
-
-```
-hooks/
-├── useStores.ts
-└── useStores.test.ts
-
-lib/
-├── auth.ts
-└── auth.test.ts
-```
-
-Or in the `tests/` directory for integration tests:
+All tests live in the `tests/` directory, mirroring the source structure:
 
 ```
 tests/
-├── api/
-│   └── stores.test.ts
-└── integration/
-    └── auth-flow.test.ts
+├── integration/
+│   ├── api/             # API route tests (mock Supabase, CSRF, rate limiting)
+│   └── rls/             # RLS tests (require real Supabase credentials)
+├── hooks/               # Hook tests
+└── lib/                 # Utility and service tests
 ```
 
 ## Pull Request Process
@@ -310,15 +299,18 @@ tests/
 
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
 
 ## How to Test
+
 1. Step one
 2. Step two
 3. Expected result
@@ -326,6 +318,7 @@ Brief description of changes
 ## Screenshots (if applicable)
 
 ## Checklist
+
 - [ ] Tests added/updated
 - [ ] Documentation updated
 - [ ] No console errors
@@ -351,6 +344,7 @@ Brief description of changes
 ### Bug Reports
 
 Include:
+
 - Clear title and description
 - Steps to reproduce
 - Expected vs actual behavior
@@ -362,6 +356,7 @@ Include:
 Stock count form shows error after successful submission
 
 **Steps to Reproduce**
+
 1. Go to store page
 2. Click "Stock Count"
 3. Enter quantities
@@ -374,6 +369,7 @@ Success message and redirect to store page
 Error toast appears, but data is saved
 
 **Environment**
+
 - Browser: Chrome 120
 - OS: macOS 14.2
 ```
@@ -381,6 +377,7 @@ Error toast appears, but data is saved
 ### Feature Requests
 
 Include:
+
 - Clear use case
 - Proposed solution
 - Alternatives considered
@@ -397,6 +394,7 @@ As an admin, I want to export stock history for auditing
 Add "Export" button to stock history page
 
 **Alternatives**
+
 - PDF export
 - Email report
 ```
@@ -404,6 +402,7 @@ Add "Export" button to stock history page
 ### Questions
 
 For general questions:
+
 1. Check existing documentation
 2. Search closed issues
 3. If still unclear, open a discussion
@@ -417,6 +416,7 @@ The dev server supports hot reload. Most changes appear instantly.
 ### Database Changes
 
 When modifying database schema:
+
 1. Update types in `types/database.ts`
 2. Run `npm run db:types` (if configured)
 3. Update affected queries
@@ -434,12 +434,12 @@ When modifying database schema:
 
 ```typescript
 // Use console.log sparingly in development
-console.log('Debug:', { variable })
+console.log("Debug:", { variable });
 
 // Remove before committing
 // Or use conditional logging
-if (process.env.NODE_ENV === 'development') {
-  console.log('Debug info')
+if (process.env.NODE_ENV === "development") {
+  console.log("Debug info");
 }
 ```
 

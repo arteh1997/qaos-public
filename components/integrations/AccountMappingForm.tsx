@@ -1,45 +1,59 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Save, Loader2 } from 'lucide-react'
-import type { XeroAccount, AccountingConfig } from '@/types'
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Save, Loader2 } from "lucide-react";
+import type { XeroAccount, AccountingConfig } from "@/types";
 
 interface AccountMappingFormProps {
-  categories: string[]
-  accounts: XeroAccount[]
-  config: AccountingConfig | undefined
-  isLoadingAccounts: boolean
-  isSaving: boolean
-  onSave: (config: Partial<AccountingConfig>) => void
+  categories: string[];
+  accounts: XeroAccount[];
+  config: AccountingConfig | undefined;
+  isLoadingAccounts: boolean;
+  isSaving: boolean;
+  onSave: (config: Partial<AccountingConfig>) => void;
 }
 
-export function AccountMappingForm({
+interface AccountMappingFormBodyProps extends AccountMappingFormProps {
+  initialMappings: Record<string, string>;
+  initialAutoSync: boolean;
+  initialSyncInvoices: boolean;
+  initialSyncPOs: boolean;
+}
+
+function AccountMappingFormBody({
   categories,
   accounts,
-  config,
   isLoadingAccounts,
   isSaving,
   onSave,
-}: AccountMappingFormProps) {
-  const [mappings, setMappings] = useState<Record<string, string>>({})
-  const [autoSync, setAutoSync] = useState(false)
-  const [syncInvoices, setSyncInvoices] = useState(true)
-  const [syncPOs, setSyncPOs] = useState(false)
-
-  useEffect(() => {
-    if (config) {
-      setMappings(config.gl_mappings || {})
-      setAutoSync(config.auto_sync || false)
-      setSyncInvoices(config.sync_invoices !== false)
-      setSyncPOs(config.sync_purchase_orders || false)
-    }
-  }, [config])
+  initialMappings,
+  initialAutoSync,
+  initialSyncInvoices,
+  initialSyncPOs,
+}: AccountMappingFormBodyProps) {
+  const [mappings, setMappings] =
+    useState<Record<string, string>>(initialMappings);
+  const [autoSync, setAutoSync] = useState(initialAutoSync);
+  const [syncInvoices, setSyncInvoices] = useState(initialSyncInvoices);
+  const [syncPOs, setSyncPOs] = useState(initialSyncPOs);
 
   const handleSave = () => {
     onSave({
@@ -47,8 +61,8 @@ export function AccountMappingForm({
       auto_sync: autoSync,
       sync_invoices: syncInvoices,
       sync_purchase_orders: syncPOs,
-    })
-  }
+    });
+  };
 
   if (isLoadingAccounts) {
     return (
@@ -58,12 +72,12 @@ export function AccountMappingForm({
           <Skeleton className="h-4 w-64 mt-1" />
         </CardHeader>
         <CardContent className="space-y-3">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-10 w-full" />
           ))}
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -83,14 +97,16 @@ export function AccountMappingForm({
               Default Account
             </Label>
             <Select
-              value={mappings['_default'] || ''}
-              onValueChange={(value) => setMappings(prev => ({ ...prev, _default: value }))}
+              value={mappings["_default"] || ""}
+              onValueChange={(value) =>
+                setMappings((prev) => ({ ...prev, _default: value }))
+              }
             >
               <SelectTrigger className="sm:flex-1">
                 <SelectValue placeholder="Select default account..." />
               </SelectTrigger>
               <SelectContent>
-                {accounts.map(acc => (
+                {accounts.map((acc) => (
                   <SelectItem key={acc.account_id} value={acc.code}>
                     {acc.code} — {acc.name}
                   </SelectItem>
@@ -100,19 +116,26 @@ export function AccountMappingForm({
           </div>
 
           {/* Per-category mapping */}
-          {categories.map(category => (
-            <div key={category} className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <Label className="text-sm sm:w-40 shrink-0 truncate">{category}</Label>
+          {categories.map((category) => (
+            <div
+              key={category}
+              className="flex flex-col sm:flex-row sm:items-center gap-2"
+            >
+              <Label className="text-sm sm:w-40 shrink-0 truncate">
+                {category}
+              </Label>
               <Select
-                value={mappings[category] || ''}
-                onValueChange={(value) => setMappings(prev => ({ ...prev, [category]: value }))}
+                value={mappings[category] || ""}
+                onValueChange={(value) =>
+                  setMappings((prev) => ({ ...prev, [category]: value }))
+                }
               >
                 <SelectTrigger className="sm:flex-1">
                   <SelectValue placeholder="Use default" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Use default</SelectItem>
-                  {accounts.map(acc => (
+                  {accounts.map((acc) => (
                     <SelectItem key={acc.account_id} value={acc.code}>
                       {acc.code} — {acc.name}
                     </SelectItem>
@@ -124,7 +147,8 @@ export function AccountMappingForm({
 
           {categories.length === 0 && (
             <p className="text-sm text-muted-foreground py-2">
-              No categories found. Add categories to your inventory items to map them to GL accounts.
+              No categories found. Add categories to your inventory items to map
+              them to GL accounts.
             </p>
           )}
         </CardContent>
@@ -134,9 +158,7 @@ export function AccountMappingForm({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Sync Settings</CardTitle>
-          <CardDescription>
-            Control what gets synced to Xero
-          </CardDescription>
+          <CardDescription>Control what gets synced to Xero</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
@@ -183,5 +205,36 @@ export function AccountMappingForm({
         </Button>
       </div>
     </div>
-  )
+  );
+}
+
+export function AccountMappingForm({
+  categories,
+  accounts,
+  config,
+  isLoadingAccounts,
+  isSaving,
+  onSave,
+}: AccountMappingFormProps) {
+  // Derive initial values from config; inner component remounts when config identity changes
+  const initialMappings = config?.gl_mappings ?? {};
+  const initialAutoSync = config?.auto_sync ?? false;
+  const initialSyncInvoices = config?.sync_invoices !== false;
+  const initialSyncPOs = config?.sync_purchase_orders ?? false;
+
+  return (
+    <AccountMappingFormBody
+      key={config ? JSON.stringify(config) : "no-config"}
+      categories={categories}
+      accounts={accounts}
+      config={config}
+      isLoadingAccounts={isLoadingAccounts}
+      isSaving={isSaving}
+      onSave={onSave}
+      initialMappings={initialMappings}
+      initialAutoSync={initialAutoSync}
+      initialSyncInvoices={initialSyncInvoices}
+      initialSyncPOs={initialSyncPOs}
+    />
+  );
 }

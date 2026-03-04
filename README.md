@@ -4,26 +4,27 @@ Multi-tenant restaurant inventory management SaaS application with POS integrati
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|-----------|
-| Framework | Next.js 16 (App Router, React Server Components) |
-| UI | React 19, TypeScript 5 (strict mode) |
-| Database | Supabase (PostgreSQL + Auth + Row-Level Security + PostgREST) |
-| Styling | Tailwind CSS 4, Radix UI via shadcn/ui |
-| State | TanStack Query v5 |
-| Billing | Stripe (multi-currency: GBP, USD, EUR, SAR, AED, AUD, CAD) |
-| Email | Resend (transactional) |
-| Rate Limiting | Upstash Redis (sliding window) |
-| Validation | Zod 4, React Hook Form |
-| Testing | Vitest (1,897 tests across 95 files) |
-| Offline/PWA | Dexie.js (IndexedDB) |
-| Charts | Recharts |
-| Scanning | html5-qrcode (barcode) |
-| Monitoring | Sentry, Vercel Analytics + Speed Insights |
+| Category      | Technology                                                    |
+| ------------- | ------------------------------------------------------------- |
+| Framework     | Next.js 16 (App Router, React Server Components)              |
+| UI            | React 19, TypeScript 5 (strict mode)                          |
+| Database      | Supabase (PostgreSQL + Auth + Row-Level Security + PostgREST) |
+| Styling       | Tailwind CSS 4, Radix UI via shadcn/ui                        |
+| State         | TanStack Query v5                                             |
+| Billing       | Stripe (multi-currency: GBP, USD, EUR, SAR, AED, AUD, CAD)    |
+| Email         | Resend (transactional)                                        |
+| Rate Limiting | Upstash Redis (sliding window)                                |
+| Validation    | Zod 4, React Hook Form                                        |
+| Testing       | Vitest (1,163 tests across 95 files)                          |
+| Offline/PWA   | Dexie.js (IndexedDB)                                          |
+| Charts        | Recharts                                                      |
+| Scanning      | html5-qrcode (barcode)                                        |
+| Monitoring    | Sentry, Vercel Analytics + Speed Insights                     |
 
 ## Features
 
 ### Core Inventory
+
 - **Multi-store inventory** with per-store stock levels, PAR levels, and unit costs
 - **Stock counts** with variance tracking and audit trails
 - **Deliveries & receptions** with automatic stock level updates
@@ -32,51 +33,60 @@ Multi-tenant restaurant inventory management SaaS application with POS integrati
 - **Bulk CSV import/export** for inventory items
 
 ### Supplier Management
+
 - **Supplier directory** with contact info and payment terms
 - **Purchase orders** with full lifecycle (draft, submitted, acknowledged, shipped, partial, received, cancelled)
 - **Supplier portal** (token-authenticated, no user account needed) for suppliers to view orders, upload invoices, and update catalogs
 
 ### Recipe & Menu Costing
+
 - **Recipe builder** with ingredient costs and yield calculations
 - **Menu items** with selling price and food cost percentage
 - **Menu analysis** (contribution margin, food cost %)
 
 ### POS Integration
-- **37 POS provider adapters** (Square, Toast, Clover, Lightspeed, Zettle, SumUp, Epos Now, Tevalis, Foodics, Oracle MICROS, NCR Voyix, SpotOn, Revel, TouchBistro, Gastrofix, iiko, POSRocket, PAR Brink, Heartland, HungerRush, CAKE, Lavu, Focus POS, Shopify POS, Aldelo Express, Squirrel, GoTab, Xenial, Qu POS, Future POS, Upserve, SICOM, POSitouch, Harbortouch, Digital Dining, Maitre'D, Speedline + Custom)
-- **Webhook-based sale processing** with automatic inventory deduction
+
+- **37 POS provider adapters** — Square adapter fully implemented; remaining 36 are stub adapters with interface scaffolding only
+- **Webhook-based sale processing** with automatic inventory deduction (Square only)
 - **Item mapping** between POS menu items and inventory items
 
 ### Accounting Integration
-- **Xero** (OAuth, chart of accounts, contact/bill sync)
-- **QuickBooks Online** (OAuth, vendor/bill sync, SyncToken updates)
+
+- **Xero** — OAuth flow and adapter code exist but untested; bill sync is partial
+- **QuickBooks Online** — OAuth flow and adapter code exist but untested; bill sync is partial
 
 ### Invoice OCR
-- **Google Document AI** for invoice scanning
-- **Fuzzy matching** of line items to inventory
-- **Review UI** for manual verification before applying to stock
+
+- **Google Document AI** — integration code exists but is partial (no review UI, no fuzzy matching implemented)
+- Requires `GOOGLE_CLOUD_PROJECT_ID` and `GOOGLE_DOCUMENT_AI_PROCESSOR_ID` env vars
 
 ### HACCP Food Safety
+
 - **Check templates** (daily/weekly/shift frequency)
 - **Temperature logging** with safe range alerts
 - **Corrective actions** linked to checks
 - **Compliance dashboard** with scoring
 
 ### Workforce
+
 - **Shift scheduling** with timetable view
 - **Clock in/out** with attendance tracking
 - **Payroll** with hourly rates and pay run management
 
 ### Reports & Forecasting
+
 - **AI demand forecast** (SMA, WMA, exponential smoothing with seasonality)
 - **Daily summary**, **low stock**, **benchmark**, **food cost** reports
 - **Activity log** with full audit trail
 
 ### Billing
+
 - **Per-store Stripe subscriptions** with trial support
 - **Multi-currency** (GBP, USD, EUR, SAR, AED, AUD, CAD)
 - **Invoice history** and payment method management
 
 ### Public API
+
 - **API key authentication** (`rk_live_` format) with granular scopes
 - **v1 endpoints** for inventory and stock operations
 
@@ -172,16 +182,16 @@ npm run dev
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server (localhost:3000) |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint |
-| `npm run test` | Vitest in watch mode |
-| `npm run test:run` | Run all 1,897 tests once |
-| `npm run test:coverage` | Coverage report |
-| `npm run test:ui` | Vitest browser UI |
-| `npm run db:types` | Regenerate database types from Supabase |
+| Command                 | Description                             |
+| ----------------------- | --------------------------------------- |
+| `npm run dev`           | Start dev server (localhost:3000)       |
+| `npm run build`         | Production build                        |
+| `npm run lint`          | ESLint                                  |
+| `npm run test`          | Vitest in watch mode                    |
+| `npm run test:run`      | Run all 1,163 tests once                |
+| `npm run test:coverage` | Coverage report                         |
+| `npm run test:ui`       | Vitest browser UI                       |
+| `npm run db:types`      | Regenerate database types from Supabase |
 
 ### Running specific tests
 
@@ -288,20 +298,20 @@ supabase/migrations/             65+ SQL migrations (000-065)
 
 Three roles: **Owner**, **Manager**, **Staff**. Legacy role names (`Admin`) map to `Owner`.
 
-| Permission | Owner | Manager | Staff |
-|------------|:-----:|:-------:|:-----:|
-| Create store | Y | | |
-| Store settings | Y | Y | |
-| Delete store | Y (billing owner) | | |
-| Invite users | Y | | |
-| Manage users | Y | Y | |
-| Manage inventory items | Y | Y | |
-| Stock count | Y | Y | Y |
-| Stock reception | Y | Y | Y |
-| Stock adjustment | Y | Y | |
-| Manage shifts | Y | Y | |
-| View reports | Y | Y | Y |
-| Manage billing | Billing owner only | | |
+| Permission             |       Owner        | Manager | Staff |
+| ---------------------- | :----------------: | :-----: | :---: |
+| Create store           |         Y          |         |       |
+| Store settings         |         Y          |    Y    |       |
+| Delete store           | Y (billing owner)  |         |       |
+| Invite users           |         Y          |         |       |
+| Manage users           |         Y          |    Y    |       |
+| Manage inventory items |         Y          |    Y    |       |
+| Stock count            |         Y          |    Y    |   Y   |
+| Stock reception        |         Y          |    Y    |   Y   |
+| Stock adjustment       |         Y          |    Y    |       |
+| Manage shifts          |         Y          |    Y    |       |
+| View reports           |         Y          |    Y    |   Y   |
+| Manage billing         | Billing owner only |         |       |
 
 Billing access is controlled by the `is_billing_owner` flag on `store_users`, not by role.
 
@@ -309,9 +319,9 @@ Billing access is controlled by the `is_billing_owner` flag on `store_users`, no
 
 ## Deployment
 
-Target platform: **Vercel**. Build with `npm run build`. No Docker or CI/CD pipeline currently.
+Target platform: **Vercel**. Build with `npm run build`. No Docker container. No CI/CD pipeline currently configured.
 
-See [docs/API.md](./docs/API.md) for API endpoint documentation and [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for technical architecture details.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for technical architecture, [FEATURES.md](./FEATURES.md) for feature status, and [LINEAR-ISSUES.md](./LINEAR-ISSUES.md) for the development backlog.
 
 ---
 
