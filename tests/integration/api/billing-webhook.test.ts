@@ -19,12 +19,14 @@ vi.mock("@/lib/stripe/config", () => ({
 
 // Mock admin client
 const mockAdminClient = {
-  from: vi.fn(() => ({
-    select: vi.fn().mockReturnThis(),
-    update: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    single: vi.fn(),
-  })),
+  from: vi.fn(
+    (_table: string): Record<string, unknown> => ({
+      select: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn(),
+    }),
+  ),
 };
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -234,12 +236,10 @@ describe("Billing Webhook API Tests", () => {
             return {
               select: vi.fn().mockReturnThis(),
               eq: vi.fn().mockReturnThis(),
-              single: vi
-                .fn()
-                .mockResolvedValue({
-                  data: { user_id: "user-123" },
-                  error: null,
-                }),
+              single: vi.fn().mockResolvedValue({
+                data: { user_id: "user-123" },
+                error: null,
+              }),
             };
           }
           // For subscriptions and stores tables (update + select calls)

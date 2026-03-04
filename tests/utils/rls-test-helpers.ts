@@ -211,7 +211,7 @@ export async function createAuthenticatedClient(
   // Client already has the authenticated session
   // No need to create a new client - just cache and return this one
   clientCache.set(cacheKey, {
-    client,
+    client: client as ReturnType<typeof createClient>,
     timestamp: Date.now(),
   });
 
