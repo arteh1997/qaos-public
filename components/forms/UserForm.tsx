@@ -1,12 +1,11 @@
-'use client'
+"use client";
 
-import { useForm } from 'react-hook-form'
-import { useEffect } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { updateUserSchema, UpdateUserFormData } from '@/lib/validations/user'
-import { Profile, StoreUser } from '@/types'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { updateUserSchema, UpdateUserFormData } from "@/lib/validations/user";
+import { Profile, StoreUser } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -15,101 +14,92 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form'
+} from "@/components/ui/form";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog'
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Loader2 } from 'lucide-react'
-import { INVITE_ROLES, INVITE_ROLE_LABELS, INVITE_ROLE_DESCRIPTIONS } from '@/lib/constants'
-import { AppRole, LegacyAppRole } from '@/types'
-import { normalizeRole } from '@/lib/auth'
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
+import {
+  INVITE_ROLES,
+  INVITE_ROLE_LABELS,
+  INVITE_ROLE_DESCRIPTIONS,
+} from "@/lib/constants";
+import { AppRole, LegacyAppRole } from "@/types";
+import { normalizeRole } from "@/lib/auth";
 
 // Extended profile type with store_users for getting current store memberships and billing owner status
 type ProfileWithStoreUsers = Profile & {
-  store_users?: Pick<StoreUser, 'store_id' | 'role' | 'is_billing_owner'>[]
-}
+  store_users?: Pick<StoreUser, "store_id" | "role" | "is_billing_owner">[];
+};
 
 interface UserFormProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  user: ProfileWithStoreUsers | null
-  onSubmit: (data: UpdateUserFormData) => Promise<void>
-  isLoading?: boolean
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: ProfileWithStoreUsers | null;
+  onSubmit: (data: UpdateUserFormData) => Promise<void>;
+  isLoading?: boolean;
 }
 
-export function UserForm({
+interface UserFormBodyProps extends UserFormProps {
+  initialValues: UpdateUserFormData;
+}
+
+function UserFormBody({
   open,
   onOpenChange,
   user,
   onSubmit,
   isLoading,
-}: UserFormProps) {
+  initialValues,
+}: UserFormBodyProps) {
   const form = useForm<UpdateUserFormData>({
     resolver: zodResolver(updateUserSchema),
-    defaultValues: {
-      fullName: '',
-      role: undefined,
-      status: undefined,
-    },
-  })
+    defaultValues: initialValues,
+  });
 
-  // Reset form when user changes or dialog opens
-  useEffect(() => {
-    if (user && open) {
-      // Get role from store_users for the current store context (preferred over deprecated profiles.role)
-      // When viewing users for a specific store, the query filters store_users by that store,
-      // so store_users[0] contains the role at the current store
-      const storeUserRole = user.store_users?.[0]?.role as AppRole | undefined
-      // Fall back to profiles.role (normalized) only for legacy data without store_users entries
-      const normalizedRole = storeUserRole ?? normalizeRole(user.role as AppRole | LegacyAppRole) ?? undefined
-
-      form.reset({
-        fullName: user.full_name ?? '',
-        role: normalizedRole,
-        status: user.status,
-      })
-    }
-  }, [user, open, form])
-
-  const selectedRole = form.watch('role')
+  const selectedRole = form.watch("role");
 
   // Check if user is a billing owner (cannot have their role changed)
-  const isBillingOwner = user?.store_users?.some(su => su.is_billing_owner) ?? false
+  const isBillingOwner =
+    user?.store_users?.some((su) => su.is_billing_owner) ?? false;
 
   const handleOpenChange = (newOpen: boolean) => {
-    onOpenChange(newOpen)
-  }
+    onOpenChange(newOpen);
+  };
 
   const handleSubmit = async (data: UpdateUserFormData) => {
-    await onSubmit(data)
-  }
+    await onSubmit(data);
+  };
 
-  if (!user) return null
+  if (!user) return null;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>
-            Update user details and role.
-          </DialogDescription>
+          <DialogDescription>Update user details and role.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-4"
+          >
             <div className="text-sm text-muted-foreground mb-4">
-              <p><strong>Email:</strong> {user.email}</p>
+              <p>
+                <strong>Email:</strong> {user.email}
+              </p>
             </div>
 
             <FormField
@@ -135,17 +125,10 @@ export function UserForm({
                   {isBillingOwner ? (
                     // For billing owner, show a disabled input with "Owner" text
                     <FormControl>
-                      <Input
-                        value="Owner"
-                        disabled
-                        className="opacity-60"
-                      />
+                      <Input value="Owner" disabled className="opacity-60" />
                     </FormControl>
                   ) : (
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select role" />
@@ -163,10 +146,12 @@ export function UserForm({
                   <FormDescription>
                     {isBillingOwner ? (
                       <span className="text-amber-600 dark:text-amber-500">
-                        This user is the billing owner and their role cannot be changed.
+                        This user is the billing owner and their role cannot be
+                        changed.
                       </span>
                     ) : (
-                      selectedRole && INVITE_ROLE_DESCRIPTIONS[selectedRole as AppRole]
+                      selectedRole &&
+                      INVITE_ROLE_DESCRIPTIONS[selectedRole as AppRole]
                     )}
                   </FormDescription>
                   <FormMessage />
@@ -186,7 +171,9 @@ export function UserForm({
                     disabled={isBillingOwner}
                   >
                     <FormControl>
-                      <SelectTrigger className={isBillingOwner ? 'opacity-60' : ''}>
+                      <SelectTrigger
+                        className={isBillingOwner ? "opacity-60" : ""}
+                      >
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
@@ -217,8 +204,13 @@ export function UserForm({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading || form.formState.isSubmitting}>
-                {(isLoading || form.formState.isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button
+                type="submit"
+                disabled={isLoading || form.formState.isSubmitting}
+              >
+                {(isLoading || form.formState.isSubmitting) && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Save Changes
               </Button>
             </div>
@@ -226,5 +218,39 @@ export function UserForm({
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
+}
+
+export function UserForm({
+  open,
+  onOpenChange,
+  user,
+  onSubmit,
+  isLoading,
+}: UserFormProps) {
+  if (!user) return null;
+
+  // Compute initial form values from the user prop
+  const storeUserRole = user.store_users?.[0]?.role as AppRole | undefined;
+  const normalizedRole =
+    storeUserRole ??
+    normalizeRole(user.role as AppRole | LegacyAppRole) ??
+    undefined;
+  const initialValues: UpdateUserFormData = {
+    fullName: user.full_name ?? "",
+    role: normalizedRole,
+    status: user.status,
+  };
+
+  return (
+    <UserFormBody
+      key={`${open}-${user.id}`}
+      open={open}
+      onOpenChange={onOpenChange}
+      user={user}
+      onSubmit={onSubmit}
+      isLoading={isLoading}
+      initialValues={initialValues}
+    />
+  );
 }

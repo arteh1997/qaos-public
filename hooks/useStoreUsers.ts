@@ -1,30 +1,32 @@
-'use client'
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { StoreUser, Profile } from '@/types'
-import { useCSRF } from './useCSRF'
-import { useAuth } from './useAuth'
-import { toast } from 'sonner'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AppRole, StoreUser, Profile } from "@/types";
+import { useCSRF } from "./useCSRF";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
 export interface StoreUserWithProfile extends StoreUser {
-  user: Profile
+  user: Profile;
 }
 
 /**
  * Fetch users for a specific store
  */
-async function fetchStoreUsers(storeId: string): Promise<StoreUserWithProfile[]> {
+async function fetchStoreUsers(
+  storeId: string,
+): Promise<StoreUserWithProfile[]> {
   if (!storeId) {
-    return []
+    return [];
   }
 
-  const response = await fetch(`/api/stores/${storeId}/users`)
+  const response = await fetch(`/api/stores/${storeId}/users`);
   if (!response.ok) {
-    throw new Error('Failed to fetch store users')
+    throw new Error("Failed to fetch store users");
   }
 
-  const data = await response.json()
-  return data.data || []
+  const data = await response.json();
+  return data.data || [];
 }
 
 /**
@@ -40,182 +42,193 @@ async function fetchStoreUsers(storeId: string): Promise<StoreUserWithProfile[]>
  */
 export function useStoreUsersQuery(storeId: string | null) {
   return useQuery({
-    queryKey: ['store-users', storeId],
+    queryKey: ["store-users", storeId],
     queryFn: () => {
-      if (!storeId) throw new Error('Store ID is required')
-      return fetchStoreUsers(storeId)
+      if (!storeId) throw new Error("Store ID is required");
+      return fetchStoreUsers(storeId);
     },
     enabled: !!storeId,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-  })
+  });
 }
 
 /**
  * Mutation hook for adding a user to a store
  */
 export function useAddUserToStore(storeId: string | null) {
-  const queryClient = useQueryClient()
-  const { csrfFetch } = useCSRF()
-  const { refreshProfile } = useAuth()
+  const queryClient = useQueryClient();
+  const { csrfFetch } = useCSRF();
+  const { refreshProfile } = useAuth();
 
   return useMutation({
-    mutationFn: async ({
-      userId,
-      role,
-    }: {
-      userId: string
-      role: string
-    }) => {
-      if (!storeId) throw new Error('Store ID is required')
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      if (!storeId) throw new Error("Store ID is required");
 
       const response = await csrfFetch(`/api/stores/${storeId}/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, role }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to add user to store')
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to add user to store");
       }
 
-      return response.json()
+      return response.json();
     },
     onSuccess: () => {
       if (storeId) {
-        queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
+        queryClient.invalidateQueries({ queryKey: ["store-users", storeId] });
       }
-      refreshProfile()
-      toast.success('User added to store')
+      refreshProfile();
+      toast.success("User added to store");
     },
     onError: (err) => {
-      toast.error('Failed to add user: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      toast.error(
+        "Failed to add user: " +
+          (err instanceof Error ? err.message : "Unknown error"),
+      );
     },
-  })
+  });
 }
 
 /**
  * Mutation hook for removing a user from a store
  */
 export function useRemoveUserFromStore(storeId: string | null) {
-  const queryClient = useQueryClient()
-  const { csrfFetch } = useCSRF()
-  const { refreshProfile } = useAuth()
+  const queryClient = useQueryClient();
+  const { csrfFetch } = useCSRF();
+  const { refreshProfile } = useAuth();
 
   return useMutation({
     mutationFn: async (userId: string) => {
-      if (!storeId) throw new Error('Store ID is required')
+      if (!storeId) throw new Error("Store ID is required");
 
-      const response = await csrfFetch(`/api/stores/${storeId}/users/${userId}`, {
-        method: 'DELETE',
-      })
+      const response = await csrfFetch(
+        `/api/stores/${storeId}/users/${userId}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to remove user from store')
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Failed to remove user from store",
+        );
       }
 
-      return response.json()
+      return response.json();
     },
     // Optimistic update
     onMutate: async (userId) => {
-      if (!storeId) return
+      if (!storeId) return;
 
-      await queryClient.cancelQueries({ queryKey: ['store-users', storeId] })
-      const previousUsers = queryClient.getQueryData(['store-users', storeId])
+      await queryClient.cancelQueries({ queryKey: ["store-users", storeId] });
+      const previousUsers = queryClient.getQueryData(["store-users", storeId]);
 
       queryClient.setQueryData<StoreUserWithProfile[]>(
-        ['store-users', storeId],
+        ["store-users", storeId],
         (old) => {
-          if (!old) return old
-          return old.filter((su) => su.user_id !== userId)
-        }
-      )
+          if (!old) return old;
+          return old.filter((su) => su.user_id !== userId);
+        },
+      );
 
-      return { previousUsers }
+      return { previousUsers };
     },
     onError: (err, _userId, context) => {
       if (context?.previousUsers && storeId) {
-        queryClient.setQueryData(['store-users', storeId], context.previousUsers)
+        queryClient.setQueryData(
+          ["store-users", storeId],
+          context.previousUsers,
+        );
       }
-      toast.error('Failed to remove user: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      toast.error(
+        "Failed to remove user: " +
+          (err instanceof Error ? err.message : "Unknown error"),
+      );
     },
     onSuccess: () => {
       if (storeId) {
-        queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
+        queryClient.invalidateQueries({ queryKey: ["store-users", storeId] });
       }
-      refreshProfile()
-      toast.success('User removed from store')
+      refreshProfile();
+      toast.success("User removed from store");
     },
-  })
+  });
 }
 
 /**
  * Mutation hook for updating a user's role at a store
  */
 export function useUpdateUserRole(storeId: string | null) {
-  const queryClient = useQueryClient()
-  const { csrfFetch } = useCSRF()
-  const { refreshProfile } = useAuth()
+  const queryClient = useQueryClient();
+  const { csrfFetch } = useCSRF();
+  const { refreshProfile } = useAuth();
 
   return useMutation({
-    mutationFn: async ({
-      userId,
-      role,
-    }: {
-      userId: string
-      role: string
-    }) => {
-      if (!storeId) throw new Error('Store ID is required')
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      if (!storeId) throw new Error("Store ID is required");
 
-      const response = await csrfFetch(`/api/stores/${storeId}/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
-      })
+      const response = await csrfFetch(
+        `/api/stores/${storeId}/users/${userId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role }),
+        },
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to update user role')
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update user role");
       }
 
-      return response.json()
+      return response.json();
     },
     // Optimistic update
     onMutate: async ({ userId, role }) => {
-      if (!storeId) return
+      if (!storeId) return;
 
-      await queryClient.cancelQueries({ queryKey: ['store-users', storeId] })
-      const previousUsers = queryClient.getQueryData(['store-users', storeId])
+      await queryClient.cancelQueries({ queryKey: ["store-users", storeId] });
+      const previousUsers = queryClient.getQueryData(["store-users", storeId]);
 
       queryClient.setQueryData<StoreUserWithProfile[]>(
-        ['store-users', storeId],
+        ["store-users", storeId],
         (old) => {
-          if (!old) return old
+          if (!old) return old;
           return old.map((su) =>
-            su.user_id === userId ? { ...su, role: role as any } : su
-          )
-        }
-      )
+            su.user_id === userId ? { ...su, role: role as AppRole } : su,
+          );
+        },
+      );
 
-      return { previousUsers }
+      return { previousUsers };
     },
     onError: (err, _variables, context) => {
       if (context?.previousUsers && storeId) {
-        queryClient.setQueryData(['store-users', storeId], context.previousUsers)
+        queryClient.setQueryData(
+          ["store-users", storeId],
+          context.previousUsers,
+        );
       }
-      toast.error('Failed to update role: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      toast.error(
+        "Failed to update role: " +
+          (err instanceof Error ? err.message : "Unknown error"),
+      );
     },
     onSuccess: () => {
       if (storeId) {
-        queryClient.invalidateQueries({ queryKey: ['store-users', storeId] })
+        queryClient.invalidateQueries({ queryKey: ["store-users", storeId] });
       }
-      refreshProfile()
-      toast.success('User role updated')
+      refreshProfile();
+      toast.success("User role updated");
     },
-  })
+  });
 }
 
 /**
@@ -225,10 +238,10 @@ export function useUpdateUserRole(storeId: string | null) {
  * const { storeUsers, addUserToStore, removeUserFromStore, updateUserRole, isLoading } = useStoreUsers('store-id')
  */
 export function useStoreUsers(storeId: string | null) {
-  const query = useStoreUsersQuery(storeId)
-  const addMutation = useAddUserToStore(storeId)
-  const removeMutation = useRemoveUserFromStore(storeId)
-  const updateRoleMutation = useUpdateUserRole(storeId)
+  const query = useStoreUsersQuery(storeId);
+  const addMutation = useAddUserToStore(storeId);
+  const removeMutation = useRemoveUserFromStore(storeId);
+  const updateRoleMutation = useUpdateUserRole(storeId);
 
   return {
     storeUsers: query.data || [],
@@ -241,5 +254,5 @@ export function useStoreUsers(storeId: string | null) {
     isRemoving: removeMutation.isPending,
     isUpdatingRole: updateRoleMutation.isPending,
     refetch: query.refetch,
-  }
+  };
 }

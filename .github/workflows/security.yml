@@ -38,7 +38,7 @@ jobs:
       - name: TruffleHog Secret Scan
         uses: trufflesecurity/trufflehog@main
         with:
-          extra_args: --only-verified --diff
+          extra_args: --only-verified
 
   sast:
     name: Static Analysis

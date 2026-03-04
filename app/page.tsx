@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 // Landing page components
 import {
@@ -16,26 +16,26 @@ import {
   FAQ,
   CTA,
   Footer,
-} from '@/components/marketing'
+} from "@/components/marketing";
 
 // Dashboard components
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Navbar } from '@/components/layout/Navbar'
-import { GlobalKeyboardShortcuts } from '@/components/GlobalKeyboardShortcuts'
-import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { OwnerDashboard } from '@/components/dashboard/OwnerDashboard'
-import { StaffDashboard } from '@/components/dashboard/StaffDashboard'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Navbar } from "@/components/layout/Navbar";
+import { GlobalKeyboardShortcuts } from "@/components/GlobalKeyboardShortcuts";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { OwnerDashboard } from "@/components/dashboard/OwnerDashboard";
+import { StaffDashboard } from "@/components/dashboard/StaffDashboard";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Check if there's an auth cookie present (indicates user might be logged in)
 function hasAuthCookie(): boolean {
-  if (typeof document === 'undefined') return false
-  const cookies = document.cookie.split(';')
-  return cookies.some(cookie => {
-    const trimmed = cookie.trim()
-    return trimmed.startsWith('sb-') && trimmed.includes('auth-token')
-  })
+  if (typeof document === "undefined") return false;
+  const cookies = document.cookie.split(";");
+  return cookies.some((cookie) => {
+    const trimmed = cookie.trim();
+    return trimmed.startsWith("sb-") && trimmed.includes("auth-token");
+  });
 }
 
 /**
@@ -49,32 +49,25 @@ function hasAuthCookie(): boolean {
  * adapts to the user's authentication state.
  */
 export default function HomePage() {
-  const router = useRouter()
-  const { user, role, isLoading, stores } = useAuth()
+  const router = useRouter();
+  const { user, role, isLoading, stores } = useAuth();
 
-  // Track if we've detected an auth cookie - prevents flash of landing page after login
-  // Initialize with actual check to avoid flash on first render
-  const [hasCookie, setHasCookie] = useState(() => hasAuthCookie())
-
-  // Re-check cookie when auth state changes (handles logout clearing cookies)
-  useEffect(() => {
-    if (!isLoading && !user) {
-      setHasCookie(hasAuthCookie())
-    }
-  }, [isLoading, user])
+  // Track if we've detected an auth cookie - prevents flash of landing page after login.
+  // We compute once at mount time; if auth loading completes with no user, assume no cookie.
+  const [hasCookie] = useState(() => hasAuthCookie());
 
   // Redirect to onboarding if user has no stores
   useEffect(() => {
     if (!isLoading && user && stores && stores.length === 0) {
-      router.push('/onboarding')
+      router.push("/onboarding");
     }
-  }, [isLoading, user, stores, router])
+  }, [isLoading, user, stores, router]);
 
   // Show loading state while auth is loading
   // Also show loading if there's an auth cookie but user isn't loaded yet
   // (prevents flash of landing page after login)
   if (isLoading || (hasCookie && !user)) {
-    return <LoadingSkeleton />
+    return <LoadingSkeleton />;
   }
 
   // Not authenticated - show landing page
@@ -94,16 +87,16 @@ export default function HomePage() {
         </main>
         <Footer />
       </div>
-    )
+    );
   }
 
   // Authenticated but no stores - show loading while redirecting to onboarding
   if (stores && stores.length === 0) {
-    return <LoadingSkeleton />
+    return <LoadingSkeleton />;
   }
 
   // Authenticated - show dashboard
-  const effectiveRole = role || 'Owner'
+  const effectiveRole = role || "Owner";
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background text-foreground">
@@ -138,18 +131,18 @@ export default function HomePage() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
 function DashboardContent({ role }: { role: string }) {
   switch (role) {
-    case 'Owner':
-    case 'Manager':
-      return <OwnerDashboard key="owner-dashboard" />
-    case 'Staff':
-      return <StaffDashboard key="staff-dashboard" />
+    case "Owner":
+    case "Manager":
+      return <OwnerDashboard key="owner-dashboard" />;
+    case "Staff":
+      return <StaffDashboard key="staff-dashboard" />;
     default:
-      return <OwnerDashboard key="owner-dashboard-default" />
+      return <OwnerDashboard key="owner-dashboard-default" />;
   }
 }
 
@@ -183,5 +176,5 @@ function LoadingSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }

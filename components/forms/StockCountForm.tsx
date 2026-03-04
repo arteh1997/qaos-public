@@ -1,17 +1,17 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useStoreInventory } from '@/hooks/useStoreInventory'
-import { useStockCount } from '@/hooks/useStockCount'
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
-import { useFormDraft, formatDraftTime } from '@/hooks/useFormDraft'
-import { KeyboardShortcutsHelp } from '@/components/dialogs/KeyboardShortcutsHelp'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Label } from '@/components/ui/label'
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useStoreInventory } from "@/hooks/useStoreInventory";
+import { useStockCount } from "@/hooks/useStockCount";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useFormDraft, formatDraftTime } from "@/hooks/useFormDraft";
+import { KeyboardShortcutsHelp } from "@/components/dialogs/KeyboardShortcutsHelp";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -19,41 +19,57 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import {
-  Alert,
-  AlertDescription,
-} from '@/components/ui/alert'
+} from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Loader2, Search, AlertTriangle, Keyboard, RotateCcw, X, ArrowUp, ArrowDown } from 'lucide-react'
+} from "@/components/ui/select";
+import {
+  Loader2,
+  Search,
+  AlertTriangle,
+  Keyboard,
+  RotateCcw,
+  X,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 
 // Sort configuration
-type SortKey = 'item' | 'category' | 'current' | 'status'
-type SortDirection = 'asc' | 'desc'
+type SortKey = "item" | "category" | "current" | "status";
+type SortDirection = "asc" | "desc";
 
 interface SortConfig {
-  key: SortKey
-  direction: SortDirection
+  key: SortKey;
+  direction: SortDirection;
 }
 
 interface SortableHeaderProps {
-  label: string
-  sortKey: SortKey
-  currentSort: SortConfig | null
-  onSort: (key: SortKey) => void
-  className?: string
+  label: string;
+  sortKey: SortKey;
+  currentSort: SortConfig | null;
+  onSort: (key: SortKey) => void;
+  className?: string;
 }
 
-function SortableHeader({ label, sortKey, currentSort, onSort, className = '' }: SortableHeaderProps) {
-  const isActive = currentSort?.key === sortKey
-  const direction = isActive ? currentSort.direction : null
-  const ariaSort = isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
+function SortableHeader({
+  label,
+  sortKey,
+  currentSort,
+  onSort,
+  className = "",
+}: SortableHeaderProps) {
+  const isActive = currentSort?.key === sortKey;
+  const direction = isActive ? currentSort.direction : null;
+  const ariaSort = isActive
+    ? direction === "asc"
+      ? "ascending"
+      : "descending"
+    : "none";
 
   return (
     <TableHead
@@ -64,12 +80,15 @@ function SortableHeader({ label, sortKey, currentSort, onSort, className = '' }:
     >
       <button
         type="button"
-        className={`flex items-center gap-1 w-full ${className.includes('text-right') ? 'justify-end' : ''}`}
-        aria-label={`Sort by ${label}${isActive ? `, currently ${direction === 'asc' ? 'ascending' : 'descending'}` : ''}`}
+        className={`flex items-center gap-1 w-full ${className.includes("text-right") ? "justify-end" : ""}`}
+        aria-label={`Sort by ${label}${isActive ? `, currently ${direction === "asc" ? "ascending" : "descending"}` : ""}`}
       >
         <span>{label}</span>
-        <span className={`transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true">
-          {direction === 'asc' ? (
+        <span
+          className={`transition-opacity ${isActive ? "opacity-100" : "opacity-0"}`}
+          aria-hidden="true"
+        >
+          {direction === "asc" ? (
             <ArrowUp className="h-3.5 w-3.5" />
           ) : (
             <ArrowDown className="h-3.5 w-3.5" />
@@ -77,40 +96,40 @@ function SortableHeader({ label, sortKey, currentSort, onSort, className = '' }:
         </span>
       </button>
     </TableHead>
-  )
+  );
 }
 
 interface StockCountFormProps {
-  storeId: string
-  onSuccess?: () => void
+  storeId: string;
+  onSuccess?: () => void;
 }
 
 interface CountItem {
-  inventory_item_id: string
-  name: string
-  category: string | null
-  current_quantity: number
-  new_quantity: number | null
-  par_level: number | null
-  isEditing: boolean
+  inventory_item_id: string;
+  name: string;
+  category: string | null;
+  current_quantity: number;
+  new_quantity: number | null;
+  par_level: number | null;
+  isEditing: boolean;
 }
 
 interface DraftData {
-  quantities: Record<string, number>
-  notes: string
+  quantities: Record<string, number>;
+  notes: string;
 }
 
 export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
-  const { inventory, isLoading: inventoryLoading } = useStoreInventory(storeId)
-  const { submitCount, isSubmitting } = useStockCount()
-  const [countItems, setCountItems] = useState<CountItem[]>([])
-  const [notes, setNotes] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [showDraftBanner, setShowDraftBanner] = useState(true)
+  const { inventory, isLoading: inventoryLoading } = useStoreInventory(storeId);
+  const { submitCount, isSubmitting } = useStockCount();
+  const [countItems, setCountItems] = useState<CountItem[]>([]);
+  const [notes, setNotes] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [showDraftBanner, setShowDraftBanner] = useState(true);
 
   // Track the storeId we initialized for
-  const initializedForStore = useRef<string | null>(null)
+  const initializedForStore = useRef<string | null>(null);
 
   // Draft persistence
   const {
@@ -121,143 +140,169 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
     setValue: setDraftValue,
   } = useFormDraft<DraftData>({
     key: `stock-count-${storeId}`,
-    defaultValue: { quantities: {}, notes: '' },
+    defaultValue: { quantities: {}, notes: "" },
     debounceMs: 500,
-  })
+  });
 
   // Get unique categories from items
   const categories = useMemo(() => {
-    const cats = new Set<string>()
-    countItems.forEach(item => {
-      if (item.category) cats.add(item.category)
-    })
-    return Array.from(cats).sort()
-  }, [countItems])
+    const cats = new Set<string>();
+    countItems.forEach((item) => {
+      if (item.category) cats.add(item.category);
+    });
+    return Array.from(cats).sort();
+  }, [countItems]);
 
-  // Initialize count items when inventory loads
+  // Initialize count items when inventory loads.
+  // One-time seed from async data guarded by initializedForStore ref (runs only once per store).
+  // A lazy useState initializer can't be used here because inventory loads asynchronously after mount.
   useEffect(() => {
     if (
       !inventoryLoading &&
       inventory.length > 0 &&
       initializedForStore.current !== storeId
     ) {
-      initializedForStore.current = storeId
+      initializedForStore.current = storeId;
 
-      const items: CountItem[] = inventory.map(inv => ({
+      const items: CountItem[] = inventory.map((inv) => ({
         inventory_item_id: inv.inventory_item_id,
-        name: inv.inventory_item?.name ?? 'Unknown',
+        name: inv.inventory_item?.name ?? "Unknown",
         category: inv.inventory_item?.category ?? null,
         current_quantity: inv.quantity,
         new_quantity: null,
         par_level: inv.par_level,
         isEditing: false,
-      }))
+      }));
 
-      setCountItems(items)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time async seed guarded by ref
+      setCountItems(items);
     }
-  }, [inventoryLoading, inventory, storeId])
+  }, [inventoryLoading, inventory, storeId]);
 
   // Handle clicking on quantity to start editing
   const handleStartEditing = useCallback((itemId: string) => {
-    setCountItems(prev =>
-      prev.map(item =>
+    setCountItems((prev) =>
+      prev.map((item) =>
         item.inventory_item_id === itemId
-          ? { ...item, isEditing: true, new_quantity: item.new_quantity ?? item.current_quantity }
-          : item
-      )
-    )
-  }, [])
+          ? {
+              ...item,
+              isEditing: true,
+              new_quantity: item.new_quantity ?? item.current_quantity,
+            }
+          : item,
+      ),
+    );
+  }, []);
 
   // Handle quantity change (integers only)
-  const handleQuantityChange = useCallback((itemId: string, value: string) => {
-    const numValue = value === '' ? null : parseInt(value, 10)
-    setCountItems(prev => {
-      const updated = prev.map(item =>
-        item.inventory_item_id === itemId
-          ? { ...item, new_quantity: isNaN(numValue as number) ? null : numValue }
-          : item
-      )
-      // Save draft with changed quantities
-      const quantities: Record<string, number> = {}
-      updated.forEach(item => {
-        if (item.new_quantity !== null && item.new_quantity !== item.current_quantity) {
-          quantities[item.inventory_item_id] = item.new_quantity
-        }
-      })
-      setDraftValue({ quantities, notes })
-      return updated
-    })
-  }, [notes, setDraftValue])
+  const handleQuantityChange = useCallback(
+    (itemId: string, value: string) => {
+      const numValue = value === "" ? null : parseInt(value, 10);
+      setCountItems((prev) => {
+        const updated = prev.map((item) =>
+          item.inventory_item_id === itemId
+            ? {
+                ...item,
+                new_quantity: isNaN(numValue as number) ? null : numValue,
+              }
+            : item,
+        );
+        // Save draft with changed quantities
+        const quantities: Record<string, number> = {};
+        updated.forEach((item) => {
+          if (
+            item.new_quantity !== null &&
+            item.new_quantity !== item.current_quantity
+          ) {
+            quantities[item.inventory_item_id] = item.new_quantity;
+          }
+        });
+        setDraftValue({ quantities, notes });
+        return updated;
+      });
+    },
+    [notes, setDraftValue],
+  );
 
   // Handle blur - stop editing
   const handleBlur = useCallback((itemId: string) => {
-    setCountItems(prev =>
-      prev.map(item => {
-        if (item.inventory_item_id !== itemId) return item
+    setCountItems((prev) =>
+      prev.map((item) => {
+        if (item.inventory_item_id !== itemId) return item;
         // If value hasn't changed from current, reset to null
         if (item.new_quantity === item.current_quantity) {
-          return { ...item, isEditing: false, new_quantity: null }
+          return { ...item, isEditing: false, new_quantity: null };
         }
-        return { ...item, isEditing: false }
-      })
-    )
-  }, [])
+        return { ...item, isEditing: false };
+      }),
+    );
+  }, []);
 
   // Handle notes change with draft save
-  const handleNotesChange = useCallback((newNotes: string) => {
-    setNotes(newNotes)
-    // Save draft with current quantities
-    const quantities: Record<string, number> = {}
-    countItems.forEach(item => {
-      if (item.new_quantity !== null && item.new_quantity !== item.current_quantity) {
-        quantities[item.inventory_item_id] = item.new_quantity
-      }
-    })
-    setDraftValue({ quantities, notes: newNotes })
-  }, [countItems, setDraftValue])
+  const handleNotesChange = useCallback(
+    (newNotes: string) => {
+      setNotes(newNotes);
+      // Save draft with current quantities
+      const quantities: Record<string, number> = {};
+      countItems.forEach((item) => {
+        if (
+          item.new_quantity !== null &&
+          item.new_quantity !== item.current_quantity
+        ) {
+          quantities[item.inventory_item_id] = item.new_quantity;
+        }
+      });
+      setDraftValue({ quantities, notes: newNotes });
+    },
+    [countItems, setDraftValue],
+  );
 
   // Restore draft data
   const handleRestoreDraft = useCallback(() => {
-    const draft = restoreDraft()
+    const draft = restoreDraft();
     if (draft) {
       // Apply saved quantities
-      setCountItems(prev =>
-        prev.map(item => {
-          const savedQty = draft.quantities[item.inventory_item_id]
+      setCountItems((prev) =>
+        prev.map((item) => {
+          const savedQty = draft.quantities[item.inventory_item_id];
           if (savedQty !== undefined) {
-            return { ...item, new_quantity: savedQty }
+            return { ...item, new_quantity: savedQty };
           }
-          return item
-        })
-      )
+          return item;
+        }),
+      );
       // Apply saved notes
       if (draft.notes) {
-        setNotes(draft.notes)
+        setNotes(draft.notes);
       }
     }
-    setShowDraftBanner(false)
-  }, [restoreDraft])
+    setShowDraftBanner(false);
+  }, [restoreDraft]);
 
   // Dismiss draft without restoring
   const handleDismissDraft = useCallback(() => {
-    clearDraft()
-    setShowDraftBanner(false)
-  }, [clearDraft])
+    clearDraft();
+    setShowDraftBanner(false);
+  }, [clearDraft]);
 
   const handleSubmit = async () => {
     const itemsToSubmit = countItems
-      .filter(item => item.new_quantity !== null && item.new_quantity !== item.current_quantity)
-      .map(item => ({
+      .filter(
+        (item) =>
+          item.new_quantity !== null &&
+          item.new_quantity !== item.current_quantity,
+      )
+      .map((item) => ({
         inventory_item_id: item.inventory_item_id,
         quantity: item.new_quantity!,
-      }))
+      }));
 
     if (itemsToSubmit.length === 0) {
-      return
+      return;
     }
 
     // Clear draft on submit
-    clearDraft()
+    clearDraft();
 
     // Fire and forget - don't wait for response since Supabase may hang
     submitCount({
@@ -266,188 +311,194 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
       notes: notes || undefined,
     }).catch(() => {
       // Error already handled by mutation - navigate anyway
-    })
+    });
 
     // Navigate immediately - data is likely saved even if response hangs
-    onSuccess?.()
-  }
+    onSuccess?.();
+  };
 
   // Sort configuration
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const handleSort = useCallback((key: SortKey) => {
-    setSortConfig(current => {
+    setSortConfig((current) => {
       if (current?.key === key) {
         return {
           key,
-          direction: current.direction === 'asc' ? 'desc' : 'asc'
-        }
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
       }
-      return { key, direction: 'asc' }
-    })
-  }, [])
+      return { key, direction: "asc" };
+    });
+  }, []);
 
   // Filter items by search and category, then apply sort
   const filteredItems = useMemo(() => {
-    const filtered = countItems.filter(item => {
+    const filtered = countItems.filter((item) => {
       const matchesSearch = searchQuery
         ? item.name.toLowerCase().includes(searchQuery.toLowerCase())
-        : true
-      const matchesCategory = categoryFilter === 'all'
-        ? true
-        : item.category === categoryFilter
-      return matchesSearch && matchesCategory
-    })
+        : true;
+      const matchesCategory =
+        categoryFilter === "all" ? true : item.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    });
 
     // Default sort: low stock items first, then alphabetically
     if (!sortConfig) {
       return filtered.sort((a, b) => {
-        const aIsLowStock = a.par_level && (a.new_quantity ?? a.current_quantity) < a.par_level
-        const bIsLowStock = b.par_level && (b.new_quantity ?? b.current_quantity) < b.par_level
+        const aIsLowStock =
+          a.par_level && (a.new_quantity ?? a.current_quantity) < a.par_level;
+        const bIsLowStock =
+          b.par_level && (b.new_quantity ?? b.current_quantity) < b.par_level;
 
-        if (aIsLowStock && !bIsLowStock) return -1
-        if (!aIsLowStock && bIsLowStock) return 1
-        return a.name.localeCompare(b.name)
-      })
+        if (aIsLowStock && !bIsLowStock) return -1;
+        if (!aIsLowStock && bIsLowStock) return 1;
+        return a.name.localeCompare(b.name);
+      });
     }
 
     // User-specified sort
     return [...filtered].sort((a, b) => {
-      let aVal: string | number
-      let bVal: string | number
-      const multiplier = sortConfig.direction === 'asc' ? 1 : -1
+      let aVal: string | number;
+      let bVal: string | number;
+      const multiplier = sortConfig.direction === "asc" ? 1 : -1;
 
       switch (sortConfig.key) {
-        case 'item':
-          aVal = a.name.toLowerCase()
-          bVal = b.name.toLowerCase()
-          break
-        case 'category':
+        case "item":
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case "category":
           // Items without category sort to end
-          aVal = (a.category ?? 'zzz').toLowerCase()
-          bVal = (b.category ?? 'zzz').toLowerCase()
-          break
-        case 'current':
-          aVal = a.current_quantity
-          bVal = b.current_quantity
-          break
-        case 'status':
+          aVal = (a.category ?? "zzz").toLowerCase();
+          bVal = (b.category ?? "zzz").toLowerCase();
+          break;
+        case "current":
+          aVal = a.current_quantity;
+          bVal = b.current_quantity;
+          break;
+        case "status":
           // Low stock (1) first, then OK (2), then no PAR set (3)
           const getStatusPriority = (item: CountItem) => {
-            const qty = item.new_quantity ?? item.current_quantity
-            if (!item.par_level) return 3
-            if (qty < item.par_level) return 1
-            return 2
-          }
-          aVal = getStatusPriority(a)
-          bVal = getStatusPriority(b)
-          break
+            const qty = item.new_quantity ?? item.current_quantity;
+            if (!item.par_level) return 3;
+            if (qty < item.par_level) return 1;
+            return 2;
+          };
+          aVal = getStatusPriority(a);
+          bVal = getStatusPriority(b);
+          break;
         default:
-          return 0
+          return 0;
       }
 
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal) * multiplier
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return aVal.localeCompare(bVal) * multiplier;
       }
 
-      if (aVal < bVal) return -1 * multiplier
-      if (aVal > bVal) return 1 * multiplier
-      return 0
-    })
-  }, [countItems, searchQuery, categoryFilter, sortConfig])
+      if (aVal < bVal) return -1 * multiplier;
+      if (aVal > bVal) return 1 * multiplier;
+      return 0;
+    });
+  }, [countItems, searchQuery, categoryFilter, sortConfig]);
 
   const changedItemsCount = countItems.filter(
-    item => item.new_quantity !== null && item.new_quantity !== item.current_quantity
-  ).length
+    (item) =>
+      item.new_quantity !== null && item.new_quantity !== item.current_quantity,
+  ).length;
 
   // Keyboard shortcuts help dialog
-  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Get index of currently editing item
-  const editingIndex = filteredItems.findIndex(item => item.isEditing)
+  const editingIndex = filteredItems.findIndex((item) => item.isEditing);
 
   // Navigate to next/previous item
-  const navigateToItem = useCallback((direction: 'next' | 'prev') => {
-    if (filteredItems.length === 0) return
+  const navigateToItem = useCallback(
+    (direction: "next" | "prev") => {
+      if (filteredItems.length === 0) return;
 
-    let targetIndex: number
-    if (editingIndex === -1) {
-      // Nothing editing, start from first/last
-      targetIndex = direction === 'next' ? 0 : filteredItems.length - 1
-    } else {
-      // Move from current
-      targetIndex = direction === 'next'
-        ? Math.min(editingIndex + 1, filteredItems.length - 1)
-        : Math.max(editingIndex - 1, 0)
-    }
-
-    const targetItem = filteredItems[targetIndex]
-    if (targetItem) {
-      // Blur current if any
-      if (editingIndex !== -1) {
-        handleBlur(filteredItems[editingIndex].inventory_item_id)
+      let targetIndex: number;
+      if (editingIndex === -1) {
+        // Nothing editing, start from first/last
+        targetIndex = direction === "next" ? 0 : filteredItems.length - 1;
+      } else {
+        // Move from current
+        targetIndex =
+          direction === "next"
+            ? Math.min(editingIndex + 1, filteredItems.length - 1)
+            : Math.max(editingIndex - 1, 0);
       }
-      handleStartEditing(targetItem.inventory_item_id)
-    }
-  }, [filteredItems, editingIndex, handleBlur, handleStartEditing])
+
+      const targetItem = filteredItems[targetIndex];
+      if (targetItem) {
+        // Blur current if any
+        if (editingIndex !== -1) {
+          handleBlur(filteredItems[editingIndex].inventory_item_id);
+        }
+        handleStartEditing(targetItem.inventory_item_id);
+      }
+    },
+    [filteredItems, editingIndex, handleBlur, handleStartEditing],
+  );
 
   // Register keyboard shortcuts
   useKeyboardShortcuts([
     {
-      key: 'meta+s',
+      key: "meta+s",
       handler: () => {
         if (changedItemsCount > 0 && !isSubmitting) {
-          handleSubmit()
+          handleSubmit();
         }
       },
-      description: 'Submit stock count',
+      description: "Submit stock count",
     },
     {
-      key: 'ctrl+s',
+      key: "ctrl+s",
       handler: () => {
         if (changedItemsCount > 0 && !isSubmitting) {
-          handleSubmit()
+          handleSubmit();
         }
       },
-      description: 'Submit stock count',
+      description: "Submit stock count",
     },
     {
-      key: 'shift+?',
-      handler: () => setShowShortcuts(prev => !prev),
-      description: 'Toggle keyboard shortcuts help',
+      key: "shift+?",
+      handler: () => setShowShortcuts((prev) => !prev),
+      description: "Toggle keyboard shortcuts help",
     },
     {
-      key: 'escape',
+      key: "escape",
       handler: () => {
         if (editingIndex !== -1) {
-          handleBlur(filteredItems[editingIndex].inventory_item_id)
+          handleBlur(filteredItems[editingIndex].inventory_item_id);
         }
-        setShowShortcuts(false)
+        setShowShortcuts(false);
       },
-      description: 'Close input / cancel',
+      description: "Close input / cancel",
       allowInInput: true,
     },
-  ])
+  ]);
 
   // Shortcut groups for help dialog
   const shortcutGroups = [
     {
-      title: 'Navigation',
+      title: "Navigation",
       shortcuts: [
-        { key: 'enter', description: 'Move to next item' },
-        { key: 'tab', description: 'Move to next item' },
-        { key: 'shift+tab', description: 'Move to previous item' },
-        { key: 'escape', description: 'Stop editing current item' },
+        { key: "enter", description: "Move to next item" },
+        { key: "tab", description: "Move to next item" },
+        { key: "shift+tab", description: "Move to previous item" },
+        { key: "escape", description: "Stop editing current item" },
       ],
     },
     {
-      title: 'Actions',
+      title: "Actions",
       shortcuts: [
-        { key: 'meta+s', description: 'Submit stock count' },
-        { key: 'shift+?', description: 'Toggle shortcuts help' },
+        { key: "meta+s", description: "Submit stock count" },
+        { key: "shift+?", description: "Toggle shortcuts help" },
       ],
     },
-  ]
+  ];
 
   if (inventoryLoading) {
     return (
@@ -456,7 +507,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
           <Skeleton key={i} className="h-10" />
         ))}
       </div>
-    )
+    );
   }
 
   return (
@@ -467,7 +518,8 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
           <RotateCcw className="h-4 w-4 text-amber-600" />
           <AlertDescription className="flex items-center justify-between gap-4">
             <span className="text-sm">
-              You have an unsaved draft from {draftTimestamp ? formatDraftTime(draftTimestamp) : 'earlier'}.
+              You have an unsaved draft from{" "}
+              {draftTimestamp ? formatDraftTime(draftTimestamp) : "earlier"}.
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -496,7 +548,10 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative flex-1 w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+            aria-hidden="true"
+          />
           <Input
             placeholder="Search items..."
             value={searchQuery}
@@ -506,7 +561,10 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
           />
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-full sm:w-40 h-9" aria-label="Filter by category">
+          <SelectTrigger
+            className="w-full sm:w-40 h-9"
+            aria-label="Filter by category"
+          >
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -518,7 +576,12 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
             ))}
           </SelectContent>
         </Select>
-        <Badge variant="outline" className="h-9 px-3 flex items-center" aria-live="polite" aria-atomic="true">
+        <Badge
+          variant="outline"
+          className="h-9 px-3 flex items-center"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {changedItemsCount} updated
         </Badge>
         <Button
@@ -540,20 +603,29 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
           </div>
         ) : (
           filteredItems.map((item) => {
-            const isLowStock = item.par_level && (item.new_quantity ?? item.current_quantity) < item.par_level
-            const hasChanged = item.new_quantity !== null && item.new_quantity !== item.current_quantity
+            const isLowStock =
+              item.par_level &&
+              (item.new_quantity ?? item.current_quantity) < item.par_level;
+            const hasChanged =
+              item.new_quantity !== null &&
+              item.new_quantity !== item.current_quantity;
 
             return (
               <div
                 key={item.inventory_item_id}
-                className={`border rounded-lg p-3 ${hasChanged ? 'bg-primary/5 border-primary/30' : ''}`}
+                className={`border rounded-lg p-3 ${hasChanged ? "bg-primary/5 border-primary/30" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm truncate">{item.name}</span>
+                      <span className="font-medium text-sm truncate">
+                        {item.name}
+                      </span>
                       {isLowStock && (
-                        <Badge variant="destructive" className="gap-1 text-[10px] h-5">
+                        <Badge
+                          variant="destructive"
+                          className="gap-1 text-[10px] h-5"
+                        >
                           <AlertTriangle className="h-2.5 w-2.5" />
                           Low
                         </Badge>
@@ -567,8 +639,12 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
-                      <div className="text-[10px] text-muted-foreground">Current</div>
-                      <div className="text-sm font-medium">{item.current_quantity}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Current
+                      </div>
+                      <div className="text-sm font-medium">
+                        {item.current_quantity}
+                      </div>
                     </div>
                     <div className="text-muted-foreground">→</div>
                     {item.isEditing ? (
@@ -577,22 +653,30 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                         min="0"
                         step="1"
                         autoFocus
-                        value={item.new_quantity ?? ''}
-                        onChange={(e) => handleQuantityChange(item.inventory_item_id, e.target.value)}
+                        value={item.new_quantity ?? ""}
+                        onChange={(e) =>
+                          handleQuantityChange(
+                            item.inventory_item_id,
+                            e.target.value,
+                          )
+                        }
                         onFocus={(e) => e.target.select()}
                         onBlur={() => handleBlur(item.inventory_item_id)}
                         onKeyDown={(e) => {
-                          if (e.key === '.') e.preventDefault()
-                          if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
-                            e.preventDefault()
-                            navigateToItem('next')
+                          if (e.key === ".") e.preventDefault();
+                          if (
+                            e.key === "Enter" ||
+                            (e.key === "Tab" && !e.shiftKey)
+                          ) {
+                            e.preventDefault();
+                            navigateToItem("next");
                           }
-                          if (e.key === 'Tab' && e.shiftKey) {
-                            e.preventDefault()
-                            navigateToItem('prev')
+                          if (e.key === "Tab" && e.shiftKey) {
+                            e.preventDefault();
+                            navigateToItem("prev");
                           }
-                          if (e.key === 'Escape') {
-                            e.currentTarget.blur()
+                          if (e.key === "Escape") {
+                            e.currentTarget.blur();
                           }
                         }}
                         className="w-16 h-9 text-center text-sm"
@@ -601,11 +685,14 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleStartEditing(item.inventory_item_id)}
+                        onClick={() =>
+                          handleStartEditing(item.inventory_item_id)
+                        }
                         className={`min-w-14 h-9 px-3 text-sm font-medium rounded-md border cursor-pointer transition-colors
-                          ${hasChanged
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-muted/50 hover:bg-muted border-input'
+                          ${
+                            hasChanged
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted/50 hover:bg-muted border-input"
                           }`}
                         aria-label={`Edit quantity for ${item.name}`}
                       >
@@ -615,7 +702,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                   </div>
                 </div>
               </div>
-            )
+            );
           })
         )}
       </div>
@@ -656,25 +743,32 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
           <TableBody>
             {filteredItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-[200px] text-center text-muted-foreground">
+                <TableCell
+                  colSpan={5}
+                  className="h-[200px] text-center text-muted-foreground"
+                >
                   No items found
                 </TableCell>
               </TableRow>
             ) : (
               filteredItems.map((item) => {
-                const isLowStock = item.par_level && (item.new_quantity ?? item.current_quantity) < item.par_level
-                const hasChanged = item.new_quantity !== null && item.new_quantity !== item.current_quantity
+                const isLowStock =
+                  item.par_level &&
+                  (item.new_quantity ?? item.current_quantity) < item.par_level;
+                const hasChanged =
+                  item.new_quantity !== null &&
+                  item.new_quantity !== item.current_quantity;
 
                 return (
                   <TableRow
                     key={item.inventory_item_id}
-                    className={hasChanged ? 'bg-primary/5' : ''}
+                    className={hasChanged ? "bg-primary/5" : ""}
                   >
                     <TableCell>
                       <span className="font-medium">{item.name}</span>
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">
-                      {item.category || '-'}
+                      {item.category || "-"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {item.current_quantity}
@@ -686,28 +780,36 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                           min="0"
                           step="1"
                           autoFocus
-                          value={item.new_quantity ?? ''}
-                          onChange={(e) => handleQuantityChange(item.inventory_item_id, e.target.value)}
+                          value={item.new_quantity ?? ""}
+                          onChange={(e) =>
+                            handleQuantityChange(
+                              item.inventory_item_id,
+                              e.target.value,
+                            )
+                          }
                           onFocus={(e) => e.target.select()}
                           onBlur={() => handleBlur(item.inventory_item_id)}
                           onKeyDown={(e) => {
                             // Prevent decimal point
-                            if (e.key === '.') {
-                              e.preventDefault()
+                            if (e.key === ".") {
+                              e.preventDefault();
                             }
                             // Enter or Tab moves to next item
-                            if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
-                              e.preventDefault()
-                              navigateToItem('next')
+                            if (
+                              e.key === "Enter" ||
+                              (e.key === "Tab" && !e.shiftKey)
+                            ) {
+                              e.preventDefault();
+                              navigateToItem("next");
                             }
                             // Shift+Tab moves to previous item
-                            if (e.key === 'Tab' && e.shiftKey) {
-                              e.preventDefault()
-                              navigateToItem('prev')
+                            if (e.key === "Tab" && e.shiftKey) {
+                              e.preventDefault();
+                              navigateToItem("prev");
                             }
                             // Escape closes input
-                            if (e.key === 'Escape') {
-                              e.currentTarget.blur()
+                            if (e.key === "Escape") {
+                              e.currentTarget.blur();
                             }
                           }}
                           className="w-20 h-8 text-center text-sm"
@@ -716,11 +818,14 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => handleStartEditing(item.inventory_item_id)}
+                          onClick={() =>
+                            handleStartEditing(item.inventory_item_id)
+                          }
                           className={`min-w-16 h-8 px-3 text-sm font-medium rounded-md border cursor-pointer transition-colors
-                            ${hasChanged
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-muted/50 hover:bg-muted border-input'
+                            ${
+                              hasChanged
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-muted/50 hover:bg-muted border-input"
                             }`}
                           aria-label={`Edit quantity for ${item.name}, currently ${item.new_quantity ?? item.current_quantity}`}
                         >
@@ -739,7 +844,7 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
                       )}
                     </TableCell>
                   </TableRow>
-                )
+                );
               })
             )}
           </TableBody>
@@ -748,7 +853,9 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
 
       {/* Notes */}
       <div className="space-y-1.5 pt-3 border-t">
-        <Label htmlFor="notes" className="text-sm">Notes (optional)</Label>
+        <Label htmlFor="notes" className="text-sm">
+          Notes (optional)
+        </Label>
         <Textarea
           id="notes"
           placeholder="Add any notes about this count..."
@@ -776,5 +883,5 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
         groups={shortcutGroups}
       />
     </div>
-  )
+  );
 }
