@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   generateRequestId,
   createPaginationMeta,
@@ -10,10 +10,10 @@ import {
   apiBadRequest,
   apiRateLimited,
   apiValidationError,
-} from '@/lib/api/response'
+} from "@/lib/api/response";
 
 // Mock NextResponse
-vi.mock('next/server', () => ({
+vi.mock("next/server", () => ({
   NextResponse: {
     json: vi.fn((data, init) => ({
       data,
@@ -21,33 +21,40 @@ vi.mock('next/server', () => ({
       headers: init?.headers ?? {},
     })),
   },
-}))
+}));
 
-describe('API Response Utilities', () => {
-  describe('generateRequestId', () => {
+// In tests, NextResponse.json is mocked to return { data, status, headers }
+type MockRes = {
+  data: Record<string, unknown>;
+  status: number;
+  headers: Record<string, unknown>;
+};
+
+describe("API Response Utilities", () => {
+  describe("generateRequestId", () => {
     it('should generate a string starting with "req_"', () => {
-      const id = generateRequestId()
-      expect(id.startsWith('req_')).toBe(true)
-    })
+      const id = generateRequestId();
+      expect(id.startsWith("req_")).toBe(true);
+    });
 
-    it('should generate unique IDs', () => {
-      const ids = new Set<string>()
+    it("should generate unique IDs", () => {
+      const ids = new Set<string>();
       for (let i = 0; i < 100; i++) {
-        ids.add(generateRequestId())
+        ids.add(generateRequestId());
       }
-      expect(ids.size).toBe(100)
-    })
+      expect(ids.size).toBe(100);
+    });
 
-    it('should generate IDs of reasonable length', () => {
-      const id = generateRequestId()
-      expect(id.length).toBeGreaterThan(10)
-      expect(id.length).toBeLessThan(30)
-    })
-  })
+    it("should generate IDs of reasonable length", () => {
+      const id = generateRequestId();
+      expect(id.length).toBeGreaterThan(10);
+      expect(id.length).toBeLessThan(30);
+    });
+  });
 
-  describe('createPaginationMeta', () => {
-    it('should calculate correct pagination for first page', () => {
-      const meta = createPaginationMeta(1, 20, 100)
+  describe("createPaginationMeta", () => {
+    it("should calculate correct pagination for first page", () => {
+      const meta = createPaginationMeta(1, 20, 100);
 
       expect(meta).toEqual({
         page: 1,
@@ -56,11 +63,11 @@ describe('API Response Utilities', () => {
         totalPages: 5,
         hasNext: true,
         hasPrev: false,
-      })
-    })
+      });
+    });
 
-    it('should calculate correct pagination for middle page', () => {
-      const meta = createPaginationMeta(3, 20, 100)
+    it("should calculate correct pagination for middle page", () => {
+      const meta = createPaginationMeta(3, 20, 100);
 
       expect(meta).toEqual({
         page: 3,
@@ -69,11 +76,11 @@ describe('API Response Utilities', () => {
         totalPages: 5,
         hasNext: true,
         hasPrev: true,
-      })
-    })
+      });
+    });
 
-    it('should calculate correct pagination for last page', () => {
-      const meta = createPaginationMeta(5, 20, 100)
+    it("should calculate correct pagination for last page", () => {
+      const meta = createPaginationMeta(5, 20, 100);
 
       expect(meta).toEqual({
         page: 5,
@@ -82,11 +89,11 @@ describe('API Response Utilities', () => {
         totalPages: 5,
         hasNext: false,
         hasPrev: true,
-      })
-    })
+      });
+    });
 
-    it('should handle single page of results', () => {
-      const meta = createPaginationMeta(1, 20, 15)
+    it("should handle single page of results", () => {
+      const meta = createPaginationMeta(1, 20, 15);
 
       expect(meta).toEqual({
         page: 1,
@@ -95,11 +102,11 @@ describe('API Response Utilities', () => {
         totalPages: 1,
         hasNext: false,
         hasPrev: false,
-      })
-    })
+      });
+    });
 
-    it('should handle empty results', () => {
-      const meta = createPaginationMeta(1, 20, 0)
+    it("should handle empty results", () => {
+      const meta = createPaginationMeta(1, 20, 0);
 
       expect(meta).toEqual({
         page: 1,
@@ -108,256 +115,286 @@ describe('API Response Utilities', () => {
         totalPages: 0,
         hasNext: false,
         hasPrev: false,
-      })
-    })
+      });
+    });
 
-    it('should handle exact page boundary', () => {
-      const meta = createPaginationMeta(1, 10, 10)
+    it("should handle exact page boundary", () => {
+      const meta = createPaginationMeta(1, 10, 10);
 
-      expect(meta.totalPages).toBe(1)
-      expect(meta.hasNext).toBe(false)
-    })
+      expect(meta.totalPages).toBe(1);
+      expect(meta.hasNext).toBe(false);
+    });
 
-    it('should round up total pages for partial last page', () => {
-      const meta = createPaginationMeta(1, 20, 21)
+    it("should round up total pages for partial last page", () => {
+      const meta = createPaginationMeta(1, 20, 21);
 
-      expect(meta.totalPages).toBe(2)
-      expect(meta.hasNext).toBe(true)
-    })
-  })
+      expect(meta.totalPages).toBe(2);
+      expect(meta.hasNext).toBe(true);
+    });
+  });
 
-  describe('apiSuccess', () => {
-    it('should return success response with data', () => {
-      const data = { id: 1, name: 'Test' }
-      const response = apiSuccess(data)
+  describe("apiSuccess", () => {
+    it("should return success response with data", () => {
+      const data = { id: 1, name: "Test" };
+      const response = apiSuccess(data) as unknown as MockRes;
 
-      expect(response.data.success).toBe(true)
-      expect(response.data.data).toEqual(data)
-      expect(response.status).toBe(200)
-    })
+      expect(response.data.success).toBe(true);
+      expect(response.data.data).toEqual(data);
+      expect(response.status).toBe(200);
+    });
 
-    it('should include custom request ID when provided', () => {
-      const response = apiSuccess({ test: true }, { requestId: 'custom-123' })
+    it("should include custom request ID when provided", () => {
+      const response = apiSuccess(
+        { test: true },
+        { requestId: "custom-123" },
+      ) as unknown as MockRes;
 
-      expect(response.data.requestId).toBe('custom-123')
-    })
+      expect(response.data.requestId).toBe("custom-123");
+    });
 
-    it('should include pagination when provided', () => {
-      const pagination = createPaginationMeta(1, 20, 100)
-      const response = apiSuccess([], { pagination })
+    it("should include pagination when provided", () => {
+      const pagination = createPaginationMeta(1, 20, 100);
+      const response = apiSuccess([], { pagination }) as unknown as MockRes;
 
-      expect(response.data.pagination).toEqual(pagination)
-    })
+      expect(response.data.pagination).toEqual(pagination);
+    });
 
-    it('should allow custom status codes', () => {
-      const response = apiSuccess({ created: true }, { status: 201 })
+    it("should allow custom status codes", () => {
+      const response = apiSuccess(
+        { created: true },
+        { status: 201 },
+      ) as unknown as MockRes;
 
-      expect(response.status).toBe(201)
-    })
+      expect(response.status).toBe(201);
+    });
 
-    it('should handle null data', () => {
-      const response = apiSuccess(null)
+    it("should handle null data", () => {
+      const response = apiSuccess(null) as unknown as MockRes;
 
-      expect(response.data.success).toBe(true)
-      expect(response.data.data).toBeNull()
-    })
+      expect(response.data.success).toBe(true);
+      expect(response.data.data).toBeNull();
+    });
 
-    it('should handle array data', () => {
-      const data = [{ id: 1 }, { id: 2 }]
-      const response = apiSuccess(data)
+    it("should handle array data", () => {
+      const data = [{ id: 1 }, { id: 2 }];
+      const response = apiSuccess(data) as unknown as MockRes;
 
-      expect(response.data.data).toEqual(data)
-    })
-  })
+      expect(response.data.data).toEqual(data);
+    });
+  });
 
-  describe('apiError', () => {
-    it('should return error response with message', () => {
-      const response = apiError('Something went wrong')
+  describe("apiError", () => {
+    it("should return error response with message", () => {
+      const response = apiError("Something went wrong") as unknown as MockRes;
 
-      expect(response.data.success).toBe(false)
-      expect(response.data.message).toBe('Something went wrong')
-      expect(response.status).toBe(500)
-    })
+      expect(response.data.success).toBe(false);
+      expect(response.data.message).toBe("Something went wrong");
+      expect(response.status).toBe(500);
+    });
 
-    it('should allow custom status codes', () => {
-      const response = apiError('Bad data', { status: 400 })
+    it("should allow custom status codes", () => {
+      const response = apiError("Bad data", {
+        status: 400,
+      }) as unknown as MockRes;
 
-      expect(response.status).toBe(400)
-    })
+      expect(response.status).toBe(400);
+    });
 
-    it('should include error code when provided', () => {
-      const response = apiError('Access denied', { code: 'ACCESS_DENIED' })
+    it("should include error code when provided", () => {
+      const response = apiError("Access denied", {
+        code: "ACCESS_DENIED",
+      }) as unknown as MockRes;
 
-      expect(response.data.code).toBe('ACCESS_DENIED')
-    })
+      expect(response.data.code).toBe("ACCESS_DENIED");
+    });
 
-    it('should include request ID when provided', () => {
-      const response = apiError('Error', { requestId: 'req-error-123' })
+    it("should include request ID when provided", () => {
+      const response = apiError("Error", {
+        requestId: "req-error-123",
+      }) as unknown as MockRes;
 
-      expect(response.data.requestId).toBe('req-error-123')
-    })
-  })
+      expect(response.data.requestId).toBe("req-error-123");
+    });
+  });
 
-  describe('apiUnauthorized', () => {
-    it('should return 401 status', () => {
-      const response = apiUnauthorized()
+  describe("apiUnauthorized", () => {
+    it("should return 401 status", () => {
+      const response = apiUnauthorized() as unknown as MockRes;
 
-      expect(response.status).toBe(401)
-      expect(response.data.success).toBe(false)
-      expect(response.data.message).toBe('Unauthorized')
-      expect(response.data.code).toBe('UNAUTHORIZED')
-    })
+      expect(response.status).toBe(401);
+      expect(response.data.success).toBe(false);
+      expect(response.data.message).toBe("Unauthorized");
+      expect(response.data.code).toBe("UNAUTHORIZED");
+    });
 
-    it('should include request ID when provided', () => {
-      const response = apiUnauthorized('req-unauth-123')
+    it("should include request ID when provided", () => {
+      const response = apiUnauthorized("req-unauth-123") as unknown as MockRes;
 
-      expect(response.data.requestId).toBe('req-unauth-123')
-    })
-  })
+      expect(response.data.requestId).toBe("req-unauth-123");
+    });
+  });
 
-  describe('apiForbidden', () => {
-    it('should return 403 status with default message', () => {
-      const response = apiForbidden()
+  describe("apiForbidden", () => {
+    it("should return 403 status with default message", () => {
+      const response = apiForbidden() as unknown as MockRes;
 
-      expect(response.status).toBe(403)
-      expect(response.data.success).toBe(false)
+      expect(response.status).toBe(403);
+      expect(response.data.success).toBe(false);
       expect(response.data.message).toBe(
-        'You do not have permission to perform this action'
-      )
-      expect(response.data.code).toBe('FORBIDDEN')
-    })
+        "You do not have permission to perform this action",
+      );
+      expect(response.data.code).toBe("FORBIDDEN");
+    });
 
-    it('should allow custom message', () => {
-      const response = apiForbidden('Cannot access this store')
+    it("should allow custom message", () => {
+      const response = apiForbidden(
+        "Cannot access this store",
+      ) as unknown as MockRes;
 
-      expect(response.data.message).toBe('Cannot access this store')
-    })
+      expect(response.data.message).toBe("Cannot access this store");
+    });
 
-    it('should include request ID when provided', () => {
-      const response = apiForbidden(undefined, 'req-403')
+    it("should include request ID when provided", () => {
+      const response = apiForbidden(undefined, "req-403") as unknown as MockRes;
 
-      expect(response.data.requestId).toBe('req-403')
-    })
-  })
+      expect(response.data.requestId).toBe("req-403");
+    });
+  });
 
-  describe('apiNotFound', () => {
-    it('should return 404 status with default message', () => {
-      const response = apiNotFound()
+  describe("apiNotFound", () => {
+    it("should return 404 status with default message", () => {
+      const response = apiNotFound() as unknown as MockRes;
 
-      expect(response.status).toBe(404)
-      expect(response.data.success).toBe(false)
-      expect(response.data.message).toBe('Resource not found')
-      expect(response.data.code).toBe('NOT_FOUND')
-    })
+      expect(response.status).toBe(404);
+      expect(response.data.success).toBe(false);
+      expect(response.data.message).toBe("Resource not found");
+      expect(response.data.code).toBe("NOT_FOUND");
+    });
 
-    it('should allow custom resource name', () => {
-      const response = apiNotFound('Store')
+    it("should allow custom resource name", () => {
+      const response = apiNotFound("Store") as unknown as MockRes;
 
-      expect(response.data.message).toBe('Store not found')
-    })
+      expect(response.data.message).toBe("Store not found");
+    });
 
-    it('should include request ID when provided', () => {
-      const response = apiNotFound('User', 'req-404')
+    it("should include request ID when provided", () => {
+      const response = apiNotFound("User", "req-404") as unknown as MockRes;
 
-      expect(response.data.requestId).toBe('req-404')
-    })
-  })
+      expect(response.data.requestId).toBe("req-404");
+    });
+  });
 
-  describe('apiBadRequest', () => {
-    it('should return 400 status', () => {
-      const response = apiBadRequest('Invalid input')
+  describe("apiBadRequest", () => {
+    it("should return 400 status", () => {
+      const response = apiBadRequest("Invalid input") as unknown as MockRes;
 
-      expect(response.status).toBe(400)
-      expect(response.data.success).toBe(false)
-      expect(response.data.message).toBe('Invalid input')
-      expect(response.data.code).toBe('BAD_REQUEST')
-    })
+      expect(response.status).toBe(400);
+      expect(response.data.success).toBe(false);
+      expect(response.data.message).toBe("Invalid input");
+      expect(response.data.code).toBe("BAD_REQUEST");
+    });
 
-    it('should include request ID when provided', () => {
-      const response = apiBadRequest('Missing field', 'req-400')
+    it("should include request ID when provided", () => {
+      const response = apiBadRequest(
+        "Missing field",
+        "req-400",
+      ) as unknown as MockRes;
 
-      expect(response.data.requestId).toBe('req-400')
-    })
-  })
+      expect(response.data.requestId).toBe("req-400");
+    });
+  });
 
-  describe('apiRateLimited', () => {
-    it('should return 429 status', () => {
+  describe("apiRateLimited", () => {
+    it("should return 429 status", () => {
       const rateLimitResult = {
         success: false,
         remaining: 0,
         resetTime: Date.now() + 60000,
         limit: 100,
-      }
-      const response = apiRateLimited(rateLimitResult)
+      };
+      const response = apiRateLimited(rateLimitResult) as unknown as MockRes;
 
-      expect(response.status).toBe(429)
-      expect(response.data.success).toBe(false)
+      expect(response.status).toBe(429);
+      expect(response.data.success).toBe(false);
       expect(response.data.message).toBe(
-        'Too many requests. Please try again later.'
-      )
-      expect(response.data.code).toBe('RATE_LIMITED')
-    })
+        "Too many requests. Please try again later.",
+      );
+      expect(response.data.code).toBe("RATE_LIMITED");
+    });
 
-    it('should include request ID when provided', () => {
+    it("should include request ID when provided", () => {
       const rateLimitResult = {
         success: false,
         remaining: 0,
         resetTime: Date.now() + 60000,
         limit: 100,
-      }
-      const response = apiRateLimited(rateLimitResult, 'req-429')
+      };
+      const response = apiRateLimited(
+        rateLimitResult,
+        "req-429",
+      ) as unknown as MockRes;
 
-      expect(response.data.requestId).toBe('req-429')
-    })
-  })
+      expect(response.data.requestId).toBe("req-429");
+    });
+  });
 
-  describe('apiValidationError', () => {
-    it('should return 400 status with string error', () => {
-      const response = apiValidationError('Email is required')
+  describe("apiValidationError", () => {
+    it("should return 400 status with string error", () => {
+      const response = apiValidationError(
+        "Email is required",
+      ) as unknown as MockRes;
 
-      expect(response.status).toBe(400)
-      expect(response.data.success).toBe(false)
-      expect(response.data.message).toBe('Email is required')
-      expect(response.data.code).toBe('VALIDATION_ERROR')
-    })
+      expect(response.status).toBe(400);
+      expect(response.data.success).toBe(false);
+      expect(response.data.message).toBe("Email is required");
+      expect(response.data.code).toBe("VALIDATION_ERROR");
+    });
 
-    it('should format field errors as string', () => {
+    it("should format field errors as string", () => {
       const errors = {
-        email: ['Email is required', 'Email must be valid'],
-        password: ['Password too short'],
-      }
-      const response = apiValidationError(errors)
+        email: ["Email is required", "Email must be valid"],
+        password: ["Password too short"],
+      };
+      const response = apiValidationError(errors) as unknown as MockRes;
 
       expect(response.data.message).toBe(
-        'email: Email is required, Email must be valid; password: Password too short'
-      )
-    })
+        "email: Email is required, Email must be valid; password: Password too short",
+      );
+    });
 
-    it('should handle single field error', () => {
-      const errors = { name: ['Name is required'] }
-      const response = apiValidationError(errors)
+    it("should handle single field error", () => {
+      const errors = { name: ["Name is required"] };
+      const response = apiValidationError(errors) as unknown as MockRes;
 
-      expect(response.data.message).toBe('name: Name is required')
-    })
+      expect(response.data.message).toBe("name: Name is required");
+    });
 
-    it('should include request ID when provided', () => {
-      const response = apiValidationError('Invalid', 'req-val')
+    it("should include request ID when provided", () => {
+      const response = apiValidationError(
+        "Invalid",
+        "req-val",
+      ) as unknown as MockRes;
 
-      expect(response.data.requestId).toBe('req-val')
-    })
-  })
+      expect(response.data.requestId).toBe("req-val");
+    });
+  });
 
-  describe('Request ID Header Behavior', () => {
-    it('should include X-Request-ID header in success response', () => {
-      const response = apiSuccess({ test: true }, { requestId: 'test-123' })
+  describe("Request ID Header Behavior", () => {
+    it("should include X-Request-ID header in success response", () => {
+      const response = apiSuccess(
+        { test: true },
+        { requestId: "test-123" },
+      ) as unknown as MockRes;
 
-      expect(response.headers['X-Request-ID']).toBe('test-123')
-    })
+      expect(response.headers["X-Request-ID"]).toBe("test-123");
+    });
 
-    it('should include X-Request-ID header in error response', () => {
-      const response = apiError('Error', { requestId: 'error-123' })
+    it("should include X-Request-ID header in error response", () => {
+      const response = apiError("Error", {
+        requestId: "error-123",
+      }) as unknown as MockRes;
 
-      expect(response.headers['X-Request-ID']).toBe('error-123')
-    })
-  })
-})
+      expect(response.headers["X-Request-ID"]).toBe("error-123");
+    });
+  });
+});

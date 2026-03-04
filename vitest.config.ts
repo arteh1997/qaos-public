@@ -1,34 +1,25 @@
-import { defineConfig } from 'vitest/config'
-import path from 'path'
-import { loadEnv } from 'vite'
+import { defineConfig } from "vitest/config";
+import path from "path";
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
-    env: loadEnv(mode, process.cwd(), ''),
+    environment: "node",
     // Use jsdom for hook tests
-    environmentMatchGlobs: [
-      ['tests/hooks/**', 'jsdom'],
-    ],
-    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}'],
-    exclude: ['node_modules', '.next', 'dist'],
+    environmentMatchGlobs: [["tests/hooks/**", "jsdom"]],
+    include: ["**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}"],
+    exclude: ["node_modules", ".next", "dist"],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      include: ['lib/**/*.ts', 'app/api/**/*.ts', 'hooks/**/*.ts'],
-      exclude: [
-        'lib/supabase/**',
-        '**/*.d.ts',
-        '**/*.test.ts',
-        '**/*.spec.ts',
-      ],
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      include: ["lib/**/*.ts", "app/api/**/*.ts", "hooks/**/*.ts"],
+      exclude: ["lib/supabase/**", "**/*.d.ts", "**/*.test.ts", "**/*.spec.ts"],
     },
-    setupFiles: ['./tests/setup.ts'],
+    setupFiles: ["./tests/setup.ts"],
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './'),
+      "@": path.resolve(__dirname, "./"),
     },
   },
-}))
+});
