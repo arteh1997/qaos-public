@@ -13,17 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm audit --audit-level=high
+      - run: npm ci
+      - run: npm audit --audit-level=high
         continue-on-error: true
 
   secrets:
@@ -36,9 +32,9 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog Secret Scan
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@v3.88.0
         with:
-          extra_args: --only-verified --diff
+          extra_args: --only-verified
 
   sast:
     name: Static Analysis
