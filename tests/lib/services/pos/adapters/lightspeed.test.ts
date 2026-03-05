@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import crypto from "crypto";
 
 // Must mock fetch before importing the adapter
@@ -10,6 +10,10 @@ import { lightspeedAdapter } from "@/lib/services/pos/adapters/lightspeed";
 describe("lightspeedAdapter", () => {
   beforeEach(() => {
     mockFetch.mockReset();
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
   });
 
   describe("getAuthUrl", () => {
