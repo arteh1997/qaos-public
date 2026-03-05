@@ -1,39 +1,35 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from "react";
 
-const GUIDE_PREFIX = 'page-guide-seen:'
+const GUIDE_PREFIX = "page-guide-seen:";
+
+function readHasSeen(storageKey: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(storageKey) === "true";
+  } catch {
+    // localStorage unavailable (private browsing)
+    return false;
+  }
+}
 
 /**
  * Tracks whether the user has seen a page's guide panel.
- * SSR-safe — reads localStorage only in useEffect.
+ * SSR-safe — reads localStorage via a lazy useState initializer.
  */
 export function usePageGuide(pageKey: string) {
-  const storageKey = `${GUIDE_PREFIX}${pageKey}`
-  const [hasSeen, setHasSeen] = useState(false)
-  const initializedRef = useRef(false)
-
-  useEffect(() => {
-    if (initializedRef.current) return
-    initializedRef.current = true
-    try {
-      const stored = localStorage.getItem(storageKey)
-      if (stored === 'true') {
-        setHasSeen(true)
-      }
-    } catch {
-      // localStorage unavailable (SSR, private browsing)
-    }
-  }, [storageKey])
+  const storageKey = `${GUIDE_PREFIX}${pageKey}`;
+  const [hasSeen, setHasSeen] = useState(() => readHasSeen(storageKey));
 
   const markSeen = useCallback(() => {
     try {
-      localStorage.setItem(storageKey, 'true')
+      localStorage.setItem(storageKey, "true");
     } catch {
       // Ignore storage failures
     }
-    setHasSeen(true)
-  }, [storageKey])
+    setHasSeen(true);
+  }, [storageKey]);
 
-  return { hasSeen, markSeen }
+  return { hasSeen, markSeen };
 }

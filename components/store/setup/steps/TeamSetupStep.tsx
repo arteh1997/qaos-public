@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useCSRF } from '@/hooks/useCSRF'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Store, AppRole } from '@/types'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { useState } from "react";
+import { useCSRF } from "@/hooks/useCSRF";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Store, AppRole } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -16,87 +16,96 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form'
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { INVITE_ROLE_LABELS, INVITE_ROLE_DESCRIPTIONS, INVITABLE_ROLES_BY_ROLE } from '@/lib/constants'
-import { Loader2, Mail, UserPlus } from 'lucide-react'
-import { toast } from 'sonner'
+} from "@/components/ui/select";
+import {
+  INVITE_ROLE_LABELS,
+  INVITE_ROLE_DESCRIPTIONS,
+  INVITABLE_ROLES_BY_ROLE,
+} from "@/lib/constants";
+import { Loader2, Mail, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 
 const teamInviteSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  role: z.enum(['Owner', 'Manager', 'Staff'], {
-    message: 'Please select a role',
+  email: z.string().email("Please enter a valid email address"),
+  role: z.enum(["Owner", "Manager", "Staff"], {
+    message: "Please select a role",
   }),
-})
+});
 
-type TeamInviteFormData = z.infer<typeof teamInviteSchema>
+type TeamInviteFormData = z.infer<typeof teamInviteSchema>;
 
 interface TeamSetupStepProps {
-  store: Store
-  onComplete: () => void
+  store: Store;
+  onComplete: () => void;
 }
 
 export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
-  const { csrfFetch } = useCSRF()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { csrfFetch } = useCSRF();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Owner inviting to their store - they can invite all roles including co-owners
-  const availableRoles = INVITABLE_ROLES_BY_ROLE['Owner']
+  const availableRoles = INVITABLE_ROLES_BY_ROLE["Owner"];
 
   const form = useForm<TeamInviteFormData>({
     resolver: zodResolver(teamInviteSchema),
     defaultValues: {
-      email: '',
+      email: "",
       role: undefined,
     },
-  })
+  });
 
-  const selectedRole = form.watch('role')
+  const selectedRole = form.watch("role");
 
   const handleSubmit = async (data: TeamInviteFormData) => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
-      const response = await csrfFetch('/api/users/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await csrfFetch("/api/users/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: data.email,
           role: data.role,
           storeId: store.id,
         }),
-      })
+      });
 
-      const result = await response.json()
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to send invitation')
+        throw new Error(result.message || "Failed to send invitation");
       }
 
-      form.reset()
+      form.reset();
       // Show different message if user was added directly vs invited
       if (result.addedToExisting) {
-        toast.success(result.message || `${data.email} has been added to the store!`)
+        toast.success(
+          result.message || `${data.email} has been added to the store!`,
+        );
       } else {
-        toast.success(`Invitation sent to ${data.email}!`)
+        toast.success(`Invitation sent to ${data.email}!`);
       }
-      onComplete()
+      onComplete();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send invitation')
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send invitation",
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Invite team members to help manage your store. They&apos;ll receive an email to complete their account setup.
+        Invite team members to help manage your store. They&apos;ll receive an
+        email to complete their account setup.
       </p>
 
       <Form {...form}>
@@ -114,7 +123,7 @@ export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
                       <Input
                         type="email"
                         placeholder="teammate@example.com"
-                        className="pl-10 bg-white text-black"
+                        className="pl-10 bg-card text-card-foreground"
                         {...field}
                       />
                     </div>
@@ -132,7 +141,7 @@ export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
                   <FormLabel>Role</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger className="bg-white text-black">
+                      <SelectTrigger className="bg-card text-card-foreground">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                     </FormControl>
@@ -156,7 +165,11 @@ export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
             </FormDescription>
           )}
 
-          <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full sm:w-auto"
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -172,5 +185,5 @@ export function TeamSetupStep({ store, onComplete }: TeamSetupStepProps) {
         </form>
       </Form>
     </div>
-  )
+  );
 }

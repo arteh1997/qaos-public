@@ -1,46 +1,50 @@
-'use client'
+"use client";
 
-import { useState, useCallback } from 'react'
-import { HelpCircle, Lightbulb } from 'lucide-react'
+import { useState, useCallback } from "react";
+import { HelpCircle, Lightbulb } from "lucide-react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from '@/components/ui/sheet'
-import { ScrollArea } from '@/components/ui/scroll-area'
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { usePageGuide } from '@/hooks/usePageGuide'
-import { PAGE_GUIDES, type PageKey, type GuideTip } from '@/lib/help/page-guides'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/tooltip";
+import { usePageGuide } from "@/hooks/usePageGuide";
+import {
+  PAGE_GUIDES,
+  type PageKey,
+  type GuideTip,
+} from "@/lib/help/page-guides";
+import { cn } from "@/lib/utils";
 
 interface PageGuideProps {
-  pageKey: PageKey
-  className?: string
+  pageKey: PageKey;
+  className?: string;
 }
 
 export function PageGuide({ pageKey, className }: PageGuideProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const { hasSeen, markSeen } = usePageGuide(pageKey)
-  const guide = PAGE_GUIDES[pageKey]
+  const [isOpen, setIsOpen] = useState(false);
+  const { hasSeen, markSeen } = usePageGuide(pageKey);
+  const guide = PAGE_GUIDES[pageKey];
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      setIsOpen(open)
+      setIsOpen(open);
       if (open && !hasSeen) {
-        markSeen()
+        markSeen();
       }
     },
-    [hasSeen, markSeen]
-  )
+    [hasSeen, markSeen],
+  );
 
-  if (!guide) return null
+  if (!guide) return null;
 
   return (
     <>
@@ -51,8 +55,8 @@ export function PageGuide({ pageKey, className }: PageGuideProps) {
               type="button"
               onClick={() => handleOpenChange(true)}
               className={cn(
-                'relative inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent',
-                className
+                "relative inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent",
+                className,
               )}
               aria-label="Open page guide"
             >
@@ -72,7 +76,10 @@ export function PageGuide({ pageKey, className }: PageGuideProps) {
       </TooltipProvider>
 
       <Sheet open={isOpen} onOpenChange={handleOpenChange}>
-        <SheetContent side="right" className="bg-card p-0 gap-0 flex flex-col overflow-hidden">
+        <SheetContent
+          side="right"
+          className="bg-card p-0 gap-0 flex flex-col overflow-hidden"
+        >
           <SheetHeader className="px-6 pt-6 pb-5 border-b border-border shrink-0">
             <SheetTitle>{guide.title}</SheetTitle>
             <SheetDescription>{guide.overview}</SheetDescription>
@@ -88,7 +95,7 @@ export function PageGuide({ pageKey, className }: PageGuideProps) {
         </SheetContent>
       </Sheet>
     </>
-  )
+  );
 }
 
 function TipItem({ tip, index }: { tip: GuideTip; index: number }) {
@@ -104,21 +111,17 @@ function TipItem({ tip, index }: { tip: GuideTip; index: number }) {
         </p>
       </div>
     </div>
-  )
+  );
 }
 
 function ProTipBox({ text }: { text: string }) {
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
       <div className="flex items-center gap-1.5 mb-1">
-        <Lightbulb className="h-3.5 w-3.5 text-amber-600" />
-        <p className="text-xs font-semibold text-amber-700">
-          Pro tip
-        </p>
+        <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+        <p className="text-xs font-semibold text-amber-400">Pro tip</p>
       </div>
-      <p className="text-sm text-amber-700 leading-relaxed">
-        {text}
-      </p>
+      <p className="text-sm text-amber-400 leading-relaxed">{text}</p>
     </div>
-  )
+  );
 }

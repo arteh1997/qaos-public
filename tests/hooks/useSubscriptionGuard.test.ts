@@ -1,162 +1,172 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook } from "@testing-library/react";
 
 // Mock next/navigation
-const mockReplace = vi.fn()
-vi.mock('next/navigation', () => ({
+const mockReplace = vi.fn();
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockReplace,
     push: vi.fn(),
   }),
-}))
+}));
 
 // Mock useAuth
-const mockStores: any[] = []
-vi.mock('@/hooks/useAuth', () => ({
+const mockStores: unknown[] = [];
+vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({
     stores: mockStores,
     isLoading: false,
-    role: 'Owner',
+    role: "Owner",
   }),
-}))
+}));
 
-describe('useSubscriptionGuard', () => {
+describe("useSubscriptionGuard", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    mockStores.length = 0
-  })
+    vi.clearAllMocks();
+    mockStores.length = 0;
+  });
 
-  it('should return isActive true for active subscription', async () => {
+  it("should return isActive true for active subscription", async () => {
     mockStores.push({
-      store_id: 'store-1',
-      role: 'Owner',
+      store_id: "store-1",
+      role: "Owner",
       store: {
-        id: 'store-1',
-        name: 'Test Store',
-        subscription_status: 'active',
+        id: "store-1",
+        name: "Test Store",
+        subscription_status: "active",
       },
-    })
+    });
 
-    const { useSubscriptionGuard } = await import('@/hooks/useSubscriptionGuard')
-    const { result } = renderHook(() => useSubscriptionGuard('store-1'))
+    const { useSubscriptionGuard } =
+      await import("@/hooks/useSubscriptionGuard");
+    const { result } = renderHook(() => useSubscriptionGuard("store-1"));
 
-    expect(result.current.isActive).toBe(true)
-    expect(result.current.status).toBe('active')
-    expect(result.current.storeName).toBe('Test Store')
-    expect(mockReplace).not.toHaveBeenCalled()
-  })
+    expect(result.current.isActive).toBe(true);
+    expect(result.current.status).toBe("active");
+    expect(result.current.storeName).toBe("Test Store");
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
 
-  it('should return isActive true for trialing subscription', async () => {
+  it("should return isActive true for trialing subscription", async () => {
     mockStores.push({
-      store_id: 'store-1',
-      role: 'Owner',
+      store_id: "store-1",
+      role: "Owner",
       store: {
-        id: 'store-1',
-        name: 'Test Store',
-        subscription_status: 'trialing',
+        id: "store-1",
+        name: "Test Store",
+        subscription_status: "trialing",
       },
-    })
+    });
 
-    const { useSubscriptionGuard } = await import('@/hooks/useSubscriptionGuard')
-    const { result } = renderHook(() => useSubscriptionGuard('store-1'))
+    const { useSubscriptionGuard } =
+      await import("@/hooks/useSubscriptionGuard");
+    const { result } = renderHook(() => useSubscriptionGuard("store-1"));
 
-    expect(result.current.isActive).toBe(true)
-    expect(result.current.status).toBe('trialing')
-  })
+    expect(result.current.isActive).toBe(true);
+    expect(result.current.status).toBe("trialing");
+  });
 
-  it('should return isActive true for past_due subscription (grace period)', async () => {
+  it("should return isActive true for past_due subscription (grace period)", async () => {
     mockStores.push({
-      store_id: 'store-1',
-      role: 'Owner',
+      store_id: "store-1",
+      role: "Owner",
       store: {
-        id: 'store-1',
-        name: 'Test Store',
-        subscription_status: 'past_due',
+        id: "store-1",
+        name: "Test Store",
+        subscription_status: "past_due",
       },
-    })
+    });
 
-    const { useSubscriptionGuard } = await import('@/hooks/useSubscriptionGuard')
-    const { result } = renderHook(() => useSubscriptionGuard('store-1'))
+    const { useSubscriptionGuard } =
+      await import("@/hooks/useSubscriptionGuard");
+    const { result } = renderHook(() => useSubscriptionGuard("store-1"));
 
-    expect(result.current.isActive).toBe(true)
-    expect(result.current.status).toBe('past_due')
-  })
+    expect(result.current.isActive).toBe(true);
+    expect(result.current.status).toBe("past_due");
+  });
 
-  it('should return isActive false for canceled subscription', async () => {
+  it("should return isActive false for canceled subscription", async () => {
     mockStores.push({
-      store_id: 'store-1',
-      role: 'Owner',
+      store_id: "store-1",
+      role: "Owner",
       store: {
-        id: 'store-1',
-        name: 'Test Store',
-        subscription_status: 'canceled',
+        id: "store-1",
+        name: "Test Store",
+        subscription_status: "canceled",
       },
-    })
+    });
 
-    vi.resetModules()
-    const { useSubscriptionGuard } = await import('@/hooks/useSubscriptionGuard')
-    const { result } = renderHook(() => useSubscriptionGuard('store-1'))
+    vi.resetModules();
+    const { useSubscriptionGuard } =
+      await import("@/hooks/useSubscriptionGuard");
+    const { result } = renderHook(() => useSubscriptionGuard("store-1"));
 
-    expect(result.current.isActive).toBe(false)
-    expect(result.current.status).toBe('canceled')
-  })
+    expect(result.current.isActive).toBe(false);
+    expect(result.current.status).toBe("canceled");
+  });
 
-  it('should return isActive false for unpaid subscription', async () => {
+  it("should return isActive false for unpaid subscription", async () => {
     mockStores.push({
-      store_id: 'store-1',
-      role: 'Owner',
+      store_id: "store-1",
+      role: "Owner",
       store: {
-        id: 'store-1',
-        name: 'Test Store',
-        subscription_status: 'unpaid',
+        id: "store-1",
+        name: "Test Store",
+        subscription_status: "unpaid",
       },
-    })
+    });
 
-    vi.resetModules()
-    const { useSubscriptionGuard } = await import('@/hooks/useSubscriptionGuard')
-    const { result } = renderHook(() => useSubscriptionGuard('store-1'))
+    vi.resetModules();
+    const { useSubscriptionGuard } =
+      await import("@/hooks/useSubscriptionGuard");
+    const { result } = renderHook(() => useSubscriptionGuard("store-1"));
 
-    expect(result.current.isActive).toBe(false)
-    expect(result.current.status).toBe('unpaid')
-  })
+    expect(result.current.isActive).toBe(false);
+    expect(result.current.status).toBe("unpaid");
+  });
 
-  it('should skip check when storeId is null', async () => {
-    const { useSubscriptionGuard } = await import('@/hooks/useSubscriptionGuard')
-    const { result } = renderHook(() => useSubscriptionGuard(null))
+  it("should skip check when storeId is null", async () => {
+    const { useSubscriptionGuard } =
+      await import("@/hooks/useSubscriptionGuard");
+    const { result } = renderHook(() => useSubscriptionGuard(null));
 
-    expect(result.current.isActive).toBe(true) // Default to active when no storeId
-    expect(result.current.status).toBeNull()
-    expect(mockReplace).not.toHaveBeenCalled()
-  })
+    expect(result.current.isActive).toBe(true); // Default to active when no storeId
+    expect(result.current.status).toBeNull();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
 
-  it('should return null status when store not found', async () => {
+  it("should return null status when store not found", async () => {
     // Empty stores array
-    const { useSubscriptionGuard } = await import('@/hooks/useSubscriptionGuard')
-    const { result } = renderHook(() => useSubscriptionGuard('nonexistent-store'))
+    const { useSubscriptionGuard } =
+      await import("@/hooks/useSubscriptionGuard");
+    const { result } = renderHook(() =>
+      useSubscriptionGuard("nonexistent-store"),
+    );
 
-    expect(result.current.status).toBeNull()
-    expect(result.current.storeName).toBeNull()
-  })
+    expect(result.current.status).toBeNull();
+    expect(result.current.storeName).toBeNull();
+  });
 
-  it('should handle store with null subscription_status', async () => {
+  it("should handle store with null subscription_status", async () => {
     mockStores.push({
-      store_id: 'store-1',
-      role: 'Owner',
+      store_id: "store-1",
+      role: "Owner",
       store: {
-        id: 'store-1',
-        name: 'Test Store',
+        id: "store-1",
+        name: "Test Store",
         subscription_status: null,
       },
-    })
+    });
 
-    vi.resetModules()
-    const { useSubscriptionGuard } = await import('@/hooks/useSubscriptionGuard')
-    const { result } = renderHook(() => useSubscriptionGuard('store-1'))
+    vi.resetModules();
+    const { useSubscriptionGuard } =
+      await import("@/hooks/useSubscriptionGuard");
+    const { result } = renderHook(() => useSubscriptionGuard("store-1"));
 
-    expect(result.current.status).toBeNull()
-    expect(result.current.isActive).toBe(false)
-  })
-})
+    expect(result.current.status).toBeNull();
+    expect(result.current.isActive).toBe(false);
+  });
+});

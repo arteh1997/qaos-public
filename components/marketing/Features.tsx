@@ -1,185 +1,99 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import {
-  Package,
-  Users,
-  BarChart3,
-  Store,
-  Bell,
-  Smartphone,
-  Trash2,
-  Shield,
-  UtensilsCrossed,
-  Truck,
-  Clock,
-  FileText,
-  Plug,
-  PoundSterling,
-  ScanLine,
-  Activity,
-  Brain,
-  PackageCheck,
-  ChevronDown,
-} from 'lucide-react'
-import { ScrollReveal } from './ScrollReveal'
-import { Button } from '@/components/ui/button'
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 
 const features = [
-  // Top 8 — shown by default
   {
-    icon: Package,
-    title: 'Inventory Tracking',
-    description:
-      'Real-time stock levels across all locations. Barcode scanning, batch updates, and automatic low-stock detection.',
+    keyword: "Predict",
+    title: "See demand before it arrives.",
+    desc: "Qaos analyses sales history, local events, weather, and seasonality to forecast what your kitchen needs — before your team even thinks about it.",
+    capability: "AI demand forecasting",
   },
   {
-    icon: PackageCheck,
-    title: 'Stock Reception',
-    description:
-      'Log deliveries as they arrive. Match against purchase orders and track supplier reliability.',
+    keyword: "Watch",
+    title: "Every ingredient, always accounted for.",
+    desc: "Real-time stock levels that update as you sell, prep, and receive. Know what's running low, what's sitting idle, and what expires tomorrow.",
+    capability: "Live inventory tracking",
   },
   {
-    icon: Trash2,
-    title: 'Waste Tracking',
-    description:
-      'Log waste by reason, analyse trends, and get actionable insights to reduce waste and save money.',
+    keyword: "Act",
+    title: "From insight to action, instantly.",
+    desc: "Expiring stock, sudden demand spikes, late deliveries — Qaos catches it first and tells you exactly what to do about it. No more firefighting.",
+    capability: "Smart alerts & actions",
   },
   {
-    icon: Shield,
-    title: 'Food Safety (HACCP)',
-    description:
-      'Digital temperature checks, corrective actions, and compliance logs. Stay audit-ready at all times.',
+    keyword: "Learn",
+    title: "Gets sharper the longer you use it.",
+    desc: "Every order, every shift, every season makes the AI smarter. Qaos builds a living model of your kitchen that improves week after week.",
+    capability: "Adaptive intelligence",
   },
-  {
-    icon: UtensilsCrossed,
-    title: 'Recipe Costing & Menu Analysis',
-    description:
-      'Calculate exact cost per dish. Analyse margins and identify your most and least profitable items.',
-  },
-  {
-    icon: Truck,
-    title: 'Supplier Management',
-    description:
-      'Manage suppliers, create and track purchase orders from draft to delivery. Compare pricing across vendors.',
-  },
-  {
-    icon: FileText,
-    title: 'Reports & Analytics',
-    description:
-      'Daily summaries, low stock reports, forecasting, and benchmark comparisons across all your locations.',
-  },
-  {
-    icon: Store,
-    title: 'Multi-Location Dashboard',
-    description:
-      'One dashboard for all your locations. Compare performance, benchmark sites, and manage from anywhere.',
-  },
-  // Remaining 8 — shown on expand
-  {
-    icon: ScanLine,
-    title: 'Invoice Scanning',
-    description:
-      'Scan supplier invoices to automatically match deliveries and keep your costs accurate.',
-  },
-  {
-    icon: Clock,
-    title: 'Shift Scheduling',
-    description:
-      'Create, publish, and manage schedules. Staff get instant notifications and can clock in/out from their phone.',
-  },
-  {
-    icon: PoundSterling,
-    title: 'Payroll',
-    description:
-      'Track hours, calculate pay, and export payroll data. Integrated with your shift schedules.',
-  },
-  {
-    icon: Brain,
-    title: 'AI-Powered Forecasting',
-    description:
-      'Predict demand using historical data with trend detection and day-of-week seasonality analysis.',
-  },
-  {
-    icon: Bell,
-    title: 'Smart Alerts',
-    description:
-      'Customisable email alerts for low stock, missing counts, scheduling conflicts, and more.',
-  },
-  {
-    icon: Plug,
-    title: 'POS Integration',
-    description:
-      'Connect Square, Toast, Clover, Lightspeed, and 15+ more. Auto-deduct inventory on every sale.',
-  },
-  {
-    icon: Smartphone,
-    title: 'Mobile PWA & Offline',
-    description:
-      'Full mobile experience — scan barcodes, count stock, log waste. Works even without internet.',
-  },
-  {
-    icon: Activity,
-    title: 'Activity Log & Audit Trail',
-    description:
-      'Complete history of every action. Know who did what, when, and where across your business.',
-  },
-]
-
-const INITIAL_COUNT = 8
+];
 
 export function Features() {
-  const [showAll, setShowAll] = useState(false)
-  const visibleFeatures = showAll ? features : features.slice(0, INITIAL_COUNT)
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="features" className="py-24 lg:py-36 scroll-mt-24">
-      <div className="container mx-auto px-6 lg:px-8">
-        <ScrollReveal>
-          <div className="mx-auto max-w-3xl text-center mb-16 lg:mb-20">
-            <div className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-primary/20 bg-primary/5 px-5 py-2.5 text-sm font-medium text-primary">
-              Built for real operations
-            </div>
-            <h2 className="mb-6 text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl leading-tight">
-              Everything you need, nothing you don&apos;t
-            </h2>
-            <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed">
-              Powerful features designed by people who understand operations.
-            </p>
-          </div>
-        </ScrollReveal>
+    <section id="features" ref={ref} className="py-24 md:py-32">
+      <div className="container px-6 md:px-8">
+        <motion.div
+          className="max-w-2xl mb-16 md:mb-24"
+          initial={{ opacity: 0, y: 40 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h2 className="section-headline mb-6">
+            Built to think
+            <br />
+            <span className="glow-text">like a head chef.</span>
+          </h2>
+          <p className="text-muted-foreground text-lg max-w-lg">
+            Not another dashboard. An intelligence layer that understands the
+            rhythm of a working kitchen.
+          </p>
+        </motion.div>
 
-        {/* Consistent card grid */}
-        <div className="max-w-6xl mx-auto grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {visibleFeatures.map((feature, index) => (
-            <ScrollReveal key={index} delay={index * 50}>
-              <div className="group rounded-2xl border border-border/60 bg-card p-6 shadow-card hover:shadow-lg hover:border-primary/30 transition-all duration-300 h-full">
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
-                  <feature.icon className="h-5 w-5" />
+        {/* Editorial feature list */}
+        <div className="border-t border-border">
+          {features.map((feat, i) => (
+            <motion.div
+              key={feat.keyword}
+              className="group border-b border-border py-10 md:py-14"
+              initial={{ opacity: 0, y: 30 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{
+                duration: 0.6,
+                delay: 0.1 + i * 0.1,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 items-start">
+                <div className="md:col-span-3">
+                  <span className="font-display text-3xl md:text-5xl font-extrabold tracking-tighter text-foreground/10 group-hover:text-primary/30 transition-colors duration-500">
+                    {feat.keyword}
+                  </span>
                 </div>
-                <h3 className="mb-2 text-base font-semibold text-foreground">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {feature.description}
-                </p>
+
+                <div className="md:col-span-6">
+                  <h3 className="font-display text-xl md:text-2xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors duration-500">
+                    {feat.title}
+                  </h3>
+                  <p className="text-muted-foreground text-sm md:text-base leading-relaxed max-w-lg">
+                    {feat.desc}
+                  </p>
+                </div>
+
+                <div className="md:col-span-3 md:text-right">
+                  <span className="inline-block text-xs tracking-[0.15em] uppercase text-muted-foreground/40 border border-border rounded-full px-4 py-1.5">
+                    {feat.capability}
+                  </span>
+                </div>
               </div>
-            </ScrollReveal>
+            </motion.div>
           ))}
         </div>
-
-        {/* Show all / Show less toggle */}
-        {features.length > INITIAL_COUNT && (
-          <div className="mt-8 text-center">
-            <Button
-              variant="outline"
-              onClick={() => setShowAll(!showAll)}
-              className="gap-2"
-            >
-              {showAll ? 'Show less' : `Show all ${features.length} features`}
-              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showAll ? 'rotate-180' : ''}`} />
-            </Button>
-          </div>
-        )}
       </div>
     </section>
-  )
+  );
 }

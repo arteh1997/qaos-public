@@ -1,19 +1,31 @@
-'use client'
+"use client";
 
-import { useMemo } from 'react'
-import { Shift, Store } from '@/types'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react'
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, isToday } from 'date-fns'
-import { getWeekDates, guessShiftPattern, formatShiftTime } from '@/lib/shift-patterns'
+import { useMemo } from "react";
+import { Shift, Store } from "@/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  addWeeks,
+  subWeeks,
+  isSameDay,
+  isToday,
+} from "date-fns";
+import {
+  getWeekDates,
+  guessShiftPattern,
+  formatShiftTime,
+} from "@/lib/shift-patterns";
 
 interface StaffWeeklyViewProps {
-  shifts: Shift[]
-  stores: Store[]
-  currentWeek: Date
-  onWeekChange: (date: Date) => void
+  shifts: Shift[];
+  stores: Store[];
+  currentWeek: Date;
+  onWeekChange: (date: Date) => void;
 }
 
 export function StaffWeeklyView({
@@ -22,82 +34,87 @@ export function StaffWeeklyView({
   currentWeek,
   onWeekChange,
 }: StaffWeeklyViewProps) {
-  const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek])
+  const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
 
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 })
-  const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 })
+  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
 
   // Group shifts by day
   const shiftsByDay = useMemo(() => {
-    const grouped: Record<string, Shift[]> = {}
+    const grouped: Record<string, Shift[]> = {};
 
-    weekDates.forEach(date => {
-      const dateKey = format(date, 'yyyy-MM-dd')
-      grouped[dateKey] = shifts.filter(shift => {
-        const shiftDate = new Date(shift.start_time)
-        return isSameDay(shiftDate, date)
-      })
-    })
+    weekDates.forEach((date) => {
+      const dateKey = format(date, "yyyy-MM-dd");
+      grouped[dateKey] = shifts.filter((shift) => {
+        const shiftDate = new Date(shift.start_time);
+        return isSameDay(shiftDate, date);
+      });
+    });
 
-    return grouped
-  }, [shifts, weekDates])
+    return grouped;
+  }, [shifts, weekDates]);
 
   // Calculate total hours for the week
   const totalHours = useMemo(() => {
-    let hours = 0
-    shifts.forEach(shift => {
-      const start = new Date(shift.start_time)
-      const end = new Date(shift.end_time)
+    let hours = 0;
+    shifts.forEach((shift) => {
+      const start = new Date(shift.start_time);
+      const end = new Date(shift.end_time);
       // Only count if within current week
       if (start >= weekStart && start <= weekEnd) {
-        hours += (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+        hours += (end.getTime() - start.getTime()) / (1000 * 60 * 60);
       }
-    })
-    return Math.round(hours * 10) / 10
-  }, [shifts, weekStart, weekEnd])
+    });
+    return Math.round(hours * 10) / 10;
+  }, [shifts, weekStart, weekEnd]);
 
   // Count shifts this week
   const shiftsThisWeek = useMemo(() => {
-    return shifts.filter(shift => {
-      const start = new Date(shift.start_time)
-      return start >= weekStart && start <= weekEnd
-    }).length
-  }, [shifts, weekStart, weekEnd])
+    return shifts.filter((shift) => {
+      const start = new Date(shift.start_time);
+      return start >= weekStart && start <= weekEnd;
+    }).length;
+  }, [shifts, weekStart, weekEnd]);
 
   const getStoreName = (storeId: string) => {
-    return stores.find(s => s.id === storeId)?.name || 'Unknown Store'
-  }
+    return stores.find((s) => s.id === storeId)?.name || "Unknown Store";
+  };
 
   const getPatternColor = (shift: Shift, store?: Store) => {
     const pattern = guessShiftPattern(
       new Date(shift.start_time),
-      store?.opening_time || '06:00'
-    )
+      store?.opening_time || "06:00",
+    );
 
     const colors: Record<string, string> = {
-      opening: 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700',
-      mid: 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700',
-      closing: 'bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700',
-    }
+      opening:
+        "bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700",
+      mid: "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700",
+      closing:
+        "bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700",
+    };
 
-    return colors[pattern] || 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700'
-  }
+    return (
+      colors[pattern] ||
+      "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700"
+    );
+  };
 
   const getPatternLabel = (shift: Shift, store?: Store) => {
     const pattern = guessShiftPattern(
       new Date(shift.start_time),
-      store?.opening_time || '06:00'
-    )
+      store?.opening_time || "06:00",
+    );
 
     const labels: Record<string, string> = {
-      opening: 'Opening',
-      mid: 'Mid',
-      closing: 'Closing',
-      custom: 'Shift',
-    }
+      opening: "Opening",
+      mid: "Mid",
+      closing: "Closing",
+      custom: "Shift",
+    };
 
-    return labels[pattern] || 'Shift'
-  }
+    return labels[pattern] || "Shift";
+  };
 
   return (
     <Card>
@@ -117,7 +134,7 @@ export function StaffWeeklyView({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-xs sm:text-sm font-medium min-w-[140px] sm:min-w-[180px] text-center">
-              {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+              {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d, yyyy")}
             </span>
             <Button
               variant="outline"
@@ -132,7 +149,9 @@ export function StaffWeeklyView({
 
         {/* Week Stats */}
         <div className="flex gap-3 sm:gap-4 mt-2 text-xs sm:text-sm text-muted-foreground">
-          <span>{shiftsThisWeek} shift{shiftsThisWeek !== 1 ? 's' : ''}</span>
+          <span>
+            {shiftsThisWeek} shift{shiftsThisWeek !== 1 ? "s" : ""}
+          </span>
           <span className="text-muted-foreground/50">|</span>
           <span>{totalHours}h scheduled</span>
         </div>
@@ -142,27 +161,32 @@ export function StaffWeeklyView({
         {/* Mobile List View */}
         <div className="sm:hidden border-t">
           {weekDates.map((date) => {
-            const dateKey = format(date, 'yyyy-MM-dd')
-            const dayShifts = shiftsByDay[dateKey] || []
-            const isCurrentDay = isToday(date)
+            const dateKey = format(date, "yyyy-MM-dd");
+            const dayShifts = shiftsByDay[dateKey] || [];
+            const isCurrentDay = isToday(date);
 
             return (
               <div key={dateKey} className="border-b last:border-b-0">
                 {/* Day Header */}
-                <div className={`px-3 py-2 flex items-center justify-between ${
-                  isCurrentDay ? 'bg-primary/10' : 'bg-muted/30'
-                }`}>
+                <div
+                  className={`px-3 py-2 flex items-center justify-between ${
+                    isCurrentDay ? "bg-primary/10" : "bg-muted/30"
+                  }`}
+                >
                   <div className="flex items-center gap-2">
-                    <span className={`text-lg font-semibold ${isCurrentDay ? 'text-primary' : ''}`}>
-                      {format(date, 'd')}
+                    <span
+                      className={`text-lg font-semibold ${isCurrentDay ? "text-primary" : ""}`}
+                    >
+                      {format(date, "d")}
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      {format(date, 'EEEE')}
+                      {format(date, "EEEE")}
                     </span>
                   </div>
                   {dayShifts.length > 0 && (
                     <Badge variant="secondary" className="text-xs">
-                      {dayShifts.length} shift{dayShifts.length !== 1 ? 's' : ''}
+                      {dayShifts.length} shift
+                      {dayShifts.length !== 1 ? "s" : ""}
                     </Badge>
                   )}
                 </div>
@@ -174,11 +198,13 @@ export function StaffWeeklyView({
                       No shifts scheduled
                     </div>
                   ) : (
-                    dayShifts.map(shift => {
-                      const store = stores.find(s => s.id === shift.store_id)
-                      const startTime = new Date(shift.start_time)
-                      const endTime = new Date(shift.end_time)
-                      const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+                    dayShifts.map((shift) => {
+                      const store = stores.find((s) => s.id === shift.store_id);
+                      const startTime = new Date(shift.start_time);
+                      const endTime = new Date(shift.end_time);
+                      const duration =
+                        (endTime.getTime() - startTime.getTime()) /
+                        (1000 * 60 * 60);
 
                       return (
                         <div
@@ -186,7 +212,10 @@ export function StaffWeeklyView({
                           className={`rounded-md border p-2.5 ${getPatternColor(shift, store)}`}
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] h-5 px-1.5"
+                            >
                               {getPatternLabel(shift, store)}
                             </Badge>
                             <span className="text-xs text-muted-foreground">
@@ -194,57 +223,64 @@ export function StaffWeeklyView({
                             </span>
                           </div>
                           <div className="text-sm font-medium">
-                            {formatShiftTime(startTime)} - {formatShiftTime(endTime)}
+                            {formatShiftTime(startTime)} -{" "}
+                            {formatShiftTime(endTime)}
                           </div>
                           <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                             <MapPin className="h-3 w-3" />
                             {getStoreName(shift.store_id)}
                           </div>
                           {shift.clock_in_time && (
-                            <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                              Clocked in: {format(new Date(shift.clock_in_time), 'h:mm a')}
+                            <div className="text-xs text-green-400 mt-1">
+                              Clocked in:{" "}
+                              {format(new Date(shift.clock_in_time), "h:mm a")}
                             </div>
                           )}
                           {shift.clock_out_time && (
                             <div className="text-xs text-muted-foreground">
-                              Clocked out: {format(new Date(shift.clock_out_time), 'h:mm a')}
+                              Clocked out:{" "}
+                              {format(new Date(shift.clock_out_time), "h:mm a")}
                             </div>
                           )}
                         </div>
-                      )
+                      );
                     })
                   )}
                 </div>
               </div>
-            )
+            );
           })}
         </div>
 
         {/* Desktop Calendar Grid */}
         <div className="hidden sm:grid grid-cols-7 border-t">
           {weekDates.map((date, index) => {
-            const dateKey = format(date, 'yyyy-MM-dd')
-            const dayShifts = shiftsByDay[dateKey] || []
-            const isCurrentDay = isToday(date)
+            const dateKey = format(date, "yyyy-MM-dd");
+            const dayShifts = shiftsByDay[dateKey] || [];
+            const isCurrentDay = isToday(date);
 
             return (
               <div
                 key={dateKey}
                 className={`min-h-[140px] border-r last:border-r-0 ${
-                  isCurrentDay ? 'bg-primary/5' : ''
-                } ${index > 0 ? '' : ''}`}
+                  isCurrentDay ? "bg-primary/5" : ""
+                } ${index > 0 ? "" : ""}`}
               >
                 {/* Day Header */}
-                <div className={`p-2 border-b text-center ${
-                  isCurrentDay ? 'bg-primary/10' : 'bg-muted/30'
-                }`}>
+                <div
+                  className={`p-2 border-b text-center ${
+                    isCurrentDay ? "bg-primary/10" : "bg-muted/30"
+                  }`}
+                >
                   <div className="text-xs text-muted-foreground">
-                    {format(date, 'EEE')}
+                    {format(date, "EEE")}
                   </div>
-                  <div className={`text-lg font-semibold ${
-                    isCurrentDay ? 'text-primary' : ''
-                  }`}>
-                    {format(date, 'd')}
+                  <div
+                    className={`text-lg font-semibold ${
+                      isCurrentDay ? "text-primary" : ""
+                    }`}
+                  >
+                    {format(date, "d")}
                   </div>
                 </div>
 
@@ -255,11 +291,13 @@ export function StaffWeeklyView({
                       No shift
                     </div>
                   ) : (
-                    dayShifts.map(shift => {
-                      const store = stores.find(s => s.id === shift.store_id)
-                      const startTime = new Date(shift.start_time)
-                      const endTime = new Date(shift.end_time)
-                      const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+                    dayShifts.map((shift) => {
+                      const store = stores.find((s) => s.id === shift.store_id);
+                      const startTime = new Date(shift.start_time);
+                      const endTime = new Date(shift.end_time);
+                      const duration =
+                        (endTime.getTime() - startTime.getTime()) /
+                        (1000 * 60 * 60);
 
                       return (
                         <div
@@ -267,7 +305,10 @@ export function StaffWeeklyView({
                           className={`rounded-md border p-2 ${getPatternColor(shift, store)}`}
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <Badge variant="outline" className="text-[10px] h-4 px-1">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] h-4 px-1"
+                            >
                               {getPatternLabel(shift, store)}
                             </Badge>
                             <span className="text-[10px] text-muted-foreground">
@@ -275,29 +316,32 @@ export function StaffWeeklyView({
                             </span>
                           </div>
                           <div className="text-xs font-medium">
-                            {formatShiftTime(startTime)} - {formatShiftTime(endTime)}
+                            {formatShiftTime(startTime)} -{" "}
+                            {formatShiftTime(endTime)}
                           </div>
                           <div className="text-[10px] text-muted-foreground flex items-center gap-0.5 mt-1">
                             <MapPin className="h-2.5 w-2.5" />
                             {getStoreName(shift.store_id)}
                           </div>
                           {shift.clock_in_time && (
-                            <div className="text-[10px] text-green-600 dark:text-green-400 mt-1">
-                              Clocked in: {format(new Date(shift.clock_in_time), 'h:mm a')}
+                            <div className="text-[10px] text-green-400 mt-1">
+                              Clocked in:{" "}
+                              {format(new Date(shift.clock_in_time), "h:mm a")}
                             </div>
                           )}
                           {shift.clock_out_time && (
                             <div className="text-[10px] text-muted-foreground">
-                              Clocked out: {format(new Date(shift.clock_out_time), 'h:mm a')}
+                              Clocked out:{" "}
+                              {format(new Date(shift.clock_out_time), "h:mm a")}
                             </div>
                           )}
                         </div>
-                      )
+                      );
                     })
                   )}
                 </div>
               </div>
-            )
+            );
           })}
         </div>
 
@@ -318,5 +362,5 @@ export function StaffWeeklyView({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

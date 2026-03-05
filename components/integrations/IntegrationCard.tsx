@@ -1,20 +1,20 @@
-'use client'
+"use client";
 
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { CheckCircle2, ExternalLink, type LucideIcon } from 'lucide-react'
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, ExternalLink, type LucideIcon } from "lucide-react";
 
 interface IntegrationCardProps {
-  name: string
-  description: string
-  icon: LucideIcon
-  isConnected: boolean
-  lastSynced?: string | null
-  syncError?: string | null
-  onConnect: () => void
-  onManage: () => void
-  connectLabel?: string
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  isConnected: boolean;
+  lastSynced?: string | null;
+  syncError?: string | null;
+  onConnect: () => void;
+  onManage: () => void;
+  connectLabel?: string;
 }
 
 export function IntegrationCard({
@@ -26,7 +26,7 @@ export function IntegrationCard({
   syncError,
   onConnect,
   onManage,
-  connectLabel = 'Connect',
+  connectLabel = "Connect",
 }: IntegrationCardProps) {
   return (
     <Card>
@@ -39,13 +39,18 @@ export function IntegrationCard({
             <div className="flex items-center gap-2">
               <h3 className="font-medium truncate">{name}</h3>
               {isConnected && (
-                <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 shrink-0">
+                <Badge
+                  variant="secondary"
+                  className="bg-emerald-500/10 text-emerald-400 shrink-0"
+                >
                   <CheckCircle2 className="size-3 mr-1" />
                   Connected
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {description}
+            </p>
 
             {isConnected && lastSynced && (
               <p className="text-xs text-muted-foreground mt-2">
@@ -73,5 +78,5 @@ export function IntegrationCard({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

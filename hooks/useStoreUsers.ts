@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { StoreUser, Profile, AppRole } from "@/types";
+import { AppRole, StoreUser, Profile } from "@/types";
 import { useCSRF } from "./useCSRF";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";

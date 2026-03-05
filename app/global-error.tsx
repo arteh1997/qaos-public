@@ -85,7 +85,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 marginTop: "0.5rem",
                 padding: "0.75rem 1.5rem",
                 backgroundColor: "#111827",
-                color: "#ffffff",
+                color: "#f2f2f2",
                 border: "none",
                 borderRadius: "0.375rem",
                 fontSize: "0.875rem",

@@ -1,45 +1,46 @@
-'use client'
+"use client";
 
-import { useMemo } from 'react'
-import { useAuth } from '@/hooks/useAuth'
-import { useStore } from '@/hooks/useStore'
-import { useStockHistory } from '@/hooks/useReports'
-import { StockReceptionForm } from '@/components/forms/StockReceptionForm'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { StatsCard } from '@/components/cards/StatsCard'
-import {
-  PackageCheck,
-  Truck,
-  Clock,
-  Package,
-} from 'lucide-react'
-import { format, formatDistanceToNow } from 'date-fns'
+import { useMemo } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useStore } from "@/hooks/useStore";
+import { useStockHistory } from "@/hooks/useReports";
+import { StockReceptionForm } from "@/components/forms/StockReceptionForm";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StatsCard } from "@/components/cards/StatsCard";
+import { PackageCheck, Truck, Clock, Package } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 
 export default function DeliveriesPage() {
-  const { user, storeId } = useAuth()
-  const { data: store, isLoading: storeLoading } = useStore(storeId)
-  const { data: recentHistory, isLoading: historyLoading } = useStockHistory(storeId || null, undefined)
+  const { user, storeId } = useAuth();
+  const { data: store, isLoading: storeLoading } = useStore(storeId);
+  const { data: recentHistory, isLoading: historyLoading } = useStockHistory(
+    storeId || null,
+    undefined,
+  );
 
-  const isLoading = storeLoading || historyLoading
+  const isLoading = storeLoading || historyLoading;
 
   const myDeliveries = useMemo(() => {
-    return (recentHistory ?? [])
-      .filter(h => h.action_type === 'Reception' && h.performed_by === user?.id)
-  }, [recentHistory, user?.id])
+    return (recentHistory ?? []).filter(
+      (h) => h.action_type === "Reception" && h.performed_by === user?.id,
+    );
+  }, [recentHistory, user?.id]);
 
-  const todayDeliveries = useMemo(() =>
-    myDeliveries.filter(d =>
-      new Date(d.created_at).toDateString() === new Date().toDateString()
-    ),
-    [myDeliveries]
-  )
+  const todayDeliveries = useMemo(
+    () =>
+      myDeliveries.filter(
+        (d) =>
+          new Date(d.created_at).toDateString() === new Date().toDateString(),
+      ),
+    [myDeliveries],
+  );
 
-  const todayItemsDelivered = useMemo(() =>
-    todayDeliveries.reduce((sum, d) => sum + (d.quantity_change ?? 0), 0),
-    [todayDeliveries]
-  )
+  const todayItemsDelivered = useMemo(
+    () => todayDeliveries.reduce((sum, d) => sum + (d.quantity_change ?? 0), 0),
+    [todayDeliveries],
+  );
 
   if (isLoading) {
     return (
@@ -53,7 +54,7 @@ export default function DeliveriesPage() {
         </div>
         <Skeleton className="h-96" />
       </div>
-    )
+    );
   }
 
   if (!storeId) {
@@ -62,19 +63,23 @@ export default function DeliveriesPage() {
         <CardContent className="py-12 text-center">
           <PackageCheck className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
           <h2 className="text-lg font-semibold mb-2">No Store Selected</h2>
-          <p className="text-sm text-muted-foreground">Please select a store from the sidebar to record deliveries.</p>
+          <p className="text-sm text-muted-foreground">
+            Please select a store from the sidebar to record deliveries.
+          </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Stock Reception</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+          Stock Reception
+        </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          {store?.name} &middot; {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          {store?.name} &middot; {format(new Date(), "EEEE, MMMM d, yyyy")}
         </p>
       </div>
 
@@ -130,12 +135,16 @@ export default function DeliveriesPage() {
                   className="flex items-center justify-between py-2.5 px-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{delivery.inventory_item?.name || 'Unknown'}</p>
+                    <p className="font-medium text-sm truncate">
+                      {delivery.inventory_item?.name || "Unknown"}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(delivery.created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(delivery.created_at), {
+                        addSuffix: true,
+                      })}
                     </p>
                   </div>
-                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 font-mono shrink-0 ml-3">
+                  <Badge className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/10 font-mono shrink-0 ml-3">
                     +{delivery.quantity_change}
                   </Badge>
                 </div>
@@ -145,5 +154,5 @@ export default function DeliveriesPage() {
         </Card>
       )}
     </div>
-  )
+  );
 }

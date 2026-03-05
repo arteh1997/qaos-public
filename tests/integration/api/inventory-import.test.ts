@@ -46,8 +46,10 @@ function createChainableMock(
     }
   });
 
-  mock.then = (resolve: (value: unknown) => unknown) =>
-    Promise.resolve(resolvedValue).then(resolve);
+  mock.then = ((resolve?: ((value: unknown) => unknown) | null) =>
+    Promise.resolve(resolvedValue).then(
+      resolve,
+    )) as typeof Promise.prototype.then;
   return mock;
 }
 

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Reference project — not part of the build:
+    "lovable/**",
   ]),
   // Disable React Compiler rules — they flag valid patterns (setState in
   // useEffect, refs in event handlers, etc.) and are not indicative of bugs.

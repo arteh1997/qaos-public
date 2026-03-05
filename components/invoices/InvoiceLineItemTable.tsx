@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,29 +18,38 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Check, X, Search, Link2, Unlink } from 'lucide-react'
-import type { InvoiceLineItem } from '@/types'
+} from "@/components/ui/table";
+import { Check, X, Search, Link2, Unlink } from "lucide-react";
+import type { InvoiceLineItem } from "@/types";
 
 interface InventoryOption {
-  id: string
-  name: string
-  unit_of_measure: string
+  id: string;
+  name: string;
+  unit_of_measure: string;
 }
 
 interface InvoiceLineItemTableProps {
-  lineItems: InvoiceLineItem[]
-  inventoryItems: InventoryOption[]
-  editable?: boolean
-  onUpdateLineItem?: (lineItemId: string, updates: Record<string, unknown>) => void
+  lineItems: InvoiceLineItem[];
+  inventoryItems: InventoryOption[];
+  editable?: boolean;
+  onUpdateLineItem?: (
+    lineItemId: string,
+    updates: Record<string, unknown>,
+  ) => void;
 }
 
 const MATCH_STATUS_BADGE: Record<string, { label: string; classes: string }> = {
-  auto_matched: { label: 'Auto', classes: 'bg-emerald-50 text-emerald-700' },
-  manually_matched: { label: 'Manual', classes: 'bg-blue-50 text-blue-700' },
-  unmatched: { label: 'Unmatched', classes: 'bg-amber-50 text-amber-700' },
-  skipped: { label: 'Skipped', classes: 'bg-muted text-muted-foreground' },
-}
+  auto_matched: {
+    label: "Auto",
+    classes: "bg-emerald-500/10 text-emerald-400",
+  },
+  manually_matched: {
+    label: "Manual",
+    classes: "bg-blue-500/10 text-blue-400",
+  },
+  unmatched: { label: "Unmatched", classes: "bg-amber-500/10 text-amber-400" },
+  skipped: { label: "Skipped", classes: "bg-muted text-muted-foreground" },
+};
 
 export function InvoiceLineItemTable({
   lineItems,
@@ -48,40 +57,44 @@ export function InvoiceLineItemTable({
   editable = false,
   onUpdateLineItem,
 }: InvoiceLineItemTableProps) {
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const sortedItems = [...lineItems].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  const sortedItems = [...lineItems].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+  );
 
   const filteredInventory = searchQuery
-    ? inventoryItems.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : inventoryItems
+    ? inventoryItems.filter((i) =>
+        i.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : inventoryItems;
 
   const handleMatch = (lineItemId: string, inventoryItemId: string) => {
     onUpdateLineItem?.(lineItemId, {
       inventory_item_id: inventoryItemId,
-      match_status: 'manually_matched',
-    })
-    setEditingId(null)
-    setSearchQuery('')
-  }
+      match_status: "manually_matched",
+    });
+    setEditingId(null);
+    setSearchQuery("");
+  };
 
   const handleUnmatch = (lineItemId: string) => {
     onUpdateLineItem?.(lineItemId, {
       inventory_item_id: null,
-      match_status: 'unmatched',
-    })
-  }
+      match_status: "unmatched",
+    });
+  };
 
   const handleSkip = (lineItemId: string) => {
     onUpdateLineItem?.(lineItemId, {
       inventory_item_id: null,
-      match_status: 'skipped',
-    })
-  }
+      match_status: "skipped",
+    });
+  };
 
-  const matchedCount = lineItems.filter(l => l.inventory_item_id).length
-  const total = lineItems.reduce((sum, l) => sum + (l.total_price ?? 0), 0)
+  const matchedCount = lineItems.filter((l) => l.inventory_item_id).length;
+  const total = lineItems.reduce((sum, l) => sum + (l.total_price ?? 0), 0);
 
   return (
     <div className="space-y-3">
@@ -96,25 +109,37 @@ export function InvoiceLineItemTable({
       {/* Mobile card view */}
       <div className="sm:hidden space-y-2">
         {sortedItems.map((item) => {
-          const badge = MATCH_STATUS_BADGE[item.match_status] ?? MATCH_STATUS_BADGE.unmatched
+          const badge =
+            MATCH_STATUS_BADGE[item.match_status] ??
+            MATCH_STATUS_BADGE.unmatched;
           const matchedItem = item.inventory_item_id
-            ? inventoryItems.find(i => i.id === item.inventory_item_id)
-            : null
-          const isEditing = editingId === item.id
+            ? inventoryItems.find((i) => i.id === item.inventory_item_id)
+            : null;
+          const isEditing = editingId === item.id;
 
           return (
             <div key={item.id} className="border rounded-lg p-3 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{item.description || 'Unnamed item'}</p>
+                  <p className="text-sm font-medium">
+                    {item.description || "Unnamed item"}
+                  </p>
                   <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                    {item.quantity != null && <span>{item.quantity} {item.unit_of_measure ?? ''}</span>}
-                    {item.unit_price != null && <span>&middot; £{item.unit_price.toFixed(2)}/ea</span>}
+                    {item.quantity != null && (
+                      <span>
+                        {item.quantity} {item.unit_of_measure ?? ""}
+                      </span>
+                    )}
+                    {item.unit_price != null && (
+                      <span>&middot; £{item.unit_price.toFixed(2)}/ea</span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {item.total_price != null && (
-                    <span className="text-sm font-semibold">£{item.total_price.toFixed(2)}</span>
+                    <span className="text-sm font-semibold">
+                      £{item.total_price.toFixed(2)}
+                    </span>
                   )}
                 </div>
               </div>
@@ -131,18 +156,33 @@ export function InvoiceLineItemTable({
                 </div>
                 {editable && !isEditing && (
                   <div className="flex items-center gap-1">
-                    {item.match_status !== 'skipped' && (
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditingId(item.id)}>
+                    {item.match_status !== "skipped" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setEditingId(item.id)}
+                      >
                         <Link2 className="h-3 w-3 mr-1" />
-                        {matchedItem ? 'Change' : 'Match'}
+                        {matchedItem ? "Change" : "Match"}
                       </Button>
                     )}
-                    {item.match_status !== 'skipped' ? (
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => handleSkip(item.id)}>
+                    {item.match_status !== "skipped" ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground"
+                        onClick={() => handleSkip(item.id)}
+                      >
                         Skip
                       </Button>
                     ) : (
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleUnmatch(item.id)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => handleUnmatch(item.id)}
+                      >
                         Undo
                       </Button>
                     )}
@@ -164,24 +204,34 @@ export function InvoiceLineItemTable({
                     />
                   </div>
                   <div className="max-h-36 overflow-y-auto space-y-1">
-                    {filteredInventory.slice(0, 10).map(inv => (
+                    {filteredInventory.slice(0, 10).map((inv) => (
                       <button
                         key={inv.id}
                         onClick={() => handleMatch(item.id, inv.id)}
                         className="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-muted/50 transition-colors text-left"
                       >
                         <span className="truncate">{inv.name}</span>
-                        <span className="text-muted-foreground shrink-0 ml-2">{inv.unit_of_measure}</span>
+                        <span className="text-muted-foreground shrink-0 ml-2">
+                          {inv.unit_of_measure}
+                        </span>
                       </button>
                     ))}
                   </div>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs w-full" onClick={() => { setEditingId(null); setSearchQuery('') }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs w-full"
+                    onClick={() => {
+                      setEditingId(null);
+                      setSearchQuery("");
+                    }}
+                  >
                     Cancel
                   </Button>
                 </div>
               )}
             </div>
-          )
+          );
         })}
       </div>
 
@@ -200,37 +250,54 @@ export function InvoiceLineItemTable({
           </TableHeader>
           <TableBody>
             {sortedItems.map((item) => {
-              const badge = MATCH_STATUS_BADGE[item.match_status] ?? MATCH_STATUS_BADGE.unmatched
+              const badge =
+                MATCH_STATUS_BADGE[item.match_status] ??
+                MATCH_STATUS_BADGE.unmatched;
               const matchedItem = item.inventory_item_id
-                ? inventoryItems.find(i => i.id === item.inventory_item_id)
-                : null
+                ? inventoryItems.find((i) => i.id === item.inventory_item_id)
+                : null;
 
               return (
-                <TableRow key={item.id} className={item.match_status === 'skipped' ? 'opacity-50' : ''}>
+                <TableRow
+                  key={item.id}
+                  className={
+                    item.match_status === "skipped" ? "opacity-50" : ""
+                  }
+                >
                   <TableCell className="font-medium">
-                    <p className="truncate">{item.description || 'Unnamed item'}</p>
+                    <p className="truncate">
+                      {item.description || "Unnamed item"}
+                    </p>
                     {item.unit_of_measure && (
-                      <p className="text-xs text-muted-foreground">{item.unit_of_measure}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.unit_of_measure}
+                      </p>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">{item.quantity ?? '-'}</TableCell>
                   <TableCell className="text-right">
-                    {item.unit_price != null ? `£${item.unit_price.toFixed(2)}` : '-'}
+                    {item.quantity ?? "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {item.unit_price != null
+                      ? `£${item.unit_price.toFixed(2)}`
+                      : "-"}
                   </TableCell>
                   <TableCell className="text-right font-semibold">
-                    {item.total_price != null ? `£${item.total_price.toFixed(2)}` : '-'}
+                    {item.total_price != null
+                      ? `£${item.total_price.toFixed(2)}`
+                      : "-"}
                   </TableCell>
                   <TableCell>
                     {editable ? (
                       <Select
-                        value={item.inventory_item_id ?? 'unmatched'}
+                        value={item.inventory_item_id ?? "unmatched"}
                         onValueChange={(val) => {
-                          if (val === 'unmatched') {
-                            handleUnmatch(item.id)
-                          } else if (val === 'skip') {
-                            handleSkip(item.id)
+                          if (val === "unmatched") {
+                            handleUnmatch(item.id);
+                          } else if (val === "skip") {
+                            handleSkip(item.id);
                           } else {
-                            handleMatch(item.id, val)
+                            handleMatch(item.id, val);
                           }
                         }}
                       >
@@ -239,12 +306,16 @@ export function InvoiceLineItemTable({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="unmatched">
-                            <span className="text-muted-foreground">— Not matched —</span>
+                            <span className="text-muted-foreground">
+                              — Not matched —
+                            </span>
                           </SelectItem>
                           <SelectItem value="skip">
-                            <span className="text-muted-foreground">Skip this item</span>
+                            <span className="text-muted-foreground">
+                              Skip this item
+                            </span>
                           </SelectItem>
-                          {inventoryItems.map(inv => (
+                          {inventoryItems.map((inv) => (
                             <SelectItem key={inv.id} value={inv.id}>
                               {inv.name} ({inv.unit_of_measure})
                             </SelectItem>
@@ -261,11 +332,11 @@ export function InvoiceLineItemTable({
                     <Badge className={badge.classes}>{badge.label}</Badge>
                   </TableCell>
                 </TableRow>
-              )
+              );
             })}
           </TableBody>
         </Table>
       </div>
     </div>
-  )
+  );
 }

@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { SupabaseClient } from "@supabase/supabase-js";
 import {
   withApiAuth,
   canAccessStore,
@@ -42,12 +41,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Use admin client to bypass RLS on profiles (need to read other users' profiles).
-    // Cast through unknown because the join alias "user:profiles(...)" is not reflected
-    // in the generated Database type, so we use the unparameterised SupabaseClient.
-    const db = createAdminClient() as unknown as SupabaseClient;
+    // Use admin client to bypass RLS on profiles (need to read other users' profiles)
+    const adminClient = createAdminClient();
 
-    const { data, error } = await db
+    const { data, error } = await adminClient
       .from("store_users")
       .select("*, user:profiles(id, email, full_name)")
       .eq("store_id", storeId)
@@ -104,11 +101,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Cast through unknown for the same reason as GET above.
-    const db = createAdminClient() as unknown as SupabaseClient;
+    const adminClient = createAdminClient();
 
     // Check if user already exists at this store
-    const { data: existing } = await db
+    const { data: existing } = await adminClient
       .from("store_users")
       .select("id")
       .eq("store_id", storeId)
@@ -123,7 +119,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Add user to store
-    const { data, error } = await db
+    const { data, error } = await adminClient
       .from("store_users")
       .insert({
         store_id: storeId,
@@ -141,7 +137,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       throw error;
     }
 
-    await auditLog(createAdminClient(), {
+    await auditLog(adminClient, {
       userId: context.user.id,
       userEmail: context.user.email,
       action: "user.add_to_store",

@@ -1,20 +1,20 @@
-'use client'
+"use client";
 
-import { Suspense, useEffect, useState } from 'react'
-import { useAuth } from '@/hooks/useAuth'
-import { useWasteTracking } from '@/hooks/useWasteTracking'
-import { useStoreInventory } from '@/hooks/useStoreInventory'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Suspense, useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useWasteTracking } from "@/hooks/useWasteTracking";
+import { useStoreInventory } from "@/hooks/useStoreInventory";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -22,32 +22,42 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { EmptyState } from '@/components/ui/empty-state'
-import { WasteLogForm } from '@/components/waste/WasteLogForm'
-import dynamic from 'next/dynamic'
-import { Skeleton as ChartSkeleton } from '@/components/ui/skeleton'
+} from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { WasteLogForm } from "@/components/waste/WasteLogForm";
+import dynamic from "next/dynamic";
+import { Skeleton as ChartSkeleton } from "@/components/ui/skeleton";
 
 const WasteAnalyticsCharts = dynamic(
-  () => import('@/components/waste/WasteAnalyticsCharts').then(mod => ({ default: mod.WasteAnalyticsCharts })),
-  { loading: () => <ChartSkeleton className="h-64 w-full" /> }
-)
-import { Trash2, DollarSign, AlertTriangle, TrendingDown, Plus, Printer } from 'lucide-react'
-import { toast } from 'sonner'
-import type { WasteReason } from '@/types'
-import { PageGuide } from '@/components/help/PageGuide'
+  () =>
+    import("@/components/waste/WasteAnalyticsCharts").then((mod) => ({
+      default: mod.WasteAnalyticsCharts,
+    })),
+  { loading: () => <ChartSkeleton className="h-64 w-full" /> },
+);
+import {
+  Trash2,
+  DollarSign,
+  AlertTriangle,
+  TrendingDown,
+  Plus,
+  Printer,
+} from "lucide-react";
+import { toast } from "sonner";
+import type { WasteReason } from "@/types";
+import { PageGuide } from "@/components/help/PageGuide";
 
 const REASON_COLORS: Record<string, string> = {
-  spoilage: 'bg-destructive/10 text-destructive/80',
-  expired: 'bg-orange-100 text-orange-800',
-  damaged: 'bg-amber-100 text-amber-700',
-  overproduction: 'bg-blue-100 text-blue-800',
-  other: 'bg-muted text-muted-foreground',
-}
+  spoilage: "bg-destructive/10 text-destructive/80",
+  expired: "bg-orange-100 text-orange-800",
+  damaged: "bg-amber-100 text-amber-400",
+  overproduction: "bg-blue-100 text-blue-800",
+  other: "bg-muted text-muted-foreground",
+};
 
 export default function WastePage() {
-  const { currentStore, role } = useAuth()
-  const storeId = currentStore?.store_id ?? null
+  const { currentStore, role } = useAuth();
+  const storeId = currentStore?.store_id ?? null;
 
   const {
     submitWasteReport,
@@ -58,73 +68,90 @@ export default function WastePage() {
     analytics,
     isLoadingAnalytics,
     fetchAnalytics,
-  } = useWasteTracking(storeId)
+  } = useWasteTracking(storeId);
 
-  const { inventory } = useStoreInventory(storeId)
+  const { inventory } = useStoreInventory(storeId);
 
-  const [showLogForm, setShowLogForm] = useState(false)
-  const [reasonFilter, setReasonFilter] = useState<string>('all')
+  const [showLogForm, setShowLogForm] = useState(false);
+  const [reasonFilter, setReasonFilter] = useState<string>("all");
 
   useEffect(() => {
     if (storeId) {
-      fetchAnalytics()
-      fetchWasteHistory()
+      fetchAnalytics();
+      fetchWasteHistory();
     }
-  }, [storeId, fetchAnalytics, fetchWasteHistory])
+  }, [storeId, fetchAnalytics, fetchWasteHistory]);
 
-  if (role !== 'Owner' && role !== 'Manager' && role !== 'Staff') {
+  if (role !== "Owner" && role !== "Manager" && role !== "Staff") {
     return (
       <div className="space-y-6">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Waste Tracking</h1>
-        <p className="text-sm text-muted-foreground mt-1">Track and reduce food waste</p>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+          Waste Tracking
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Track and reduce food waste
+        </p>
         <Card>
           <CardContent className="pt-6 text-center text-muted-foreground">
             This feature is not available for your role.
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
-  const isManagement = role === 'Owner' || role === 'Manager'
+  const isManagement = role === "Owner" || role === "Manager";
 
   if (!storeId) {
     return (
       <div className="space-y-6">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Waste Tracking</h1>
-        <p className="text-sm text-muted-foreground mt-1">Track and reduce food waste</p>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+          Waste Tracking
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Track and reduce food waste
+        </p>
         <Card>
           <CardContent className="pt-6 text-center text-muted-foreground">
             Select a store to view waste tracking.
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
-  const handleSubmitWaste = async (data: { items: Array<{ inventory_item_id: string; quantity: number; reason?: WasteReason }>; notes?: string }) => {
+  const handleSubmitWaste = async (data: {
+    items: Array<{
+      inventory_item_id: string;
+      quantity: number;
+      reason?: WasteReason;
+    }>;
+    notes?: string;
+  }) => {
     try {
-      await submitWasteReport(data)
-      toast.success('Waste report submitted successfully')
-      fetchWasteHistory()
-      fetchAnalytics()
+      await submitWasteReport(data);
+      toast.success("Waste report submitted successfully");
+      fetchWasteHistory();
+      fetchAnalytics();
     } catch {
-      toast.error('Failed to submit waste report')
+      toast.error("Failed to submit waste report");
     }
-  }
+  };
 
   const handleReasonFilter = (value: string) => {
-    setReasonFilter(value)
-    fetchWasteHistory({ reason: value === 'all' ? undefined : value as WasteReason })
-  }
+    setReasonFilter(value);
+    fetchWasteHistory({
+      reason: value === "all" ? undefined : (value as WasteReason),
+    });
+  };
 
   const inventoryOptions = inventory
-    .filter(item => item.inventory_item)
-    .map(item => ({
+    .filter((item) => item.inventory_item)
+    .map((item) => ({
       id: item.inventory_item_id,
       name: item.inventory_item!.name,
       unit_of_measure: item.inventory_item!.unit_of_measure,
-    }))
+    }));
 
   return (
     <div className="space-y-6">
@@ -135,14 +162,21 @@ export default function WastePage() {
             <Trash2 className="h-6 w-6" />
             Waste Tracking
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Track and reduce food waste</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Track and reduce food waste
+          </p>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {currentStore?.store?.name ?? 'Your store'}
+            {currentStore?.store?.name ?? "Your store"}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <PageGuide pageKey="waste" />
-          <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.print()}
+            className="print:hidden"
+          >
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
@@ -187,7 +221,9 @@ export default function WastePage() {
                     <AlertTriangle className="h-4 w-4" />
                     Total Incidents
                   </div>
-                  <p className="text-2xl font-bold mt-1">{analytics.summary.total_incidents}</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {analytics.summary.total_incidents}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -197,7 +233,7 @@ export default function WastePage() {
                     Top Reason
                   </div>
                   <p className="text-2xl font-bold mt-1 capitalize">
-                    {analytics.by_reason[0]?.reason ?? 'N/A'}
+                    {analytics.by_reason[0]?.reason ?? "N/A"}
                   </p>
                 </CardContent>
               </Card>
@@ -208,9 +244,13 @@ export default function WastePage() {
                     Avg Cost/Day
                   </div>
                   <p className="text-2xl font-bold mt-1">
-                    ${analytics.daily_trend.length > 0
-                      ? (analytics.summary.total_estimated_cost / analytics.daily_trend.length).toFixed(2)
-                      : '0.00'}
+                    $
+                    {analytics.daily_trend.length > 0
+                      ? (
+                          analytics.summary.total_estimated_cost /
+                          analytics.daily_trend.length
+                        ).toFixed(2)
+                      : "0.00"}
                   </p>
                 </CardContent>
               </Card>
@@ -229,21 +269,34 @@ export default function WastePage() {
           {analytics && analytics.top_items.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Top Wasted Items</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Top Wasted Items
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {/* Mobile card view */}
                 <div className="sm:hidden space-y-3">
                   {analytics.top_items.map((item) => (
-                    <div key={item.inventory_item_id} className="border rounded-lg p-3 space-y-2">
+                    <div
+                      key={item.inventory_item_id}
+                      className="border rounded-lg p-3 space-y-2"
+                    >
                       <div>
                         <p className="font-medium">{item.item_name}</p>
-                        <p className="text-xs text-muted-foreground">{item.category ?? '-'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.category ?? "-"}
+                        </p>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{item.total_quantity} {item.unit_of_measure}</span>
-                        <span className="text-destructive font-medium">£{item.total_cost.toFixed(2)}</span>
-                        <span className="text-muted-foreground">{item.incident_count} incidents</span>
+                        <span className="text-muted-foreground">
+                          {item.total_quantity} {item.unit_of_measure}
+                        </span>
+                        <span className="text-destructive font-medium">
+                          £{item.total_cost.toFixed(2)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {item.incident_count} incidents
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -263,11 +316,19 @@ export default function WastePage() {
                     <TableBody>
                       {analytics.top_items.map((item) => (
                         <TableRow key={item.inventory_item_id}>
-                          <TableCell className="font-medium">{item.item_name}</TableCell>
-                          <TableCell>{item.category ?? '-'}</TableCell>
-                          <TableCell className="text-right">{item.total_quantity} {item.unit_of_measure}</TableCell>
-                          <TableCell className="text-right text-destructive">£{item.total_cost.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.incident_count}</TableCell>
+                          <TableCell className="font-medium">
+                            {item.item_name}
+                          </TableCell>
+                          <TableCell>{item.category ?? "-"}</TableCell>
+                          <TableCell className="text-right">
+                            {item.total_quantity} {item.unit_of_measure}
+                          </TableCell>
+                          <TableCell className="text-right text-destructive">
+                            £{item.total_cost.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.incident_count}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -311,31 +372,54 @@ export default function WastePage() {
               icon={Trash2}
               title="No waste records"
               description="Start logging waste to track and reduce losses."
-              action={{ label: 'Log Waste', onClick: () => setShowLogForm(true), icon: Plus }}
+              action={{
+                label: "Log Waste",
+                onClick: () => setShowLogForm(true),
+                icon: Plus,
+              }}
             />
           ) : (
             <>
               {/* Mobile card view */}
               <div className="sm:hidden space-y-3">
                 {wasteHistory.map((entry) => (
-                  <div key={entry.id} className="border rounded-lg p-3 space-y-2">
+                  <div
+                    key={entry.id}
+                    className="border rounded-lg p-3 space-y-2"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">
-                        {new Date(entry.reported_at).toLocaleDateString('en-US', {
-                          month: 'short', day: 'numeric', year: 'numeric',
-                        })}
+                        {new Date(entry.reported_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          },
+                        )}
                       </span>
-                      <Badge variant="secondary" className={REASON_COLORS[entry.reason] || ''}>
+                      <Badge
+                        variant="secondary"
+                        className={REASON_COLORS[entry.reason] || ""}
+                      >
                         {entry.reason}
                       </Badge>
                     </div>
-                    <p className="font-medium">{entry.inventory_item?.name ?? 'Unknown'}</p>
+                    <p className="font-medium">
+                      {entry.inventory_item?.name ?? "Unknown"}
+                    </p>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Qty: {entry.quantity}</span>
-                      <span className="text-destructive font-medium">£{entry.estimated_cost.toFixed(2)}</span>
+                      <span className="text-muted-foreground">
+                        Qty: {entry.quantity}
+                      </span>
+                      <span className="text-destructive font-medium">
+                        £{entry.estimated_cost.toFixed(2)}
+                      </span>
                     </div>
                     {entry.notes && (
-                      <p className="text-xs text-muted-foreground">{entry.notes}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {entry.notes}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -357,19 +441,35 @@ export default function WastePage() {
                     {wasteHistory.map((entry) => (
                       <TableRow key={entry.id}>
                         <TableCell className="whitespace-nowrap">
-                          {new Date(entry.reported_at).toLocaleDateString('en-US', {
-                            month: 'short', day: 'numeric', year: 'numeric',
-                          })}
+                          {new Date(entry.reported_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          )}
                         </TableCell>
-                        <TableCell className="font-medium">{entry.inventory_item?.name ?? 'Unknown'}</TableCell>
+                        <TableCell className="font-medium">
+                          {entry.inventory_item?.name ?? "Unknown"}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={REASON_COLORS[entry.reason] || ''}>
+                          <Badge
+                            variant="secondary"
+                            className={REASON_COLORS[entry.reason] || ""}
+                          >
                             {entry.reason}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">{entry.quantity}</TableCell>
-                        <TableCell className="text-right text-destructive">£{entry.estimated_cost.toFixed(2)}</TableCell>
-                        <TableCell className="text-muted-foreground max-w-[200px] truncate">{entry.notes ?? '-'}</TableCell>
+                        <TableCell className="text-right">
+                          {entry.quantity}
+                        </TableCell>
+                        <TableCell className="text-right text-destructive">
+                          £{entry.estimated_cost.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                          {entry.notes ?? "-"}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -389,5 +489,5 @@ export default function WastePage() {
         isSubmitting={isSubmitting}
       />
     </div>
-  )
+  );
 }

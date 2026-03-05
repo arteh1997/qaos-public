@@ -1,63 +1,70 @@
-'use client'
+"use client";
 
-import { useState, useRef, useEffect } from 'react'
-import { useTags, type Tag } from '@/hooks/useTags'
-import { TagBadge } from './TagBadge'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, ChevronsUpDown, Search } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useState, useRef } from "react";
+import { useTags, type Tag } from "@/hooks/useTags";
+import { TagBadge } from "./TagBadge";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, ChevronsUpDown, Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TagSelectProps {
-  storeId: string
-  selectedTagIds: string[]
-  onChange: (tagIds: string[]) => void
-  placeholder?: string
-  disabled?: boolean
-  className?: string
+  storeId: string;
+  selectedTagIds: string[];
+  onChange: (tagIds: string[]) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
 }
 
 export function TagSelect({
   storeId,
   selectedTagIds,
   onChange,
-  placeholder = 'Select tags...',
+  placeholder = "Select tags...",
   disabled = false,
   className,
 }: TagSelectProps) {
-  const { data: tags, isLoading } = useTags(storeId)
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const searchRef = useRef<HTMLInputElement>(null)
+  const { data: tags, isLoading } = useTags(storeId);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // Focus search input when popover opens
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => searchRef.current?.focus(), 0)
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      // Clear search when popover closes
+      setSearch("");
     } else {
-      setSearch('')
+      // Focus search input when popover opens
+      setTimeout(() => searchRef.current?.focus(), 0);
     }
-  }, [open])
+  };
 
   const filteredTags = tags?.filter((tag) =>
-    tag.name.toLowerCase().includes(search.toLowerCase())
-  )
+    tag.name.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  const selectedTags = tags?.filter((tag) => selectedTagIds.includes(tag.id)) || []
+  const selectedTags =
+    tags?.filter((tag) => selectedTagIds.includes(tag.id)) || [];
 
   const toggleTag = (tagId: string) => {
     if (selectedTagIds.includes(tagId)) {
-      onChange(selectedTagIds.filter((id) => id !== tagId))
+      onChange(selectedTagIds.filter((id) => id !== tagId));
     } else {
-      onChange([...selectedTagIds, tagId])
+      onChange([...selectedTagIds, tagId]);
     }
-  }
+  };
 
   const removeTag = (tagId: string) => {
-    onChange(selectedTagIds.filter((id) => id !== tagId))
-  }
+    onChange(selectedTagIds.filter((id) => id !== tagId));
+  };
 
   if (isLoading) {
     return (
@@ -65,12 +72,12 @@ export function TagSelect({
         <Loader2 className="size-4 animate-spin" />
         Loading tags...
       </div>
-    )
+    );
   }
 
   return (
-    <div className={cn('space-y-2', className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+    <div className={cn("space-y-2", className)}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -82,7 +89,7 @@ export function TagSelect({
             <span className="text-muted-foreground">
               {selectedTagIds.length === 0
                 ? placeholder
-                : `${selectedTagIds.length} tag${selectedTagIds.length !== 1 ? 's' : ''} selected`}
+                : `${selectedTagIds.length} tag${selectedTagIds.length !== 1 ? "s" : ""} selected`}
             </span>
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
@@ -104,19 +111,19 @@ export function TagSelect({
           <div className="max-h-[200px] overflow-y-auto p-1">
             {!filteredTags || filteredTags.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                {search ? 'No tags match your search.' : 'No tags available.'}
+                {search ? "No tags match your search." : "No tags available."}
               </p>
             ) : (
               filteredTags.map((tag) => {
-                const isSelected = selectedTagIds.includes(tag.id)
+                const isSelected = selectedTagIds.includes(tag.id);
                 return (
                   <button
                     key={tag.id}
                     type="button"
                     onClick={() => toggleTag(tag.id)}
                     className={cn(
-                      'flex items-center gap-3 w-full px-2 py-1.5 text-sm rounded-sm hover:bg-accent transition-colors',
-                      isSelected && 'bg-accent'
+                      "flex items-center gap-3 w-full px-2 py-1.5 text-sm rounded-sm hover:bg-accent transition-colors",
+                      isSelected && "bg-accent",
                     )}
                   >
                     <Checkbox
@@ -133,7 +140,7 @@ export function TagSelect({
                       <span>{tag.name}</span>
                     </div>
                   </button>
-                )
+                );
               })
             )}
           </div>
@@ -155,5 +162,5 @@ export function TagSelect({
         </div>
       )}
     </div>
-  )
+  );
 }
