@@ -9,7 +9,7 @@
 | QOS-36  | Done    |
 | QOS-50  | Done    |
 | QOS-51  | Done    |
-| QOS-52  | Backlog |
+| QOS-52  | Done    |
 | QOS-72  | Backlog |
 | QOS-73  | Backlog |
 | QOS-74  | Backlog |
