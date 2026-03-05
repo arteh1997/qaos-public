@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock Dexie with an in-memory store
-const mockStore: Record<string, unknown[]> = {
+const mockStore: Record<string, Record<string, unknown>[]> = {
   pendingOperations: [],
   inventoryCache: [],
   barcodeLookups: [],
@@ -18,12 +18,14 @@ function createMockTable(tableName: string) {
     }),
     get: vi.fn(async (id: number) => {
       return mockStore[tableName].find(
-        (item: unknown) => (item as Record<string, unknown>).id === id,
+        (item: Record<string, unknown>) => item.id === id,
       );
     }),
     put: vi.fn(async (item: Record<string, unknown>) => {
       const existing = mockStore[tableName].findIndex(
-        (i: unknown) => (i as Record<string, unknown>).barcode === item.barcode,
+        (i: Record<string, unknown>) =>
+          (i as Record<string, unknown>).barcode ===
+          (item as Record<string, unknown>).barcode,
       );
       if (existing >= 0) {
         mockStore[tableName][existing] = item;
@@ -33,7 +35,7 @@ function createMockTable(tableName: string) {
     }),
     update: vi.fn(async (id: number, changes: Record<string, unknown>) => {
       const idx = mockStore[tableName].findIndex(
-        (i: unknown) => (i as Record<string, unknown>).id === id,
+        (i: Record<string, unknown>) => i.id === id,
       );
       if (idx >= 0) {
         mockStore[tableName][idx] = {
@@ -44,7 +46,7 @@ function createMockTable(tableName: string) {
     }),
     delete: vi.fn(async (id: number) => {
       const idx = mockStore[tableName].findIndex(
-        (i: unknown) => (i as Record<string, unknown>).id === id,
+        (i: Record<string, unknown>) => i.id === id,
       );
       if (idx >= 0) mockStore[tableName].splice(idx, 1);
     }),
@@ -55,14 +57,14 @@ function createMockTable(tableName: string) {
       if (typeof fieldOrObj === "object") {
         return {
           first: vi.fn(async () =>
-            mockStore[tableName].find((i: unknown) => {
+            mockStore[tableName].find((i: Record<string, unknown>) => {
               return Object.entries(fieldOrObj).every(
                 ([k, v]) => (i as Record<string, unknown>)[k] === v,
               );
             }),
           ),
           toArray: vi.fn(async () =>
-            mockStore[tableName].filter((i: unknown) => {
+            mockStore[tableName].filter((i: Record<string, unknown>) => {
               return Object.entries(fieldOrObj).every(
                 ([k, v]) => (i as Record<string, unknown>)[k] === v,
               );
@@ -75,28 +77,28 @@ function createMockTable(tableName: string) {
         equals: vi.fn((value: unknown) => ({
           toArray: vi.fn(async () =>
             mockStore[tableName].filter(
-              (i: unknown) =>
+              (i: Record<string, unknown>) =>
                 (i as Record<string, unknown>)[fieldOrObj] === value,
             ),
           ),
           delete: vi.fn(async () => {
             const before = mockStore[tableName].length;
             mockStore[tableName] = mockStore[tableName].filter(
-              (i: unknown) =>
+              (i: Record<string, unknown>) =>
                 (i as Record<string, unknown>)[fieldOrObj] !== value,
             );
             return before - mockStore[tableName].length;
           }),
           first: vi.fn(async () =>
             mockStore[tableName].find(
-              (i: unknown) =>
+              (i: Record<string, unknown>) =>
                 (i as Record<string, unknown>)[fieldOrObj] === value,
             ),
           ),
         })),
       };
     }),
-    bulkPut: vi.fn(async (items: unknown[]) => {
+    bulkPut: vi.fn(async (items: Record<string, unknown>[]) => {
       mockStore[tableName].push(...items);
     }),
   };
@@ -186,7 +188,10 @@ describe("Offline Database", () => {
 
       await queueOperation("stock_count", "store-123", { items: [] });
 
-      const call = mockDb.pendingOperations.add.mock.calls[0][0];
+      const call = mockDb.pendingOperations.add.mock.calls[0][0] as Record<
+        string,
+        unknown
+      >;
       expect(call.createdAt).toBeDefined();
       expect(new Date(call.createdAt as string).getTime()).toBeGreaterThan(0);
     });

@@ -7,7 +7,7 @@
 | ID      | Status  |
 | ------- | ------- |
 | QOS-36  | Done    |
-| QOS-50  | Backlog |
+| QOS-50  | Done    |
 | QOS-51  | Backlog |
 | QOS-52  | Backlog |
 | QOS-72  | Backlog |

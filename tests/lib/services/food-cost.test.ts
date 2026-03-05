@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SupabaseClient } from "@supabase/supabase-js";
 import { generateFoodCostReport } from "@/lib/services/food-cost";
 
 // Create a mock Supabase client that returns data based on table/query
@@ -49,14 +48,11 @@ describe("generateFoodCostReport", () => {
       store_inventory: [],
     });
 
-    const report = await generateFoodCostReport(
-      supabase as unknown as SupabaseClient,
-      {
-        storeId,
-        startDate,
-        endDate,
-      },
-    );
+    const report = await generateFoodCostReport(supabase as any, {
+      storeId,
+      startDate,
+      endDate,
+    });
 
     expect(report.summary.theoretical_cost).toBe(0);
     expect(report.summary.actual_cost).toBe(0);
@@ -99,14 +95,11 @@ describe("generateFoodCostReport", () => {
       waste_log: [],
     });
 
-    const report = await generateFoodCostReport(
-      supabase as unknown as SupabaseClient,
-      {
-        storeId,
-        startDate,
-        endDate,
-      },
-    );
+    const report = await generateFoodCostReport(supabase as any, {
+      storeId,
+      startDate,
+      endDate,
+    });
 
     // Theoretical cost per unit: 200g × £0.008 + 1 × £0.50 = £1.60 + £0.50 = £2.10
     const item = report.items[0];
@@ -126,14 +119,11 @@ describe("generateFoodCostReport", () => {
       waste_log: [],
     });
 
-    const report = await generateFoodCostReport(
-      supabase as unknown as SupabaseClient,
-      {
-        storeId,
-        startDate,
-        endDate,
-      },
-    );
+    const report = await generateFoodCostReport(supabase as any, {
+      storeId,
+      startDate,
+      endDate,
+    });
 
     expect(report).toHaveProperty("summary");
     expect(report).toHaveProperty("items");
@@ -163,14 +153,11 @@ describe("generateFoodCostReport", () => {
       ],
     });
 
-    const report = await generateFoodCostReport(
-      supabase as unknown as SupabaseClient,
-      {
-        storeId,
-        startDate,
-        endDate,
-      },
-    );
+    const report = await generateFoodCostReport(supabase as any, {
+      storeId,
+      startDate,
+      endDate,
+    });
 
     expect(report.summary.waste_cost).toBe(23.75);
   });
@@ -212,14 +199,11 @@ describe("generateFoodCostReport", () => {
       waste_log: [],
     });
 
-    const report = await generateFoodCostReport(
-      supabase as unknown as SupabaseClient,
-      {
-        storeId,
-        startDate,
-        endDate,
-      },
-    );
+    const report = await generateFoodCostReport(supabase as any, {
+      storeId,
+      startDate,
+      endDate,
+    });
 
     expect(report.categories).toHaveLength(2);
     const burgers = report.categories.find((c) => c.category === "Burgers");
@@ -246,14 +230,11 @@ describe("generateFoodCostReport", () => {
       waste_log: [],
     });
 
-    const report = await generateFoodCostReport(
-      supabase as unknown as SupabaseClient,
-      {
-        storeId,
-        startDate,
-        endDate,
-      },
-    );
+    const report = await generateFoodCostReport(supabase as any, {
+      storeId,
+      startDate,
+      endDate,
+    });
 
     // Items without recipes should be excluded
     expect(report.items).toHaveLength(0);
@@ -288,14 +269,11 @@ describe("generateFoodCostReport", () => {
       waste_log: [],
     });
 
-    const report = await generateFoodCostReport(
-      supabase as unknown as SupabaseClient,
-      {
-        storeId,
-        startDate,
-        endDate,
-      },
-    );
+    const report = await generateFoodCostReport(supabase as any, {
+      storeId,
+      startDate,
+      endDate,
+    });
 
     // Sale: 10 × £5 = £50, Waste: 2 × £5 = £10 → Total COGS = £60
     expect(report.summary.actual_cost).toBe(60);

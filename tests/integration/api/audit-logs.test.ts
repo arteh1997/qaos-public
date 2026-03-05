@@ -47,10 +47,8 @@ function createChainableMock(
   });
 
   // Make the mock thenable so it can be awaited without calling .single()
-  mock.then = ((resolve?: ((value: unknown) => unknown) | null) =>
-    Promise.resolve(resolvedValue).then(
-      resolve,
-    )) as typeof Promise.prototype.then;
+  mock.then = (resolve: (value: unknown) => unknown) =>
+    Promise.resolve(resolvedValue).then(resolve);
 
   return mock;
 }
@@ -63,17 +61,21 @@ const mockSupabaseClient = {
   from: vi.fn(),
 };
 
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
-}));
-
-// Mock Admin Supabase client (used by the route handler for DB queries)
+// Mock admin client (used by the audit-logs route)
 const mockAdminClient = {
   from: vi.fn(),
 };
 
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
+}));
+
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => mockAdminClient),
+}));
+
+vi.mock("@/lib/csrf", () => ({
+  validateCSRFToken: vi.fn().mockResolvedValue(true),
 }));
 
 // Mock rate limit
@@ -234,18 +236,11 @@ describe("Audit Logs API Integration Tests", () => {
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === "profiles") return profileQuery;
           if (table === "store_users") return storeUsersQuery;
-          return profileQuery;
+          return auditLogsQuery;
         });
 
-        const profilesAdminQuery = createChainableMock({
-          data: [],
-          error: null,
-        });
-        mockAdminClient.from.mockImplementation((table: string) => {
-          if (table === "audit_logs") return auditLogsQuery;
-          if (table === "profiles") return profilesAdminQuery;
-          return profilesAdminQuery;
-        });
+        // Admin client is used by the route to query audit_logs
+        mockAdminClient.from.mockImplementation(() => auditLogsQuery);
 
         const { GET } = await import("@/app/api/audit-logs/route");
 
@@ -276,13 +271,10 @@ describe("Audit Logs API Integration Tests", () => {
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === "profiles") return profileQuery;
           if (table === "store_users") return storeUsersQuery;
-          return profileQuery;
-        });
-
-        mockAdminClient.from.mockImplementation((table: string) => {
-          if (table === "audit_logs") return auditLogsQuery;
           return auditLogsQuery;
         });
+
+        mockAdminClient.from.mockImplementation(() => auditLogsQuery);
 
         const { GET } = await import("@/app/api/audit-logs/route");
 
@@ -321,18 +313,10 @@ describe("Audit Logs API Integration Tests", () => {
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === "profiles") return profileQuery;
           if (table === "store_users") return storeUsersQuery;
-          return profileQuery;
+          return auditLogsQuery;
         });
 
-        const profilesAdminQuery = createChainableMock({
-          data: [],
-          error: null,
-        });
-        mockAdminClient.from.mockImplementation((table: string) => {
-          if (table === "audit_logs") return auditLogsQuery;
-          if (table === "profiles") return profilesAdminQuery;
-          return profilesAdminQuery;
-        });
+        mockAdminClient.from.mockImplementation(() => auditLogsQuery);
 
         const { GET } = await import("@/app/api/audit-logs/route");
 

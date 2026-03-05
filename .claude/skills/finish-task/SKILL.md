@@ -102,40 +102,29 @@ Use the Linear MCP `save_issue` tool:
 
 - Set `state` to `"In Review"`
 
-## 7. Merge into develop and clean up
-
-Merge the feature branch into `develop`, then delete it:
-
-```bash
-git checkout develop
-git pull origin develop
-git merge WIP/QOS-XX-description
-git push origin develop
-git branch -d WIP/QOS-XX-description
-git push origin --delete WIP/QOS-XX-description
-```
-
-You should now be on `develop` with the feature branch fully merged and deleted (both locally and remotely).
-
-## 8. Update ROADMAP.md
+## 7. Update ROADMAP.md
 
 Mark the issue as complete in `ROADMAP.md` by changing its status from `Backlog` or `In Progress` to `Done`:
 
 - Find the row matching the issue ID (e.g., `QOS-36`)
 - Change the Status column to `Done`
+- Stage and commit this change on the current branch before the PR is created (include it in step 3's commit, or as a separate commit)
 
-## 9. Confirm
+## 8. Confirm
 
 > Task finished: QOS-XX — {title}
 > PR created: {PR URL}
-> Merged into `develop` and branch deleted
 > Linear status: In Review
 > Checks passed: lint, tests
+>
+> The developer will review the PR, merge via GitHub, and delete the branch.
 
 ## Important Rules
 
 - NEVER skip the lint/test step
 - NEVER force push
-- NEVER create a PR targeting `main` — always target `develop`
+- NEVER push directly to `main` or `develop` — always go through a PR
+- NEVER merge the PR — the developer reviews and merges manually via GitHub
+- NEVER commit, push, or merge while on `main` or `develop` — respect the safety hooks
 - If checks fail, fix them in the SAME branch and re-run `/finish-task`
 - Keep commits atomic — one logical change per commit

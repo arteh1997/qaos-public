@@ -8,6 +8,8 @@ interface RouteParams {
   params: Promise<{ storeId: string }>;
 }
 
+// HACCP tables are not yet in the generated Database type.
+// Define lightweight row shapes used by this route.
 interface HaccpCheck {
   id: string;
   status: string;
@@ -68,11 +70,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError("Failed to fetch HACCP dashboard data");
     }
 
-    const totalChecks = todayChecks?.length ?? 0;
-    const passedChecks =
-      todayChecks?.filter((c: HaccpCheck) => c.status === "pass").length ?? 0;
-    const failedChecks =
-      todayChecks?.filter((c: HaccpCheck) => c.status === "fail").length ?? 0;
+    const checks = (todayChecks || []) as HaccpCheck[];
+    const totalChecks = checks.length;
+    const passedChecks = checks.filter((c) => c.status === "pass").length;
+    const failedChecks = checks.filter((c) => c.status === "fail").length;
 
     // Fetch today's out-of-range temperature logs
     const { data: outOfRangeLogs, error: tempError } = await db
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .eq("is_active", true);
 
     const completedTemplateIds = new Set(
-      (todayChecks || []).map((c: HaccpCheck) => c.template_id).filter(Boolean),
+      checks.map((c) => c.template_id).filter(Boolean),
     );
 
     // For weekly templates, also check if completed this week
@@ -138,10 +139,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Monday
     weekStart.setHours(0, 0, 0, 0);
 
+    const templates = (activeTemplates || []) as HaccpTemplate[];
     let weeklyCompletedIds = new Set<string>();
-    const weeklyTemplates = (activeTemplates || []).filter(
-      (t: HaccpTemplate) => t.frequency === "weekly",
-    );
+    const weeklyTemplates = templates.filter((t) => t.frequency === "weekly");
     if (weeklyTemplates.length > 0) {
       const { data: weekChecks } = await db
         .from("haccp_checks")
@@ -150,25 +150,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         .gte("completed_at", weekStart.toISOString())
         .in(
           "template_id",
-          weeklyTemplates.map((t: HaccpTemplate) => t.id),
+          weeklyTemplates.map((t) => t.id),
         );
-
       weeklyCompletedIds = new Set(
-        (weekChecks || [])
-          .map((c: HaccpCheck) => c.template_id)
-          .filter(Boolean),
+        ((weekChecks || []) as HaccpCheck[])
+          .map((c) => c.template_id)
+          .filter(Boolean) as string[],
       );
     }
 
-    const dueChecks = (activeTemplates || [])
-      .filter((t: HaccpTemplate) => {
+    const dueChecks = templates
+      .filter((t) => {
         if (t.frequency === "weekly") {
           return !weeklyCompletedIds.has(t.id);
         }
         // daily and shift templates — check if done today
         return !completedTemplateIds.has(t.id);
       })
-      .map((t: HaccpTemplate) => ({
+      .map((t) => ({
         id: t.id,
         name: t.name,
         frequency: t.frequency,

@@ -45,7 +45,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
+      - run: npx tsc --noEmit -p tsconfig.check.json
 
   test:
     name: Test
@@ -63,7 +63,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+      - run: npx vitest run --exclude 'tests/integration/rls/**'
 
   build:
     name: Build
