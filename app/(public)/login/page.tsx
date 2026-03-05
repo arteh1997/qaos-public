@@ -1,14 +1,20 @@
-'use client'
+"use client";
 
-import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { toast } from 'sonner'
-import { LoginForm } from '@/components/forms/LoginForm'
-import { SignupForm } from '@/components/forms/SignupForm'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Skeleton } from '@/components/ui/skeleton'
-import Link from 'next/link'
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { LoginForm } from "@/components/forms/LoginForm";
+import { SignupForm } from "@/components/forms/SignupForm";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
 
 function FormSkeleton() {
   return (
@@ -23,46 +29,54 @@ function FormSkeleton() {
       </div>
       <Skeleton className="h-10 w-full" />
     </div>
-  )
+  );
 }
 
 function AuthContent() {
-  const searchParams = useSearchParams()
-  const signupParam = searchParams.get('signup')
-  const errorParam = searchParams.get('error')
+  const searchParams = useSearchParams();
+  const signupParam = searchParams.get("signup");
+  const errorParam = searchParams.get("error");
   // Initialize tab from URL param - use key prop on parent to reset when param changes
-  const [activeTab, setActiveTab] = useState(signupParam === 'true' ? 'signup' : 'signin')
+  const [activeTab, setActiveTab] = useState(
+    signupParam === "true" ? "signup" : "signin",
+  );
 
   useEffect(() => {
     if (errorParam) {
-      toast.error('Sign in failed. Please try again.')
+      toast.error("Sign in failed. Please try again.");
     }
-  }, [errorParam])
+  }, [errorParam]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Ambient glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[180px] pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
         {/* Logo */}
-        <Link href="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <span className="text-xl font-bold text-primary-foreground">Q</span>
-          </div>
-          <span className="text-2xl font-bold text-foreground">Qaos</span>
+        <Link href="/" className="flex items-center justify-center mb-8">
+          <span className="font-display text-3xl font-extrabold tracking-tighter uppercase text-foreground">
+            Qaos<span className="text-primary">.</span>
+          </span>
         </Link>
 
         <Card>
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-bold">
-              {activeTab === 'signin' ? 'Welcome back' : 'Get started'}
+              {activeTab === "signin" ? "Welcome back" : "Get started"}
             </CardTitle>
             <CardDescription>
-              {activeTab === 'signin'
-                ? 'Sign in to manage your business'
-                : 'Create your account to start your free trial'}
+              {activeTab === "signin"
+                ? "Sign in to manage your business"
+                : "Create your account to start your free trial"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -76,7 +90,7 @@ function AuthContent() {
 
               <TabsContent value="signup">
                 <Suspense fallback={<FormSkeleton />}>
-                  <SignupForm onSuccess={() => setActiveTab('signin')} />
+                  <SignupForm onSuccess={() => setActiveTab("signin")} />
                 </Suspense>
               </TabsContent>
             </Tabs>
@@ -84,25 +98,25 @@ function AuthContent() {
         </Card>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          By continuing, you agree to our{' '}
+          By continuing, you agree to our{" "}
           <Link href="/terms" className="text-primary hover:underline">
             Terms of Service
-          </Link>{' '}
-          and{' '}
+          </Link>{" "}
+          and{" "}
           <Link href="/privacy" className="text-primary hover:underline">
             Privacy Policy
           </Link>
         </p>
       </div>
     </div>
-  )
+  );
 }
 
 export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
           <Card className="w-full max-w-md">
             <CardHeader>
               <Skeleton className="h-8 w-32 mx-auto" />
@@ -116,5 +130,5 @@ export default function LoginPage() {
     >
       <AuthContent />
     </Suspense>
-  )
+  );
 }

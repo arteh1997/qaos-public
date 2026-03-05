@@ -9,11 +9,8 @@ import {
   MarketingHeader,
   Hero,
   PainPoints,
-  ProductShowcase,
   Features,
-  Integrations,
-  Pricing,
-  FAQ,
+  Modules,
   CTA,
   Footer,
 } from "@/components/marketing";
@@ -78,11 +75,8 @@ export default function HomePage() {
         <main>
           <Hero />
           <PainPoints />
-          <ProductShowcase />
           <Features />
-          <Integrations />
-          <Pricing />
-          <FAQ />
+          <Modules />
           <CTA />
         </main>
         <Footer />
@@ -151,8 +145,8 @@ function LoadingSkeleton() {
     <div className="fixed inset-0 flex flex-col bg-background text-foreground">
       {/* Navbar skeleton */}
       <div className="h-14 bg-black px-4 flex items-center justify-between">
-        <Skeleton className="h-6 w-32 bg-white/20" />
-        <Skeleton className="h-10 w-10 rounded-full bg-white/20" />
+        <Skeleton className="h-6 w-32 bg-foreground/20" />
+        <Skeleton className="h-10 w-10 rounded-full bg-foreground/20" />
       </div>
       <div className="flex flex-1 min-h-0">
         {/* Sidebar skeleton */}

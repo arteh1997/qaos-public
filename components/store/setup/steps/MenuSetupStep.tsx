@@ -1,93 +1,99 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { useCSRF } from '@/hooks/useCSRF'
-import { Loader2, Plus, UtensilsCrossed } from 'lucide-react'
-import { toast } from 'sonner'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useCSRF } from "@/hooks/useCSRF";
+import { Loader2, Plus, UtensilsCrossed } from "lucide-react";
+import { toast } from "sonner";
 
 interface MenuSetupStepProps {
-  storeId: string
-  onComplete: () => void
+  storeId: string;
+  onComplete: () => void;
 }
 
 interface AddedMenuItem {
-  id: string
-  name: string
-  selling_price: number
+  id: string;
+  name: string;
+  selling_price: number;
 }
 
 export function MenuSetupStep({ storeId, onComplete }: MenuSetupStepProps) {
-  const { csrfFetch } = useCSRF()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [addedItems, setAddedItems] = useState<AddedMenuItem[]>([])
+  const { csrfFetch } = useCSRF();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addedItems, setAddedItems] = useState<AddedMenuItem[]>([]);
 
   // Form fields
-  const [name, setName] = useState('')
-  const [sellingPrice, setSellingPrice] = useState('')
-  const [category, setCategory] = useState('')
+  const [name, setName] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [category, setCategory] = useState("");
 
   const handleAddMenuItem = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Menu item name is required')
-      return
+      toast.error("Menu item name is required");
+      return;
     }
 
-    const price = parseFloat(sellingPrice)
+    const price = parseFloat(sellingPrice);
     if (isNaN(price) || price < 0) {
-      toast.error('Please enter a valid price')
-      return
+      toast.error("Please enter a valid price");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
       const response = await csrfFetch(`/api/stores/${storeId}/menu-items`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({
           name: name.trim(),
           selling_price: price,
           category: category.trim() || undefined,
-          currency: 'GBP',
+          currency: "GBP",
         }),
-      })
+      });
 
-      const result = await response.json()
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to add menu item')
+        throw new Error(result.message || "Failed to add menu item");
       }
 
-      setAddedItems(prev => [...prev, {
-        id: result.data.id,
-        name: result.data.name,
-        selling_price: result.data.selling_price,
-      }])
-      toast.success(`${name.trim()} added`)
+      setAddedItems((prev) => [
+        ...prev,
+        {
+          id: result.data.id,
+          name: result.data.name,
+          selling_price: result.data.selling_price,
+        },
+      ]);
+      toast.success(`${name.trim()} added`);
 
       // Clear form for next item
-      setName('')
-      setSellingPrice('')
+      setName("");
+      setSellingPrice("");
       // Keep category — likely adding items in the same category
 
       // Notify parent that step is complete (at least 1 menu item added)
-      onComplete()
+      onComplete();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to add menu item')
+      toast.error(
+        err instanceof Error ? err.message : "Failed to add menu item",
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <p className="text-sm text-muted-foreground">
-          Add your menu items with their selling prices. This lets you track food costs and profit margins. You can link recipes later.
+          Add your menu items with their selling prices. This lets you track
+          food costs and profit margins. You can link recipes later.
         </p>
       </div>
 
@@ -110,17 +116,21 @@ export function MenuSetupStep({ storeId, onComplete }: MenuSetupStepProps) {
       <form onSubmit={handleAddMenuItem} className="space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="menu-item-name" className="text-sm">Item Name *</Label>
+            <Label htmlFor="menu-item-name" className="text-sm">
+              Item Name *
+            </Label>
             <Input
               id="menu-item-name"
               placeholder="e.g., Classic Burger"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 bg-white text-black"
+              className="mt-1 bg-card text-card-foreground"
             />
           </div>
           <div>
-            <Label htmlFor="menu-item-price" className="text-sm">Selling Price (£) *</Label>
+            <Label htmlFor="menu-item-price" className="text-sm">
+              Selling Price (£) *
+            </Label>
             <Input
               id="menu-item-price"
               type="number"
@@ -129,23 +139,29 @@ export function MenuSetupStep({ storeId, onComplete }: MenuSetupStepProps) {
               placeholder="8.99"
               value={sellingPrice}
               onChange={(e) => setSellingPrice(e.target.value)}
-              className="mt-1 bg-white text-black"
+              className="mt-1 bg-card text-card-foreground"
             />
           </div>
         </div>
 
         <div>
-          <Label htmlFor="menu-item-category" className="text-sm">Category</Label>
+          <Label htmlFor="menu-item-category" className="text-sm">
+            Category
+          </Label>
           <Input
             id="menu-item-category"
             placeholder="e.g., Mains, Sides, Drinks"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="mt-1 bg-white text-black"
+            className="mt-1 bg-card text-card-foreground"
           />
         </div>
 
-        <Button type="submit" disabled={isSubmitting || !name.trim() || !sellingPrice} size="sm">
+        <Button
+          type="submit"
+          disabled={isSubmitting || !name.trim() || !sellingPrice}
+          size="sm"
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -160,5 +176,5 @@ export function MenuSetupStep({ storeId, onComplete }: MenuSetupStepProps) {
         </Button>
       </form>
     </div>
-  )
+  );
 }

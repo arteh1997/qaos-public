@@ -1,21 +1,29 @@
-'use client'
+"use client";
 
-import { useOfflineSync } from '@/hooks/useOfflineSync'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover'
-import { Wifi, WifiOff, RefreshCw, Loader2, Cloud, CloudOff } from 'lucide-react'
+} from "@/components/ui/popover";
+import {
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Loader2,
+  Cloud,
+  CloudOff,
+} from "lucide-react";
 
 export function OfflineIndicator() {
-  const { online, pendingCount, isSyncing, syncNow, lastSyncResult } = useOfflineSync()
+  const { online, pendingCount, isSyncing, syncNow, lastSyncResult } =
+    useOfflineSync();
 
   // Don't show anything when online with no pending operations
   if (online && pendingCount === 0 && !lastSyncResult) {
-    return null
+    return null;
   }
 
   return (
@@ -23,7 +31,9 @@ export function OfflineIndicator() {
       <PopoverTrigger asChild>
         <button
           className="relative flex items-center justify-center h-8 w-8 rounded-md hover:bg-white/10 transition-colors"
-          aria-label={online ? `Online, ${pendingCount} pending operations` : 'Offline'}
+          aria-label={
+            online ? `Online, ${pendingCount} pending operations` : "Offline"
+          }
         >
           {online ? (
             <Cloud className="h-4 w-4 text-white/70" />
@@ -32,7 +42,7 @@ export function OfflineIndicator() {
           )}
           {pendingCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
-              {pendingCount > 9 ? '9+' : pendingCount}
+              {pendingCount > 9 ? "9+" : pendingCount}
             </span>
           )}
         </button>
@@ -43,13 +53,15 @@ export function OfflineIndicator() {
           <div className="flex items-center gap-2">
             {online ? (
               <>
-                <Wifi className="h-4 w-4 text-emerald-600" />
+                <Wifi className="h-4 w-4 text-emerald-400" />
                 <span className="text-sm font-medium">Online</span>
               </>
             ) : (
               <>
                 <WifiOff className="h-4 w-4 text-destructive" />
-                <span className="text-sm font-medium text-destructive">Offline</span>
+                <span className="text-sm font-medium text-destructive">
+                  Offline
+                </span>
               </>
             )}
           </div>
@@ -59,9 +71,13 @@ export function OfflineIndicator() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  {pendingCount} pending {pendingCount === 1 ? 'operation' : 'operations'}
+                  {pendingCount} pending{" "}
+                  {pendingCount === 1 ? "operation" : "operations"}
                 </span>
-                <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800">
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20"
+                >
                   Queued
                 </Badge>
               </div>
@@ -79,7 +95,7 @@ export function OfflineIndicator() {
                   ) : (
                     <RefreshCw className="h-4 w-4 mr-2" />
                   )}
-                  {isSyncing ? 'Syncing...' : 'Sync Now'}
+                  {isSyncing ? "Syncing..." : "Sync Now"}
                 </Button>
               )}
             </div>
@@ -89,15 +105,21 @@ export function OfflineIndicator() {
           {lastSyncResult && (
             <div className="text-xs text-muted-foreground border-t pt-2">
               {lastSyncResult.synced > 0 && (
-                <p className="text-emerald-600">{lastSyncResult.synced} synced successfully</p>
+                <p className="text-emerald-400">
+                  {lastSyncResult.synced} synced successfully
+                </p>
               )}
               {lastSyncResult.failed > 0 && (
-                <p className="text-destructive">{lastSyncResult.failed} failed to sync</p>
+                <p className="text-destructive">
+                  {lastSyncResult.failed} failed to sync
+                </p>
               )}
               {lastSyncResult.errors.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
                   {lastSyncResult.errors.slice(0, 3).map((err, i) => (
-                    <li key={i} className="text-destructive truncate">{err}</li>
+                    <li key={i} className="text-destructive truncate">
+                      {err}
+                    </li>
                   ))}
                 </ul>
               )}
@@ -107,11 +129,12 @@ export function OfflineIndicator() {
           {/* Info when offline */}
           {!online && (
             <p className="text-xs text-muted-foreground border-t pt-2">
-              Your changes will be saved locally and synced when you&apos;re back online.
+              Your changes will be saved locally and synced when you&apos;re
+              back online.
             </p>
           )}
         </div>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

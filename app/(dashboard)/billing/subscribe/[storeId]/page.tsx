@@ -170,8 +170,8 @@ function PaymentForm({
 
       <div className="space-y-2">
         <div className="flex items-center justify-center gap-2 text-sm">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          <span className="font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+          <span className="font-medium text-emerald-400">
             £0.00 charged today
           </span>
         </div>
@@ -277,13 +277,13 @@ export default function SubscribePage({ params }: PageProps) {
 
         {/* Hero Section */}
         <div className="text-center space-y-4">
-          <Badge className="bg-blue-100 text-blue-700 border-blue-200 px-4 py-1">
+          <Badge className="bg-blue-100 text-blue-400 border-blue-500/20 px-4 py-1">
             <Sparkles className="h-3 w-3 mr-1" />
             {BILLING_CONFIG.TRIAL_DAYS}-Day Free Trial
           </Badge>
           <h1 className="text-2xl sm:text-4xl font-bold tracking-tight">
             Start Managing{" "}
-            <span className="text-blue-600">{store?.store?.name}</span>
+            <span className="text-blue-400">{store?.store?.name}</span>
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
             Join hundreds of teams saving time and reducing waste with smart
@@ -296,7 +296,7 @@ export default function SubscribePage({ params }: PageProps) {
           {/* LEFT: Value Proposition (2/5) */}
           <div className="lg:col-span-2 space-y-6">
             {/* Key Benefits */}
-            <Card className="bg-gradient-to-br from-emerald-50 to-white border-emerald-200">
+            <Card className="bg-gradient-to-br from-emerald-50 to-white border-emerald-500/20">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-emerald-900">
                   <TrendingDown className="h-5 w-5" />
@@ -307,7 +307,7 @@ export default function SubscribePage({ params }: PageProps) {
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="p-1.5 bg-emerald-100 rounded">
-                      <Clock className="h-4 w-4 text-emerald-600" />
+                      <Clock className="h-4 w-4 text-emerald-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-sm">
@@ -321,7 +321,7 @@ export default function SubscribePage({ params }: PageProps) {
 
                   <div className="flex items-start gap-3">
                     <div className="p-1.5 bg-emerald-100 rounded">
-                      <TrendingDown className="h-4 w-4 text-emerald-600" />
+                      <TrendingDown className="h-4 w-4 text-emerald-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-sm">
@@ -335,7 +335,7 @@ export default function SubscribePage({ params }: PageProps) {
 
                   <div className="flex items-start gap-3">
                     <div className="p-1.5 bg-emerald-100 rounded">
-                      <Users className="h-4 w-4 text-emerald-600" />
+                      <Users className="h-4 w-4 text-emerald-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-sm">Manage Your Team</p>
@@ -347,7 +347,7 @@ export default function SubscribePage({ params }: PageProps) {
 
                   <div className="flex items-start gap-3">
                     <div className="p-1.5 bg-emerald-100 rounded">
-                      <Package className="h-4 w-4 text-emerald-600" />
+                      <Package className="h-4 w-4 text-emerald-400" />
                     </div>
                     <div>
                       <p className="font-semibold text-sm">
@@ -370,23 +370,23 @@ export default function SubscribePage({ params }: PageProps) {
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-400" />
                     <span>Unlimited team members</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-400" />
                     <span>Unlimited inventory items</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-400" />
                     <span>Stock counts & receptions</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-400" />
                     <span>Shift scheduling & management</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-400" />
                     <span>Usage reports & analytics</span>
                   </div>
                 </div>
@@ -397,7 +397,7 @@ export default function SubscribePage({ params }: PageProps) {
           {/* RIGHT: Checkout Form (3/5) */}
           <div className="lg:col-span-3 space-y-6">
             {/* Pricing Summary Card */}
-            <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+            <Card className="border-2 border-blue-500/20 bg-gradient-to-br from-blue-50 to-white">
               <CardContent className="pt-6">
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -412,14 +412,14 @@ export default function SubscribePage({ params }: PageProps) {
                         </span>
                       </p>
                     </div>
-                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 text-base sm:text-lg px-3 py-1 w-fit">
+                    <Badge className="bg-emerald-100 text-emerald-400 border-emerald-300 text-base sm:text-lg px-3 py-1 w-fit">
                       Free for {BILLING_CONFIG.TRIAL_DAYS} days
                     </Badge>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t">
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-emerald-700 font-semibold">
+                      <div className="flex items-center justify-center gap-1 text-emerald-400 font-semibold">
                         <CheckCircle2 className="h-4 w-4" />
                         <span>£0</span>
                       </div>
@@ -483,11 +483,11 @@ export default function SubscribePage({ params }: PageProps) {
             {/* Trust Signals */}
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground py-4">
               <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-blue-600" />
+                <Shield className="h-4 w-4 text-blue-400" />
                 <span>256-bit SSL encryption</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 <span>Cancel anytime</span>
               </div>
               <div className="flex items-center gap-2">

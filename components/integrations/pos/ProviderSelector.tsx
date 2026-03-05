@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { POS_PROVIDERS } from '@/lib/services/pos'
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { POS_PROVIDERS } from "@/lib/services/pos";
 import {
   Monitor,
   CreditCard,
@@ -17,8 +17,8 @@ import {
   Zap,
   Settings,
   Search,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const PROVIDER_ICONS: Record<string, LucideIcon> = {
   square: CreditCard,
@@ -59,21 +59,25 @@ const PROVIDER_ICONS: Record<string, LucideIcon> = {
   maitred: Store,
   speedline: Store,
   custom: Settings,
-}
+};
 
 interface ProviderSelectorProps {
-  onSelect: (provider: string) => void
-  connectedProviders?: string[]
+  onSelect: (provider: string) => void;
+  connectedProviders?: string[];
 }
 
-export function ProviderSelector({ onSelect, connectedProviders = [] }: ProviderSelectorProps) {
-  const [search, setSearch] = useState('')
+export function ProviderSelector({
+  onSelect,
+  connectedProviders = [],
+}: ProviderSelectorProps) {
+  const [search, setSearch] = useState("");
 
-  const filteredProviders = Object.entries(POS_PROVIDERS).filter(([_key, provider]) =>
-    provider.name.toLowerCase().includes(search.toLowerCase()) ||
-    provider.description.toLowerCase().includes(search.toLowerCase()) ||
-    provider.region.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredProviders = Object.entries(POS_PROVIDERS).filter(
+    ([_key, provider]) =>
+      provider.name.toLowerCase().includes(search.toLowerCase()) ||
+      provider.description.toLowerCase().includes(search.toLowerCase()) ||
+      provider.region.toLowerCase().includes(search.toLowerCase()),
+  );
 
   return (
     <div className="space-y-4">
@@ -96,14 +100,14 @@ export function ProviderSelector({ onSelect, connectedProviders = [] }: Provider
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filteredProviders.map(([key, provider]) => {
-          const Icon = PROVIDER_ICONS[key] || Monitor
-          const isConnected = connectedProviders.includes(key)
+          const Icon = PROVIDER_ICONS[key] || Monitor;
+          const isConnected = connectedProviders.includes(key);
 
           return (
             <Card
               key={key}
               className={`cursor-pointer transition-colors hover:border-foreground/20 ${
-                isConnected ? 'border-emerald-200 bg-emerald-50/30' : ''
+                isConnected ? "border-emerald-500/20 bg-emerald-500/10" : ""
               }`}
               onClick={() => !isConnected && onSelect(key)}
             >
@@ -116,7 +120,10 @@ export function ProviderSelector({ onSelect, connectedProviders = [] }: Provider
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-sm">{provider.name}</h3>
                       {isConnected && (
-                        <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 text-xs">
+                        <Badge
+                          variant="secondary"
+                          className="bg-emerald-500/10 text-emerald-400 text-xs"
+                        >
                           Connected
                         </Badge>
                       )}
@@ -126,10 +133,16 @@ export function ProviderSelector({ onSelect, connectedProviders = [] }: Provider
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge variant="secondary" className="text-xs">
-                        {provider.authType === 'oauth2' ? (
-                          <><Wifi className="size-3 mr-1" />OAuth</>
+                        {provider.authType === "oauth2" ? (
+                          <>
+                            <Wifi className="size-3 mr-1" />
+                            OAuth
+                          </>
                         ) : (
-                          <><Settings className="size-3 mr-1" />API Key</>
+                          <>
+                            <Settings className="size-3 mr-1" />
+                            API Key
+                          </>
                         )}
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
@@ -145,8 +158,8 @@ export function ProviderSelector({ onSelect, connectedProviders = [] }: Provider
                     variant="outline"
                     className="w-full mt-3"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      onSelect(key)
+                      e.stopPropagation();
+                      onSelect(key);
                     }}
                   >
                     Connect
@@ -154,9 +167,9 @@ export function ProviderSelector({ onSelect, connectedProviders = [] }: Provider
                 )}
               </CardContent>
             </Card>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

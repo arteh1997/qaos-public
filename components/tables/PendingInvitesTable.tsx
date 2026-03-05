@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { PendingInvite } from '@/hooks/usePendingInvites'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
+import { useState } from "react";
+import { PendingInvite } from "@/hooks/usePendingInvites";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 import {
   Table,
   TableBody,
@@ -12,20 +12,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, X, RefreshCw, Clock, Mail } from 'lucide-react'
-import { format, formatDistanceToNow } from 'date-fns'
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, X, RefreshCw, Clock, Mail } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 
 interface PendingInvitesTableProps {
-  invites: PendingInvite[]
-  onCancel: (inviteId: string) => Promise<void>
-  onResend?: (invite: PendingInvite) => Promise<void>
+  invites: PendingInvite[];
+  onCancel: (inviteId: string) => Promise<void>;
+  onResend?: (invite: PendingInvite) => Promise<void>;
 }
 
 export function PendingInvitesTable({
@@ -33,39 +33,41 @@ export function PendingInvitesTable({
   onCancel,
   onResend,
 }: PendingInvitesTableProps) {
-  const [cancelingId, setCancelingId] = useState<string | null>(null)
-  const [resendingId, setResendingId] = useState<string | null>(null)
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [selectedInvite, setSelectedInvite] = useState<PendingInvite | null>(null)
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedInvite, setSelectedInvite] = useState<PendingInvite | null>(
+    null,
+  );
 
   const handleCancelClick = (invite: PendingInvite) => {
-    setSelectedInvite(invite)
-    setConfirmOpen(true)
-  }
+    setSelectedInvite(invite);
+    setConfirmOpen(true);
+  };
 
   const handleConfirmCancel = async () => {
-    if (!selectedInvite) return
+    if (!selectedInvite) return;
 
-    setCancelingId(selectedInvite.id)
+    setCancelingId(selectedInvite.id);
     try {
-      await onCancel(selectedInvite.id)
+      await onCancel(selectedInvite.id);
     } finally {
-      setCancelingId(null)
-      setConfirmOpen(false)
-      setSelectedInvite(null)
+      setCancelingId(null);
+      setConfirmOpen(false);
+      setSelectedInvite(null);
     }
-  }
+  };
 
   const handleResend = async (invite: PendingInvite) => {
-    if (!onResend) return
+    if (!onResend) return;
 
-    setResendingId(invite.id)
+    setResendingId(invite.id);
     try {
-      await onResend(invite)
+      await onResend(invite);
     } finally {
-      setResendingId(null)
+      setResendingId(null);
     }
-  }
+  };
 
   if (invites.length === 0) {
     return (
@@ -76,7 +78,7 @@ export function PendingInvitesTable({
           Invitations you send will appear here until they are accepted
         </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -84,8 +86,9 @@ export function PendingInvitesTable({
       {/* Mobile card view */}
       <div className="sm:hidden space-y-2">
         {invites.map((invite) => {
-          const expiresAt = new Date(invite.expires_at)
-          const isExpiringSoon = expiresAt.getTime() - Date.now() < 30 * 60 * 1000
+          const expiresAt = new Date(invite.expires_at);
+          const isExpiringSoon =
+            expiresAt.getTime() - Date.now() < 30 * 60 * 1000;
 
           return (
             <div key={invite.id} className="border rounded-lg p-3">
@@ -93,12 +96,16 @@ export function PendingInvitesTable({
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{invite.email}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {invite.store?.name || 'All stores'}
+                    {invite.store?.name || "All stores"}
                   </p>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0"
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -126,17 +133,24 @@ export function PendingInvitesTable({
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <Badge variant="outline">{invite.role}</Badge>
                 <span className="text-xs text-muted-foreground">
-                  Sent {formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}
+                  Sent{" "}
+                  {formatDistanceToNow(new Date(invite.created_at), {
+                    addSuffix: true,
+                  })}
                 </span>
                 <div className="flex items-center gap-1">
-                  <Clock className={`h-3 w-3 ${isExpiringSoon ? 'text-yellow-600' : 'text-muted-foreground'}`} />
-                  <span className={`text-xs ${isExpiringSoon ? 'text-yellow-600' : 'text-muted-foreground'}`}>
-                    {format(expiresAt, 'h:mm a')}
+                  <Clock
+                    className={`h-3 w-3 ${isExpiringSoon ? "text-yellow-400" : "text-muted-foreground"}`}
+                  />
+                  <span
+                    className={`text-xs ${isExpiringSoon ? "text-yellow-400" : "text-muted-foreground"}`}
+                  >
+                    {format(expiresAt, "h:mm a")}
                   </span>
                 </div>
               </div>
             </div>
-          )
+          );
         })}
       </div>
 
@@ -155,8 +169,9 @@ export function PendingInvitesTable({
           </TableHeader>
           <TableBody>
             {invites.map((invite) => {
-              const expiresAt = new Date(invite.expires_at)
-              const isExpiringSoon = expiresAt.getTime() - Date.now() < 30 * 60 * 1000 // 30 min
+              const expiresAt = new Date(invite.expires_at);
+              const isExpiringSoon =
+                expiresAt.getTime() - Date.now() < 30 * 60 * 1000; // 30 min
 
               return (
                 <TableRow key={invite.id}>
@@ -170,13 +185,23 @@ export function PendingInvitesTable({
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(invite.created_at), {
+                      addSuffix: true,
+                    })}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <Clock className={`h-3.5 w-3.5 ${isExpiringSoon ? 'text-yellow-600' : 'text-muted-foreground'}`} />
-                      <span className={isExpiringSoon ? 'text-yellow-600' : 'text-muted-foreground'}>
-                        {format(expiresAt, 'h:mm a')}
+                      <Clock
+                        className={`h-3.5 w-3.5 ${isExpiringSoon ? "text-yellow-400" : "text-muted-foreground"}`}
+                      />
+                      <span
+                        className={
+                          isExpiringSoon
+                            ? "text-yellow-400"
+                            : "text-muted-foreground"
+                        }
+                      >
+                        {format(expiresAt, "h:mm a")}
                       </span>
                     </div>
                   </TableCell>
@@ -210,7 +235,7 @@ export function PendingInvitesTable({
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              )
+              );
             })}
           </TableBody>
         </Table>
@@ -228,5 +253,5 @@ export function PendingInvitesTable({
         onConfirm={handleConfirmCancel}
       />
     </>
-  )
+  );
 }

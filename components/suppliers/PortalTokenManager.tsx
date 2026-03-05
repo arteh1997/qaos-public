@@ -147,7 +147,7 @@ export function PortalTokenManager({
 
           {/* New token display */}
           {newToken && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-2">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 space-y-2">
               <p className="text-sm font-medium text-emerald-800">
                 New token created — copy it now, it won&apos;t be shown again:
               </p>
@@ -168,7 +168,7 @@ export function PortalTokenManager({
                 <span className="text-xs text-muted-foreground">
                   Portal URL:
                 </span>
-                <code className="text-xs text-emerald-700">{portalUrl}</code>
+                <code className="text-xs text-emerald-400">{portalUrl}</code>
                 <Button
                   size="icon"
                   variant="ghost"
@@ -222,7 +222,7 @@ export function PortalTokenManager({
                     <Badge
                       className={
                         token.is_active
-                          ? "bg-emerald-50 text-emerald-700"
+                          ? "bg-emerald-500/10 text-emerald-400"
                           : "bg-muted text-muted-foreground"
                       }
                     >

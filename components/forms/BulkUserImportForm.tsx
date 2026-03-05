@@ -1,139 +1,171 @@
-'use client'
+"use client";
 
-import { useState, useCallback, useRef } from 'react'
-import { useCSRF } from '@/hooks/useCSRF'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Upload, Download, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
-import { parseUserCSV, generateCSVTemplate, BulkUserRow } from '@/lib/validations/bulk-import'
-import { Store } from '@/types'
-import { toast } from 'sonner'
+import { useState, useCallback, useRef } from "react";
+import { useCSRF } from "@/hooks/useCSRF";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Loader2,
+  Upload,
+  Download,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
+import {
+  parseUserCSV,
+  generateCSVTemplate,
+  BulkUserRow,
+} from "@/lib/validations/bulk-import";
+import { Store } from "@/types";
+import { toast } from "sonner";
 
 interface BulkUserImportFormProps {
-  stores: Store[]
-  onSuccess?: () => void
+  stores: Store[];
+  onSuccess?: () => void;
 }
 
 interface ImportResult {
-  email: string
-  status: 'success' | 'error' | 'skipped'
-  message: string
+  email: string;
+  status: "success" | "error" | "skipped";
+  message: string;
 }
 
-export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProps) {
-  const { csrfFetch } = useCSRF()
-  const [file, setFile] = useState<File | null>(null)
-  const [parsedUsers, setParsedUsers] = useState<BulkUserRow[]>([])
-  const [parseErrors, setParseErrors] = useState<{ row: number; message: string }[]>([])
-  const [defaultStoreId, setDefaultStoreId] = useState<string>('')
-  const [isImporting, setIsImporting] = useState(false)
-  const [results, setResults] = useState<ImportResult[] | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+export function BulkUserImportForm({
+  stores,
+  onSuccess,
+}: BulkUserImportFormProps) {
+  const { csrfFetch } = useCSRF();
+  const [file, setFile] = useState<File | null>(null);
+  const [parsedUsers, setParsedUsers] = useState<BulkUserRow[]>([]);
+  const [parseErrors, setParseErrors] = useState<
+    { row: number; message: string }[]
+  >([]);
+  const [defaultStoreId, setDefaultStoreId] = useState<string>("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [results, setResults] = useState<ImportResult[] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (!selectedFile) return
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = e.target.files?.[0];
+      if (!selectedFile) return;
 
-    // Reset state
-    setResults(null)
-    setParsedUsers([])
-    setParseErrors([])
+      // Reset state
+      setResults(null);
+      setParsedUsers([]);
+      setParseErrors([]);
 
-    // Check file type
-    if (!selectedFile.name.endsWith('.csv')) {
-      toast.error('Please upload a CSV file')
-      return
-    }
+      // Check file type
+      if (!selectedFile.name.endsWith(".csv")) {
+        toast.error("Please upload a CSV file");
+        return;
+      }
 
-    // Check file size (max 1MB)
-    if (selectedFile.size > 1024 * 1024) {
-      toast.error('File size must be less than 1MB')
-      return
-    }
+      // Check file size (max 1MB)
+      if (selectedFile.size > 1024 * 1024) {
+        toast.error("File size must be less than 1MB");
+        return;
+      }
 
-    setFile(selectedFile)
+      setFile(selectedFile);
 
-    // Parse the file
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const content = event.target?.result as string
-      const { users, errors } = parseUserCSV(content)
-      setParsedUsers(users)
-      setParseErrors(errors)
-    }
-    reader.readAsText(selectedFile)
-  }, [])
+      // Parse the file
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        const { users, errors } = parseUserCSV(content);
+        setParsedUsers(users);
+        setParseErrors(errors);
+      };
+      reader.readAsText(selectedFile);
+    },
+    [],
+  );
 
   const handleDownloadTemplate = useCallback(() => {
-    const template = generateCSVTemplate()
-    const blob = new Blob([template], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'user-import-template.csv'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }, [])
+    const template = generateCSVTemplate();
+    const blob = new Blob([template], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "user-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, []);
 
   const handleImport = useCallback(async () => {
     if (parsedUsers.length === 0) {
-      toast.error('No valid users to import')
-      return
+      toast.error("No valid users to import");
+      return;
     }
 
-    setIsImporting(true)
-    setResults(null)
+    setIsImporting(true);
+    setResults(null);
 
     try {
-      const response = await csrfFetch('/api/users/bulk-import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await csrfFetch("/api/users/bulk-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          users: parsedUsers.map(u => ({
+          users: parsedUsers.map((u) => ({
             ...u,
             storeId: u.storeId || defaultStoreId || undefined,
           })),
           defaultStoreId: defaultStoreId || undefined,
         }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Import failed')
+        throw new Error(data.message || "Import failed");
       }
 
-      setResults(data.data.results)
-      toast.success(data.data.message)
-      onSuccess?.()
+      setResults(data.data.results);
+      toast.success(data.data.message);
+      onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Import failed')
+      toast.error(error instanceof Error ? error.message : "Import failed");
     } finally {
-      setIsImporting(false)
+      setIsImporting(false);
     }
-  }, [parsedUsers, defaultStoreId, onSuccess])
+  }, [parsedUsers, defaultStoreId, onSuccess]);
 
   const handleReset = useCallback(() => {
-    setFile(null)
-    setParsedUsers([])
-    setParseErrors([])
-    setResults(null)
+    setFile(null);
+    setParsedUsers([]);
+    setParseErrors([]);
+    setResults(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      fileInputRef.current.value = "";
     }
-  }, [])
+  }, []);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Bulk User Import</CardTitle>
         <CardDescription>
-          Import multiple users at once from a CSV file. Users will receive invitation emails.
+          Import multiple users at once from a CSV file. Users will receive
+          invitation emails.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -180,13 +212,15 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
         {/* Default Store Selection */}
         {parsedUsers.length > 0 && (
           <div className="space-y-2">
-            <Label htmlFor="default-store">Default Store (for users without store ID)</Label>
+            <Label htmlFor="default-store">
+              Default Store (for users without store ID)
+            </Label>
             <Select value={defaultStoreId} onValueChange={setDefaultStoreId}>
               <SelectTrigger id="default-store">
                 <SelectValue placeholder="Select a default store" />
               </SelectTrigger>
               <SelectContent>
-                {stores.map(store => (
+                {stores.map((store) => (
                   <SelectItem key={store.id} value={store.id}>
                     {store.name}
                   </SelectItem>
@@ -194,7 +228,8 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              This store will be used for Staff and Manager roles that don&apos;t have a store ID in the CSV.
+              This store will be used for Staff and Manager roles that
+              don&apos;t have a store ID in the CSV.
             </p>
           </div>
         )}
@@ -205,7 +240,8 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               <p className="font-medium mb-2">
-                {parseErrors.length} row{parseErrors.length > 1 ? 's' : ''} have errors:
+                {parseErrors.length} row{parseErrors.length > 1 ? "s" : ""} have
+                errors:
               </p>
               <ul className="list-disc list-inside space-y-1 text-sm">
                 {parseErrors.slice(0, 5).map((error, i) => (
@@ -240,13 +276,16 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
                       <td className="px-4 py-2">{user.email}</td>
                       <td className="px-4 py-2">{user.role}</td>
                       <td className="px-4 py-2 text-muted-foreground">
-                        {user.storeId || '(default)'}
+                        {user.storeId || "(default)"}
                       </td>
                     </tr>
                   ))}
                   {parsedUsers.length > 10 && (
                     <tr className="border-t">
-                      <td colSpan={3} className="px-4 py-2 text-center text-muted-foreground">
+                      <td
+                        colSpan={3}
+                        className="px-4 py-2 text-center text-muted-foreground"
+                      >
                         ...and {parsedUsers.length - 10} more users
                       </td>
                     </tr>
@@ -275,26 +314,28 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
                     <tr key={i} className="border-t">
                       <td className="px-4 py-2">{result.email}</td>
                       <td className="px-4 py-2">
-                        {result.status === 'success' && (
-                          <span className="inline-flex items-center gap-1 text-emerald-600">
+                        {result.status === "success" && (
+                          <span className="inline-flex items-center gap-1 text-emerald-400">
                             <CheckCircle className="h-4 w-4" />
                             Success
                           </span>
                         )}
-                        {result.status === 'skipped' && (
-                          <span className="inline-flex items-center gap-1 text-amber-600">
+                        {result.status === "skipped" && (
+                          <span className="inline-flex items-center gap-1 text-amber-400">
                             <AlertCircle className="h-4 w-4" />
                             Skipped
                           </span>
                         )}
-                        {result.status === 'error' && (
+                        {result.status === "error" && (
                           <span className="inline-flex items-center gap-1 text-destructive">
                             <XCircle className="h-4 w-4" />
                             Error
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-muted-foreground">{result.message}</td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {result.message}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -318,7 +359,8 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
             ) : (
               <>
                 <Upload className="h-4 w-4 mr-2" />
-                Import {parsedUsers.length} User{parsedUsers.length > 1 ? 's' : ''}
+                Import {parsedUsers.length} User
+                {parsedUsers.length > 1 ? "s" : ""}
               </>
             )}
           </Button>
@@ -332,5 +374,5 @@ export function BulkUserImportForm({ stores, onSuccess }: BulkUserImportFormProp
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

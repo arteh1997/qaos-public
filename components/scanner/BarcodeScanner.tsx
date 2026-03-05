@@ -1,53 +1,64 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef } from 'react'
-import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Camera, CameraOff, X, RotateCcw, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef } from "react";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Camera, CameraOff, X, RotateCcw, Loader2 } from "lucide-react";
 
 interface BarcodeScannerProps {
-  onScan: (code: string) => void
-  onClose?: () => void
-  className?: string
+  onScan: (code: string) => void;
+  onClose?: () => void;
+  className?: string;
 }
 
-export function BarcodeScanner({ onScan, onClose, className = '' }: BarcodeScannerProps) {
-  const { isScanning, lastScannedCode, error, startScanning, stopScanning, onScan: registerCallback } = useBarcodeScanner()
-  const [isStarting, setIsStarting] = useState(false)
-  const scannerElementId = 'barcode-scanner-viewport'
-  const hasStartedRef = useRef(false)
+export function BarcodeScanner({
+  onScan,
+  onClose,
+  className = "",
+}: BarcodeScannerProps) {
+  const {
+    isScanning,
+    lastScannedCode,
+    error,
+    startScanning,
+    stopScanning,
+    onScan: registerCallback,
+  } = useBarcodeScanner();
+  const [isStarting, setIsStarting] = useState(false);
+  const scannerElementId = "barcode-scanner-viewport";
+  const hasStartedRef = useRef(false);
 
   // Register the scan callback
   useEffect(() => {
     registerCallback((code: string) => {
-      onScan(code)
-    })
-  }, [registerCallback, onScan])
+      onScan(code);
+    });
+  }, [registerCallback, onScan]);
 
   // Auto-start scanning on mount
   useEffect(() => {
-    if (hasStartedRef.current) return
-    hasStartedRef.current = true
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
 
     const timer = setTimeout(async () => {
-      setIsStarting(true)
-      await startScanning(scannerElementId)
-      setIsStarting(false)
-    }, 100)
+      setIsStarting(true);
+      await startScanning(scannerElementId);
+      setIsStarting(false);
+    }, 100);
 
-    return () => clearTimeout(timer)
-  }, [startScanning])
+    return () => clearTimeout(timer);
+  }, [startScanning]);
 
   const handleRetry = async () => {
-    setIsStarting(true)
-    stopScanning()
+    setIsStarting(true);
+    stopScanning();
     // Small delay to let the camera release
-    await new Promise(resolve => setTimeout(resolve, 300))
-    await startScanning(scannerElementId)
-    setIsStarting(false)
-  }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await startScanning(scannerElementId);
+    setIsStarting(false);
+  };
 
   return (
     <Card className={`overflow-hidden ${className}`}>
@@ -56,27 +67,47 @@ export function BarcodeScanner({ onScan, onClose, className = '' }: BarcodeScann
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             {isScanning ? (
-              <Camera className="h-4 w-4 text-emerald-600" />
+              <Camera className="h-4 w-4 text-emerald-400" />
             ) : (
               <CameraOff className="h-4 w-4 text-muted-foreground" />
             )}
             <span className="text-sm font-medium">
-              {isStarting ? 'Starting camera...' : isScanning ? 'Scanning...' : 'Camera off'}
+              {isStarting
+                ? "Starting camera..."
+                : isScanning
+                  ? "Scanning..."
+                  : "Camera off"}
             </span>
             {isScanning && (
-              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800">
+              <Badge
+                variant="outline"
+                className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+              >
                 Live
               </Badge>
             )}
           </div>
           <div className="flex items-center gap-1">
             {error && (
-              <Button variant="ghost" size="sm" onClick={handleRetry} className="h-8 w-8 p-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRetry}
+                className="h-8 w-8 p-0"
+              >
                 <RotateCcw className="h-4 w-4" />
               </Button>
             )}
             {onClose && (
-              <Button variant="ghost" size="sm" onClick={() => { stopScanning(); onClose() }} className="h-8 w-8 p-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  stopScanning();
+                  onClose();
+                }}
+                className="h-8 w-8 p-0"
+              >
                 <X className="h-4 w-4" />
               </Button>
             )}
@@ -93,7 +124,9 @@ export function BarcodeScanner({ onScan, onClose, className = '' }: BarcodeScann
               {error ? (
                 <>
                   <CameraOff className="h-8 w-8 text-red-400" />
-                  <p className="text-sm text-red-400 text-center px-4">{error}</p>
+                  <p className="text-sm text-red-400 text-center px-4">
+                    {error}
+                  </p>
                   <Button variant="outline" size="sm" onClick={handleRetry}>
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Try Again
@@ -126,17 +159,21 @@ export function BarcodeScanner({ onScan, onClose, className = '' }: BarcodeScann
 
         {/* Last scanned result */}
         {lastScannedCode && (
-          <div className="px-4 py-3 border-t bg-emerald-50 dark:bg-green-950/20">
+          <div className="px-4 py-3 border-t bg-emerald-500/10">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">Last scanned</p>
-                <p className="text-sm font-mono font-medium">{lastScannedCode}</p>
+                <p className="text-sm font-mono font-medium">
+                  {lastScannedCode}
+                </p>
               </div>
-              <Badge variant="secondary" className="text-xs">Scanned</Badge>
+              <Badge variant="secondary" className="text-xs">
+                Scanned
+              </Badge>
             </div>
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

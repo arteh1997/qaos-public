@@ -1,128 +1,168 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useAuth } from '@/hooks/useAuth'
-import { useStores } from '@/hooks/useStores'
-import { useAlertPreferences } from '@/hooks/useAlertPreferences'
-import { useNotificationPreferences } from '@/hooks/useNotificationPreferences'
-import { StoreForm } from '@/components/forms/StoreForm'
-import { StoreFormData } from '@/lib/validations/store'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Skeleton } from '@/components/ui/skeleton'
+import { useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
+import { useStores } from "@/hooks/useStores";
+import { useAlertPreferences } from "@/hooks/useAlertPreferences";
+import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
+import { StoreForm } from "@/components/forms/StoreForm";
+import { StoreFormData } from "@/lib/validations/store";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
-  Settings, Bell, MapPin, Clock, Plus, Pencil,
-  AlertTriangle, PackageX, ClipboardList, Mail,
-  CalendarClock, Wallet, Truck, UserMinus,
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { PageGuide } from '@/components/help/PageGuide'
+  Settings,
+  Bell,
+  MapPin,
+  Clock,
+  Plus,
+  Pencil,
+  AlertTriangle,
+  PackageX,
+  ClipboardList,
+  Mail,
+  CalendarClock,
+  Wallet,
+  Truck,
+  UserMinus,
+} from "lucide-react";
+import { toast } from "sonner";
+import { PageGuide } from "@/components/help/PageGuide";
 
-const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
+const DAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
 const DAY_SHORT: Record<string, string> = {
-  monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu',
-  friday: 'Fri', saturday: 'Sat', sunday: 'Sun',
-}
+  monday: "Mon",
+  tuesday: "Tue",
+  wednesday: "Wed",
+  thursday: "Thu",
+  friday: "Fri",
+  saturday: "Sat",
+  sunday: "Sun",
+};
 
 function formatTime12h(time: string | null | undefined): string {
-  if (!time) return '—'
-  const [h, m] = time.split(':').map(Number)
-  if (isNaN(h) || isNaN(m)) return time
-  const period = h >= 12 ? 'PM' : 'AM'
-  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${hour12}:${String(m).padStart(2, '0')} ${period}`
+  if (!time) return "—";
+  const [h, m] = time.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return time;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
 export default function SettingsPage() {
-  const { currentStore, role } = useAuth()
-  const storeId = currentStore?.store_id ?? null
-  const store = currentStore?.store ?? null
-  const isOwner = role === 'Owner'
-  const isManager = role === 'Manager'
-  const isOwnerOrManager = isOwner || isManager
+  const { currentStore, role } = useAuth();
+  const storeId = currentStore?.store_id ?? null;
+  const store = currentStore?.store ?? null;
+  const isOwner = role === "Owner";
+  const isManager = role === "Manager";
+  const isOwnerOrManager = isOwner || isManager;
 
-  const { updateStore } = useStores()
-  const [storeFormOpen, setStoreFormOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { updateStore } = useStores();
+  const [storeFormOpen, setStoreFormOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { preferences, isLoading: loadingPrefs, updatePreferences, isUpdating } = useAlertPreferences(isOwnerOrManager ? storeId : null)
+  const {
+    preferences,
+    isLoading: loadingPrefs,
+    updatePreferences,
+    isUpdating,
+  } = useAlertPreferences(isOwnerOrManager ? storeId : null);
   const {
     preferences: notifPrefs,
     isLoading: loadingNotifPrefs,
     updatePreferences: updateNotifPrefs,
     isUpdating: isUpdatingNotif,
-  } = useNotificationPreferences(storeId)
+  } = useNotificationPreferences(storeId);
 
   if (!storeId || !store) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage your store and preferences</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            Settings
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage your store and preferences
+          </p>
         </div>
         <Card>
           <CardContent className="py-16 text-center">
             <Settings className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground">Select a store to manage settings.</p>
+            <p className="text-muted-foreground">
+              Select a store to manage settings.
+            </p>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   const handleEditStore = () => {
-    setStoreFormOpen(true)
-  }
+    setStoreFormOpen(true);
+  };
 
   const handleStoreSubmit = async (data: StoreFormData) => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
-      await updateStore({ id: store.id, data })
-      setStoreFormOpen(false)
+      await updateStore({ id: store.id, data });
+      setStoreFormOpen(false);
     } catch {
       // Hook already shows error toast
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleAlertToggle = async (field: string, value: boolean) => {
     try {
-      await updatePreferences({ [field]: value })
-      toast.success('Preference updated')
+      await updatePreferences({ [field]: value });
+      toast.success("Preference updated");
     } catch {
-      toast.error('Failed to update preference')
+      toast.error("Failed to update preference");
     }
-  }
+  };
 
   const handleNotifToggle = async (field: string, value: boolean) => {
     try {
-      await updateNotifPrefs({ [field]: value })
-      toast.success('Preference updated')
+      await updateNotifPrefs({ [field]: value });
+      toast.success("Preference updated");
     } catch {
-      toast.error('Failed to update preference')
+      toast.error("Failed to update preference");
     }
-  }
+  };
 
-  const weeklyHours = store.weekly_hours as Record<string, { is_open: boolean; opening_time: string; closing_time: string }> | null
+  const weeklyHours = store.weekly_hours as Record<
+    string,
+    { is_open: boolean; opening_time: string; closing_time: string }
+  > | null;
 
   return (
     <div className="space-y-6">
       {/* ── PAGE HEADER ── */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Settings</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            Settings
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Store details and notification preferences
           </p>
@@ -153,22 +193,30 @@ export default function SettingsPage() {
                   </h2>
                   <Badge
                     variant="outline"
-                    className={store.is_active
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px]'
-                      : 'border-border bg-muted text-muted-foreground text-[11px]'
+                    className={
+                      store.is_active
+                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400 text-[11px]"
+                        : "border-border bg-muted text-muted-foreground text-[11px]"
                     }
                   >
-                    {store.is_active ? 'Active' : 'Inactive'}
+                    {store.is_active ? "Active" : "Inactive"}
                   </Badge>
                 </div>
                 {store.address && (
                   <div className="flex items-start gap-1.5 mt-1">
                     <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
-                    <span className="text-xs sm:text-sm text-muted-foreground leading-snug">{store.address}</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground leading-snug">
+                      {store.address}
+                    </span>
                   </div>
                 )}
               </div>
-              <Button variant="outline" size="sm" onClick={handleEditStore} className="shrink-0 h-8 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditStore}
+                className="shrink-0 h-8 text-xs"
+              >
                 <Pencil className="h-3 w-3 mr-1" />
                 Edit
               </Button>
@@ -187,18 +235,20 @@ export default function SettingsPage() {
             {weeklyHours ? (
               <div className="rounded-md border overflow-hidden">
                 {DAYS.map((day, i) => {
-                  const d = weeklyHours[day]
-                  if (!d) return null
-                  const isOpen = d.is_open
+                  const d = weeklyHours[day];
+                  if (!d) return null;
+                  const isOpen = d.is_open;
 
                   return (
                     <div
                       key={day}
                       className={`flex items-center justify-between px-3 py-2 text-xs sm:text-sm ${
-                        i < DAYS.length - 1 ? 'border-b' : ''
-                      } ${isOpen ? '' : 'bg-muted/30'}`}
+                        i < DAYS.length - 1 ? "border-b" : ""
+                      } ${isOpen ? "" : "bg-muted/30"}`}
                     >
-                      <span className={`font-medium w-8 sm:w-10 ${isOpen ? '' : 'text-muted-foreground'}`}>
+                      <span
+                        className={`font-medium w-8 sm:w-10 ${isOpen ? "" : "text-muted-foreground"}`}
+                      >
                         {DAY_SHORT[day]}
                       </span>
                       {isOpen ? (
@@ -208,10 +258,12 @@ export default function SettingsPage() {
                           {formatTime12h(d.closing_time)}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground italic text-[11px]">Closed</span>
+                        <span className="text-muted-foreground italic text-[11px]">
+                          Closed
+                        </span>
                       )}
                     </div>
-                  )
+                  );
                 })}
               </div>
             ) : (
@@ -242,7 +294,9 @@ export default function SettingsPage() {
 
         {loadingNotifPrefs ? (
           <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))}
           </div>
         ) : notifPrefs ? (
           <div className="space-y-4">
@@ -255,40 +309,52 @@ export default function SettingsPage() {
               <div className="grid gap-2">
                 <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
                   <div className="flex-1 min-w-0">
-                    <Label className="text-xs sm:text-sm font-medium">Shift Assigned</Label>
+                    <Label className="text-xs sm:text-sm font-medium">
+                      Shift Assigned
+                    </Label>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                       When a new shift is scheduled for you
                     </p>
                   </div>
                   <Switch
                     checked={notifPrefs.shift_assigned}
-                    onCheckedChange={v => handleNotifToggle('shift_assigned', v)}
+                    onCheckedChange={(v) =>
+                      handleNotifToggle("shift_assigned", v)
+                    }
                     disabled={isUpdatingNotif}
                   />
                 </div>
                 <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
                   <div className="flex-1 min-w-0">
-                    <Label className="text-xs sm:text-sm font-medium">Shift Updated</Label>
+                    <Label className="text-xs sm:text-sm font-medium">
+                      Shift Updated
+                    </Label>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                       When your shift times are changed
                     </p>
                   </div>
                   <Switch
                     checked={notifPrefs.shift_updated}
-                    onCheckedChange={v => handleNotifToggle('shift_updated', v)}
+                    onCheckedChange={(v) =>
+                      handleNotifToggle("shift_updated", v)
+                    }
                     disabled={isUpdatingNotif}
                   />
                 </div>
                 <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
                   <div className="flex-1 min-w-0">
-                    <Label className="text-xs sm:text-sm font-medium">Shift Cancelled</Label>
+                    <Label className="text-xs sm:text-sm font-medium">
+                      Shift Cancelled
+                    </Label>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                       When your shift is removed from the schedule
                     </p>
                   </div>
                   <Switch
                     checked={notifPrefs.shift_cancelled}
-                    onCheckedChange={v => handleNotifToggle('shift_cancelled', v)}
+                    onCheckedChange={(v) =>
+                      handleNotifToggle("shift_cancelled", v)
+                    }
                     disabled={isUpdatingNotif}
                   />
                 </div>
@@ -304,14 +370,18 @@ export default function SettingsPage() {
               <div className="grid gap-2">
                 <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
                   <div className="flex-1 min-w-0">
-                    <Label className="text-xs sm:text-sm font-medium">Payslip Available</Label>
+                    <Label className="text-xs sm:text-sm font-medium">
+                      Payslip Available
+                    </Label>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                       When a pay run is completed and your payslip is ready
                     </p>
                   </div>
                   <Switch
                     checked={notifPrefs.payslip_available}
-                    onCheckedChange={v => handleNotifToggle('payslip_available', v)}
+                    onCheckedChange={(v) =>
+                      handleNotifToggle("payslip_available", v)
+                    }
                     disabled={isUpdatingNotif}
                   />
                 </div>
@@ -328,27 +398,35 @@ export default function SettingsPage() {
                 <div className="grid gap-2">
                   <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
                     <div className="flex-1 min-w-0">
-                      <Label className="text-xs sm:text-sm font-medium">Supplier Updates</Label>
+                      <Label className="text-xs sm:text-sm font-medium">
+                        Supplier Updates
+                      </Label>
                       <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                         When a supplier acknowledges or ships an order
                       </p>
                     </div>
                     <Switch
                       checked={notifPrefs.po_supplier_update}
-                      onCheckedChange={v => handleNotifToggle('po_supplier_update', v)}
+                      onCheckedChange={(v) =>
+                        handleNotifToggle("po_supplier_update", v)
+                      }
                       disabled={isUpdatingNotif}
                     />
                   </div>
                   <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
                     <div className="flex-1 min-w-0">
-                      <Label className="text-xs sm:text-sm font-medium">Delivery Received</Label>
+                      <Label className="text-xs sm:text-sm font-medium">
+                        Delivery Received
+                      </Label>
                       <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                         When a delivery is received at the store
                       </p>
                     </div>
                     <Switch
                       checked={notifPrefs.delivery_received}
-                      onCheckedChange={v => handleNotifToggle('delivery_received', v)}
+                      onCheckedChange={(v) =>
+                        handleNotifToggle("delivery_received", v)
+                      }
                       disabled={isUpdatingNotif}
                     />
                   </div>
@@ -365,14 +443,18 @@ export default function SettingsPage() {
               <div className="grid gap-2">
                 <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
                   <div className="flex-1 min-w-0">
-                    <Label className="text-xs sm:text-sm font-medium">Removed from Store</Label>
+                    <Label className="text-xs sm:text-sm font-medium">
+                      Removed from Store
+                    </Label>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                       When your access to this store is revoked
                     </p>
                   </div>
                   <Switch
                     checked={notifPrefs.removed_from_store}
-                    onCheckedChange={v => handleNotifToggle('removed_from_store', v)}
+                    onCheckedChange={(v) =>
+                      handleNotifToggle("removed_from_store", v)
+                    }
                     disabled={isUpdatingNotif}
                   />
                 </div>
@@ -397,7 +479,9 @@ export default function SettingsPage() {
 
           {loadingPrefs ? (
             <div className="space-y-2">
-              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
             </div>
           ) : preferences ? (
             <div className="space-y-3">
@@ -405,18 +489,22 @@ export default function SettingsPage() {
               <div className="grid gap-2">
                 {/* Low Stock */}
                 <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-                  <div className="rounded-full p-1.5 bg-amber-50 text-amber-600 shrink-0">
+                  <div className="rounded-full p-1.5 bg-amber-500/10 text-amber-400 shrink-0">
                     <AlertTriangle className="h-3.5 w-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Label className="text-xs sm:text-sm font-medium">Low Stock</Label>
+                    <Label className="text-xs sm:text-sm font-medium">
+                      Low Stock
+                    </Label>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                       Items drop below their PAR level
                     </p>
                   </div>
                   <Switch
                     checked={preferences.low_stock_enabled}
-                    onCheckedChange={v => handleAlertToggle('low_stock_enabled', v)}
+                    onCheckedChange={(v) =>
+                      handleAlertToggle("low_stock_enabled", v)
+                    }
                     disabled={isUpdating}
                   />
                 </div>
@@ -427,32 +515,40 @@ export default function SettingsPage() {
                     <PackageX className="h-3.5 w-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Label className="text-xs sm:text-sm font-medium">Critical Stock</Label>
+                    <Label className="text-xs sm:text-sm font-medium">
+                      Critical Stock
+                    </Label>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                       Items nearly or completely out of stock
                     </p>
                   </div>
                   <Switch
                     checked={preferences.critical_stock_enabled}
-                    onCheckedChange={v => handleAlertToggle('critical_stock_enabled', v)}
+                    onCheckedChange={(v) =>
+                      handleAlertToggle("critical_stock_enabled", v)
+                    }
                     disabled={isUpdating}
                   />
                 </div>
 
                 {/* Missing Count */}
                 <div className="rounded-lg border bg-card flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
-                  <div className="rounded-full p-1.5 bg-blue-50 text-blue-600 shrink-0">
+                  <div className="rounded-full p-1.5 bg-blue-500/10 text-blue-400 shrink-0">
                     <ClipboardList className="h-3.5 w-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Label className="text-xs sm:text-sm font-medium">Missing Count</Label>
+                    <Label className="text-xs sm:text-sm font-medium">
+                      Missing Count
+                    </Label>
                     <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                       Daily stock count not submitted
                     </p>
                   </div>
                   <Switch
                     checked={preferences.missing_count_enabled}
-                    onCheckedChange={v => handleAlertToggle('missing_count_enabled', v)}
+                    onCheckedChange={(v) =>
+                      handleAlertToggle("missing_count_enabled", v)
+                    }
                     disabled={isUpdating}
                   />
                 </div>
@@ -472,14 +568,18 @@ export default function SettingsPage() {
                     {/* Email toggle */}
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <Label className="text-xs sm:text-sm font-medium">Email Alerts</Label>
+                        <Label className="text-xs sm:text-sm font-medium">
+                          Email Alerts
+                        </Label>
                         <p className="text-[11px] sm:text-xs text-muted-foreground">
                           Receive inventory alerts to your email
                         </p>
                       </div>
                       <Switch
                         checked={preferences.email_enabled}
-                        onCheckedChange={v => handleAlertToggle('email_enabled', v)}
+                        onCheckedChange={(v) =>
+                          handleAlertToggle("email_enabled", v)
+                        }
                         disabled={isUpdating}
                       />
                     </div>
@@ -488,14 +588,23 @@ export default function SettingsPage() {
                     {preferences.email_enabled && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
                         <div className="space-y-1">
-                          <Label className="text-[11px] sm:text-xs text-muted-foreground">Frequency</Label>
+                          <Label className="text-[11px] sm:text-xs text-muted-foreground">
+                            Frequency
+                          </Label>
                           <Select
                             value={preferences.alert_frequency}
                             onValueChange={async (v) => {
                               try {
-                                await updatePreferences({ alert_frequency: v as 'daily' | 'weekly' | 'never' })
-                                toast.success('Frequency updated')
-                              } catch { toast.error('Failed to update') }
+                                await updatePreferences({
+                                  alert_frequency: v as
+                                    | "daily"
+                                    | "weekly"
+                                    | "never",
+                                });
+                                toast.success("Frequency updated");
+                              } catch {
+                                toast.error("Failed to update");
+                              }
                             }}
                             disabled={isUpdating}
                           >
@@ -510,14 +619,20 @@ export default function SettingsPage() {
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[11px] sm:text-xs text-muted-foreground">Preferred Time</Label>
+                          <Label className="text-[11px] sm:text-xs text-muted-foreground">
+                            Preferred Time
+                          </Label>
                           <Select
                             value={String(preferences.preferred_hour)}
                             onValueChange={async (v) => {
                               try {
-                                await updatePreferences({ preferred_hour: parseInt(v) })
-                                toast.success('Preferred time updated')
-                              } catch { toast.error('Failed to update') }
+                                await updatePreferences({
+                                  preferred_hour: parseInt(v),
+                                });
+                                toast.success("Preferred time updated");
+                              } catch {
+                                toast.error("Failed to update");
+                              }
                             }}
                             disabled={isUpdating}
                           >
@@ -527,7 +642,13 @@ export default function SettingsPage() {
                             <SelectContent>
                               {Array.from({ length: 24 }).map((_, h) => (
                                 <SelectItem key={h} value={String(h)}>
-                                  {h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h - 12}:00 PM`}
+                                  {h === 0
+                                    ? "12:00 AM"
+                                    : h < 12
+                                      ? `${h}:00 AM`
+                                      : h === 12
+                                        ? "12:00 PM"
+                                        : `${h - 12}:00 PM`}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -554,5 +675,5 @@ export default function SettingsPage() {
         />
       )}
     </div>
-  )
+  );
 }

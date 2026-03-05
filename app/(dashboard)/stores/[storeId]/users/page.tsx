@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { use, useState } from 'react'
-import { toast } from 'sonner'
-import Link from 'next/link'
-import { useStore } from '@/hooks/useStore'
-import { useStoreUsers, StoreUserWithProfile } from '@/hooks/useStoreUsers'
-import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Badge } from '@/components/ui/badge'
+import { use, useState } from "react";
+import { toast } from "sonner";
+import Link from "next/link";
+import { useStore } from "@/hooks/useStore";
+import { useStoreUsers, StoreUserWithProfile } from "@/hooks/useStoreUsers";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -16,57 +16,70 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu'
-import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
-import { ArrowLeft, MoreHorizontal, UserMinus, Crown, Shield } from 'lucide-react'
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
+import {
+  ArrowLeft,
+  MoreHorizontal,
+  UserMinus,
+  Crown,
+  Shield,
+} from "lucide-react";
 
 interface StoreUsersPageProps {
-  params: Promise<{ storeId: string }>
+  params: Promise<{ storeId: string }>;
 }
 
 export default function StoreUsersPage({ params }: StoreUsersPageProps) {
-  const { storeId } = use(params)
-  const { stores: userStores } = useAuth()
-  const { data: store, isLoading: storeLoading } = useStore(storeId)
-  const { storeUsers, isLoading: usersLoading, removeUserFromStore } = useStoreUsers(storeId)
+  const { storeId } = use(params);
+  const { stores: userStores } = useAuth();
+  const { data: store, isLoading: storeLoading } = useStore(storeId);
+  const {
+    storeUsers,
+    isLoading: usersLoading,
+    removeUserFromStore,
+  } = useStoreUsers(storeId);
   // TODO: Implement transferBillingOwnership in useStoreUsers hook
   const transferBillingOwnership = async (_userId: string) => {
-    toast.error('Billing ownership transfer is not yet implemented')
-  }
-  const [userToRemove, setUserToRemove] = useState<StoreUserWithProfile | null>(null)
-  const [userToTransfer, setUserToTransfer] = useState<StoreUserWithProfile | null>(null)
+    toast.error("Billing ownership transfer is not yet implemented");
+  };
+  const [userToRemove, setUserToRemove] = useState<StoreUserWithProfile | null>(
+    null,
+  );
+  const [userToTransfer, setUserToTransfer] =
+    useState<StoreUserWithProfile | null>(null);
 
-  const isLoading = storeLoading || usersLoading
+  const isLoading = storeLoading || usersLoading;
 
   // Check if current user is the billing owner
-  const currentUserMembership = userStores.find(s => s.store_id === storeId)
-  const isBillingOwner = currentUserMembership?.is_billing_owner ?? false
-  const isOwner = currentUserMembership?.role === 'Owner'
+  const currentUserMembership = userStores.find((s) => s.store_id === storeId);
+  const isBillingOwner = currentUserMembership?.is_billing_owner ?? false;
+  const isOwner = currentUserMembership?.role === "Owner";
 
   const roleColors: Record<string, string> = {
-    Owner: 'bg-amber-500',
-    Manager: 'bg-purple-500',
-    Staff: 'bg-emerald-500',
-  }
+    Owner: "bg-amber-500",
+    Manager: "bg-purple-500",
+    Staff: "bg-emerald-500",
+  };
 
   const handleRemoveUser = async () => {
-    if (!userToRemove) return
-    await removeUserFromStore(userToRemove.id)
-    setUserToRemove(null)
-  }
+    if (!userToRemove) return;
+    await removeUserFromStore(userToRemove.id);
+    setUserToRemove(null);
+  };
 
   const handleTransferOwnership = async () => {
-    if (!userToTransfer) return
-    await transferBillingOwnership(userToTransfer.id)
-    setUserToTransfer(null)
-  }
+    if (!userToTransfer) return;
+    await transferBillingOwnership(userToTransfer.id);
+    setUserToTransfer(null);
+  };
 
   if (isLoading) {
     return (
@@ -77,7 +90,7 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
         </div>
         <Skeleton className="h-96" />
       </div>
-    )
+    );
   }
 
   if (!store) {
@@ -91,7 +104,7 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
           </Button>
         </Link>
       </div>
-    )
+    );
   }
 
   return (
@@ -134,9 +147,12 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
                 <TableRow key={storeUser.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      {storeUser.user?.full_name || 'No name'}
+                      {storeUser.user?.full_name || "No name"}
                       {storeUser.is_billing_owner && (
-                        <Crown className="h-4 w-4 text-amber-500" aria-label="Billing Owner" />
+                        <Crown
+                          className="h-4 w-4 text-amber-500"
+                          aria-label="Billing Owner"
+                        />
                       )}
                     </div>
                   </TableCell>
@@ -145,38 +161,57 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Badge className={`${roleColors[storeUser.role]} text-white`}>
+                      <Badge
+                        className={`${roleColors[storeUser.role]} text-primary-foreground`}
+                      >
                         {storeUser.role}
                       </Badge>
-                      {storeUser.role === 'Owner' && !storeUser.is_billing_owner && (
-                        <span className="text-xs text-muted-foreground">(Co-Owner)</span>
-                      )}
+                      {storeUser.role === "Owner" &&
+                        !storeUser.is_billing_owner && (
+                          <span className="text-xs text-muted-foreground">
+                            (Co-Owner)
+                          </span>
+                        )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={storeUser.user?.status === 'Active' ? 'default' : 'secondary'}>
-                      {storeUser.user?.status || 'Unknown'}
+                    <Badge
+                      variant={
+                        storeUser.user?.status === "Active"
+                          ? "default"
+                          : "secondary"
+                      }
+                    >
+                      {storeUser.user?.status || "Unknown"}
                     </Badge>
                   </TableCell>
                   {isOwner && (
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {/* Transfer billing ownership - only billing owner can do this */}
-                          {isBillingOwner && storeUser.role === 'Owner' && !storeUser.is_billing_owner && (
-                            <>
-                              <DropdownMenuItem onClick={() => setUserToTransfer(storeUser)}>
-                                <Crown className="mr-2 h-4 w-4" />
-                                Transfer Billing Ownership
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                            </>
-                          )}
+                          {isBillingOwner &&
+                            storeUser.role === "Owner" &&
+                            !storeUser.is_billing_owner && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => setUserToTransfer(storeUser)}
+                                >
+                                  <Crown className="mr-2 h-4 w-4" />
+                                  Transfer Billing Ownership
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                              </>
+                            )}
                           {/* Remove from store - cannot remove billing owner */}
                           {!storeUser.is_billing_owner && (
                             <DropdownMenuItem
@@ -188,7 +223,10 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
                             </DropdownMenuItem>
                           )}
                           {storeUser.is_billing_owner && (
-                            <DropdownMenuItem disabled className="text-muted-foreground">
+                            <DropdownMenuItem
+                              disabled
+                              className="text-muted-foreground"
+                            >
                               <Shield className="mr-2 h-4 w-4" />
                               Billing Owner (Protected)
                             </DropdownMenuItem>
@@ -226,5 +264,5 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
         onConfirm={handleTransferOwnership}
       />
     </div>
-  )
+  );
 }

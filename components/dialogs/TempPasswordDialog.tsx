@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,18 +8,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Copy, Eye, EyeOff, Check, AlertTriangle } from 'lucide-react'
-import { toast } from 'sonner'
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Copy, Eye, EyeOff, Check, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 interface TempPasswordDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  email: string
-  tempPassword: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  email: string;
+  tempPassword: string;
 }
 
 export function TempPasswordDialog({
@@ -28,28 +28,28 @@ export function TempPasswordDialog({
   email,
   tempPassword,
 }: TempPasswordDialogProps) {
-  const [showPassword, setShowPassword] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Ensure password is never undefined for the controlled input
-  const safePassword = tempPassword || ''
+  const safePassword = tempPassword || "";
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(safePassword)
-      setCopied(true)
-      toast.success('Password copied to clipboard')
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(safePassword);
+      setCopied(true);
+      toast.success("Password copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy password')
+      toast.error("Failed to copy password");
     }
-  }
+  };
 
   const handleClose = () => {
-    setShowPassword(false)
-    setCopied(false)
-    onOpenChange(false)
-  }
+    setShowPassword(false);
+    setCopied(false);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -60,8 +60,8 @@ export function TempPasswordDialog({
             User Created Successfully
           </DialogTitle>
           <DialogDescription>
-            A temporary password has been generated for <strong>{email}</strong>.
-            Please copy it now - this is the only time it will be displayed.
+            A temporary password has been generated for <strong>{email}</strong>
+            . Please copy it now - this is the only time it will be displayed.
           </DialogDescription>
         </DialogHeader>
 
@@ -72,7 +72,7 @@ export function TempPasswordDialog({
               <div className="relative flex-1">
                 <Input
                   id="temp-password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={safePassword}
                   readOnly
                   className="pr-10 font-mono"
@@ -90,7 +90,7 @@ export function TempPasswordDialog({
                     <Eye className="h-4 w-4 text-muted-foreground" />
                   )}
                   <span className="sr-only">
-                    {showPassword ? 'Hide password' : 'Show password'}
+                    {showPassword ? "Hide password" : "Show password"}
                   </span>
                 </Button>
               </div>
@@ -99,7 +99,7 @@ export function TempPasswordDialog({
                 variant="outline"
                 size="icon"
                 onClick={handleCopy}
-                className={copied ? 'text-green-600' : ''}
+                className={copied ? "text-green-400" : ""}
               >
                 {copied ? (
                   <Check className="h-4 w-4" />
@@ -111,7 +111,7 @@ export function TempPasswordDialog({
             </div>
           </div>
 
-          <div className="rounded-md bg-amber-50 dark:bg-amber-950 p-3 text-sm text-amber-800 dark:text-amber-200">
+          <div className="rounded-md bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
             <p className="font-medium">Important:</p>
             <ul className="list-disc list-inside mt-1 space-y-1">
               <li>Share this password securely with the user</li>
@@ -128,5 +128,5 @@ export function TempPasswordDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
