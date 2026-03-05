@@ -21,7 +21,7 @@ function createChainableMock(resolvedValue: unknown = { data: null, error: null 
     }
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   mock.then = ((resolve?: any) => Promise.resolve(resolvedValue).then(resolve)) as any
   return mock
 }

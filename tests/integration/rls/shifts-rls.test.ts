@@ -115,7 +115,7 @@ describe('RLS: shifts', () => {
   describe('Store Isolation', () => {
     it('should allow Owner A to see only Store A shifts', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -138,7 +138,7 @@ describe('RLS: shifts', () => {
 
     it('should allow Owner B to see only Store B shifts', async () => {
       const client = await createAuthenticatedClient(ownerB)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -156,7 +156,7 @@ describe('RLS: shifts', () => {
 
     it('should prevent Owner A from querying Store B shifts directly', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data } = await clientAny
@@ -171,7 +171,7 @@ describe('RLS: shifts', () => {
 
     it('should prevent Owner A from accessing Store B via store_id filter', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -188,7 +188,7 @@ describe('RLS: shifts', () => {
   describe('User Visibility', () => {
     it('should allow Staff to see shifts at their store', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -207,7 +207,7 @@ describe('RLS: shifts', () => {
 
     it('should prevent Staff from seeing shifts at other stores', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -224,7 +224,7 @@ describe('RLS: shifts', () => {
   describe('Role-Based Permissions', () => {
     it('should allow Owner/Manager to create shifts', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -251,7 +251,7 @@ describe('RLS: shifts', () => {
 
     it('should prevent Owner from creating shifts in other stores', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { error } = await clientAny
@@ -269,7 +269,7 @@ describe('RLS: shifts', () => {
 
     it('should allow Owner/Manager to update shifts in their store', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -292,7 +292,7 @@ describe('RLS: shifts', () => {
 
     it('should prevent Staff from creating shifts', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { error } = await clientAny
@@ -310,7 +310,7 @@ describe('RLS: shifts', () => {
 
     it('should prevent Staff from updating shift schedules', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { error } = await clientAny
@@ -324,7 +324,7 @@ describe('RLS: shifts', () => {
 
     it('should allow Staff to update their own clock-in/out times', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Note: This tests UPDATE permission - actual clock-in logic is in API
@@ -352,7 +352,7 @@ describe('RLS: shifts', () => {
   describe('Platform Admin Access', () => {
     it('should allow platform admin to see ALL shifts across stores', async () => {
       const client = await createAuthenticatedClient(platformAdmin)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -372,7 +372,7 @@ describe('RLS: shifts', () => {
 
     it('should allow platform admin to modify shifts in any store', async () => {
       const client = await createAuthenticatedClient(platformAdmin)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Update shift in Store B (which admin is not a member of)
@@ -407,9 +407,9 @@ describe('RLS: shifts', () => {
       })
 
       // Add them to Store B as well
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const client = await createAuthenticatedClient(ownerB)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
       const { data: insertData, error: insertError } = await clientAny
         .from('store_users')
@@ -428,7 +428,7 @@ describe('RLS: shifts', () => {
 
       // Now query shifts as the multi-store user
       const multiClient = await createAuthenticatedClient(multiStoreUser)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const multiClientAny = multiClient as any
       const { data, error } = await multiClientAny
         .from('shifts')

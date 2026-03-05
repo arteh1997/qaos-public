@@ -6,10 +6,10 @@
  */
 
 // No-op in production. In dev, opt-in via localStorage.
-// eslint-disable-next-line @typescript-eslint/no-empty-function
+ 
 export function debugLog(_category: string, ..._args: unknown[]): void {}
 
-// eslint-disable-next-line @typescript-eslint/no-empty-function
+ 
 export function debugWarn(_category: string, ..._args: unknown[]): void {}
 
 /**

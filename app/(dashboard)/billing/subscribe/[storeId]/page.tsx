@@ -1,20 +1,26 @@
-'use client'
+"use client";
 
-import { useState, useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
-import { loadStripe } from '@stripe/stripe-js'
+import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentElement,
   useStripe,
   useElements,
-} from '@stripe/react-stripe-js'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Badge } from '@/components/ui/badge'
+} from "@stripe/react-stripe-js";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   CreditCard,
@@ -28,16 +34,21 @@ import {
   Package,
   CheckCircle2,
   Sparkles,
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { getCSRFHeaders } from '@/hooks/useCSRF'
-import { BILLING_CONFIG, getMonthlyPriceDisplay } from '@/lib/stripe/billing-config'
-import Link from 'next/link'
+} from "lucide-react";
+import { toast } from "sonner";
+import { getCSRFHeaders } from "@/hooks/useCSRF";
+import {
+  BILLING_CONFIG,
+  getMonthlyPriceDisplay,
+} from "@/lib/stripe/billing-config";
+import Link from "next/link";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '')
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
+);
 
 interface PageProps {
-  params: Promise<{ storeId: string }>
+  params: Promise<{ storeId: string }>;
 }
 
 function PaymentForm({
@@ -45,32 +56,34 @@ function PaymentForm({
   onSuccess,
   storeName,
 }: {
-  storeId: string
-  onSuccess: () => void
-  storeName: string
+  storeId: string;
+  onSuccess: () => void;
+  storeName: string;
 }) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const monthlyPrice = getMonthlyPriceDisplay()
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const monthlyPrice = getMonthlyPriceDisplay();
 
-  const trialEndDate = new Date(Date.now() + BILLING_CONFIG.TRIAL_DAYS * 24 * 60 * 60 * 1000)
-  const formattedTrialEndDate = trialEndDate.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  const trialEndDate = new Date(
+    Date.now() + BILLING_CONFIG.TRIAL_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const formattedTrialEndDate = trialEndDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!stripe || !elements) {
-      return
+      return;
     }
 
-    setIsSubmitting(true)
-    setError(null)
+    setIsSubmitting(true);
+    setError(null);
 
     try {
       // Confirm the setup intent
@@ -79,40 +92,42 @@ function PaymentForm({
         confirmParams: {
           return_url: `${window.location.origin}/billing`,
         },
-        redirect: 'if_required',
-      })
+        redirect: "if_required",
+      });
 
       if (confirmError) {
-        throw new Error(confirmError.message || 'Failed to confirm payment method')
+        throw new Error(
+          confirmError.message || "Failed to confirm payment method",
+        );
       }
 
       if (!setupIntent || !setupIntent.payment_method) {
-        throw new Error('No payment method returned')
+        throw new Error("No payment method returned");
       }
 
       // Create the subscription
-      const subscriptionResponse = await fetch('/api/billing/subscriptions', {
-        method: 'POST',
+      const subscriptionResponse = await fetch("/api/billing/subscriptions", {
+        method: "POST",
         headers: getCSRFHeaders(),
         body: JSON.stringify({
           store_id: storeId,
           payment_method_id: setupIntent.payment_method,
         }),
-      })
+      });
 
       if (!subscriptionResponse.ok) {
-        const data = await subscriptionResponse.json()
-        throw new Error(data.message || 'Failed to create subscription')
+        const data = await subscriptionResponse.json();
+        throw new Error(data.message || "Failed to create subscription");
       }
 
-      toast.success(`Trial started! Welcome to Qaos.`)
-      onSuccess()
+      toast.success(`Trial started! Welcome to Qaos.`);
+      onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -125,11 +140,11 @@ function PaymentForm({
 
       <PaymentElement
         options={{
-          layout: 'tabs',
+          layout: "tabs",
           // Disable Link to remove confusion
           wallets: {
-            applePay: 'never',
-            googlePay: 'never',
+            applePay: "never",
+            googlePay: "never",
           },
         }}
       />
@@ -161,63 +176,66 @@ function PaymentForm({
           </span>
         </div>
         <p className="text-xs text-center text-muted-foreground">
-          Your trial starts now. First charge: <span className="font-medium">{monthlyPrice}</span> on{' '}
+          Your trial starts now. First charge:{" "}
+          <span className="font-medium">{monthlyPrice}</span> on{" "}
           <span className="font-medium">{formattedTrialEndDate}</span>
           <br />
           Cancel anytime before then - No questions asked
         </p>
       </div>
     </form>
-  )
+  );
 }
 
 export default function SubscribePage({ params }: PageProps) {
-  const { storeId } = use(params)
-  const router = useRouter()
-  const { stores, isLoading: authLoading } = useAuth()
-  const [clientSecret, setClientSecret] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { storeId } = use(params);
+  const router = useRouter();
+  const { stores, isLoading: authLoading } = useAuth();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const store = stores?.find(s => s.store_id === storeId)
-  const isOwner = store?.role === 'Owner'
-  const monthlyPrice = getMonthlyPriceDisplay()
+  const store = stores?.find((s) => s.store_id === storeId);
+  const isOwner = store?.role === "Owner";
+  const monthlyPrice = getMonthlyPriceDisplay();
 
   useEffect(() => {
     async function createSetupIntent() {
-      if (authLoading) return
+      if (authLoading) return;
 
       if (!isOwner) {
-        setError('Only store owners can manage subscriptions')
-        setIsLoading(false)
-        return
+        setError("Only store owners can manage subscriptions");
+        setIsLoading(false);
+        return;
       }
 
       try {
-        const response = await fetch('/api/billing/setup-intent', {
-          method: 'POST',
+        const response = await fetch("/api/billing/setup-intent", {
+          method: "POST",
           headers: getCSRFHeaders(),
-        })
+        });
 
         if (!response.ok) {
-          throw new Error('Failed to initialize payment')
+          throw new Error("Failed to initialize payment");
         }
 
-        const data = await response.json()
-        setClientSecret(data.data.clientSecret)
+        const data = await response.json();
+        setClientSecret(data.data.clientSecret);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load payment form')
+        setError(
+          err instanceof Error ? err.message : "Failed to load payment form",
+        );
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
 
-    createSetupIntent()
-  }, [authLoading, isOwner])
+    createSetupIntent();
+  }, [authLoading, isOwner]);
 
   const handleSuccess = () => {
-    router.push('/billing')
-  }
+    router.push("/billing");
+  };
 
   if (authLoading || isLoading) {
     return (
@@ -225,7 +243,7 @@ export default function SubscribePage({ params }: PageProps) {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64 w-full" />
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -243,7 +261,7 @@ export default function SubscribePage({ params }: PageProps) {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       </div>
-    )
+    );
   }
 
   return (
@@ -264,10 +282,12 @@ export default function SubscribePage({ params }: PageProps) {
             {BILLING_CONFIG.TRIAL_DAYS}-Day Free Trial
           </Badge>
           <h1 className="text-2xl sm:text-4xl font-bold tracking-tight">
-            Start Managing <span className="text-blue-600">{store?.store?.name}</span>
+            Start Managing{" "}
+            <span className="text-blue-600">{store?.store?.name}</span>
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
-            Join hundreds of teams saving time and reducing waste with smart inventory management
+            Join hundreds of teams saving time and reducing waste with smart
+            inventory management
           </p>
         </div>
 
@@ -280,7 +300,7 @@ export default function SubscribePage({ params }: PageProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-emerald-900">
                   <TrendingDown className="h-5 w-5" />
-                  What You'll Get
+                  What You&apos;ll Get
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -290,7 +310,9 @@ export default function SubscribePage({ params }: PageProps) {
                       <Clock className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">Save 15+ Hours/Month</p>
+                      <p className="font-semibold text-sm">
+                        Save 15+ Hours/Month
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         Automated tracking replaces manual spreadsheets
                       </p>
@@ -302,7 +324,9 @@ export default function SubscribePage({ params }: PageProps) {
                       <TrendingDown className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">Reduce Waste by 23%</p>
+                      <p className="font-semibold text-sm">
+                        Reduce Waste by 23%
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         Smart alerts prevent overstocking and spoilage
                       </p>
@@ -326,9 +350,11 @@ export default function SubscribePage({ params }: PageProps) {
                       <Package className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm">Real-Time Inventory</p>
+                      <p className="font-semibold text-sm">
+                        Real-Time Inventory
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        Know exactly what's in stock, from anywhere
+                        Know exactly what&apos;s in stock, from anywhere
                       </p>
                     </div>
                   </div>
@@ -376,10 +402,14 @@ export default function SubscribePage({ params }: PageProps) {
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <p className="text-sm text-muted-foreground">Professional Plan</p>
+                      <p className="text-sm text-muted-foreground">
+                        Professional Plan
+                      </p>
                       <p className="text-2xl sm:text-3xl font-bold text-slate-900">
                         {monthlyPrice}
-                        <span className="text-base font-normal text-muted-foreground">/month</span>
+                        <span className="text-base font-normal text-muted-foreground">
+                          /month
+                        </span>
                       </p>
                     </div>
                     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 text-base sm:text-lg px-3 py-1 w-fit">
@@ -393,15 +423,23 @@ export default function SubscribePage({ params }: PageProps) {
                         <CheckCircle2 className="h-4 w-4" />
                         <span>£0</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">Due Today</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Due Today
+                      </p>
                     </div>
                     <div className="text-center">
-                      <p className="font-semibold">{BILLING_CONFIG.TRIAL_DAYS} Days</p>
-                      <p className="text-xs text-muted-foreground mt-1">Free Trial</p>
+                      <p className="font-semibold">
+                        {BILLING_CONFIG.TRIAL_DAYS} Days
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Free Trial
+                      </p>
                     </div>
                     <div className="text-center">
                       <p className="font-semibold">{monthlyPrice}</p>
-                      <p className="text-xs text-muted-foreground mt-1">After Trial</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        After Trial
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -413,7 +451,8 @@ export default function SubscribePage({ params }: PageProps) {
               <CardHeader>
                 <CardTitle>Payment Details</CardTitle>
                 <CardDescription>
-                  Secure checkout • We'll only charge you after your free trial
+                  Secure checkout • We&apos;ll only charge you after your free
+                  trial
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -423,10 +462,10 @@ export default function SubscribePage({ params }: PageProps) {
                     options={{
                       clientSecret,
                       appearance: {
-                        theme: 'stripe',
+                        theme: "stripe",
                         variables: {
-                          colorPrimary: '#2563eb',
-                          borderRadius: '8px',
+                          colorPrimary: "#2563eb",
+                          borderRadius: "8px",
                         },
                       },
                     }}
@@ -434,7 +473,7 @@ export default function SubscribePage({ params }: PageProps) {
                     <PaymentForm
                       storeId={storeId}
                       onSuccess={handleSuccess}
-                      storeName={store?.store?.name || 'your store'}
+                      storeName={store?.store?.name || "your store"}
                     />
                   </Elements>
                 )}
@@ -464,21 +503,27 @@ export default function SubscribePage({ params }: PageProps) {
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
               <div>
-                <p className="font-semibold mb-2">What happens after the trial?</p>
+                <p className="font-semibold mb-2">
+                  What happens after the trial?
+                </p>
                 <p className="text-muted-foreground text-xs">
-                  You'll be charged {monthlyPrice}/month automatically. Cancel anytime before trial ends to avoid charges.
+                  You&apos;ll be charged {monthlyPrice}/month automatically.
+                  Cancel anytime before trial ends to avoid charges.
                 </p>
               </div>
               <div>
                 <p className="font-semibold mb-2">Can I cancel anytime?</p>
                 <p className="text-muted-foreground text-xs">
-                  Yes! Cancel from your billing page with one click. No contracts, no commitments, no questions.
+                  Yes! Cancel from your billing page with one click. No
+                  contracts, no commitments, no questions.
                 </p>
               </div>
               <div>
                 <p className="font-semibold mb-2">Is my payment secure?</p>
                 <p className="text-muted-foreground text-xs">
-                  Absolutely. We use Stripe for payments - the same secure platform trusted by Amazon, Google, and millions of businesses.
+                  Absolutely. We use Stripe for payments - the same secure
+                  platform trusted by Amazon, Google, and millions of
+                  businesses.
                 </p>
               </div>
             </div>
@@ -486,5 +531,5 @@ export default function SubscribePage({ params }: PageProps) {
         </Card>
       </div>
     </div>
-  )
+  );
 }

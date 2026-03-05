@@ -95,7 +95,7 @@ describe('RLS: inventory_items', () => {
   describe('Store Isolation', () => {
     it('should allow Owner A to see only Store A items', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -119,7 +119,7 @@ describe('RLS: inventory_items', () => {
 
     it('should allow Owner B to see only Store B items', async () => {
       const client = await createAuthenticatedClient(ownerB)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -138,7 +138,7 @@ describe('RLS: inventory_items', () => {
 
     it('should prevent Owner A from querying Store B items directly', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -153,7 +153,7 @@ describe('RLS: inventory_items', () => {
 
     it('should prevent Owner A from accessing Store B via store_id filter', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -170,7 +170,7 @@ describe('RLS: inventory_items', () => {
   describe('Role-Based Access', () => {
     it('should allow Staff to view items from their store', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -189,7 +189,7 @@ describe('RLS: inventory_items', () => {
 
     it('should prevent Staff from inserting items (Owner/Manager only)', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -209,7 +209,7 @@ describe('RLS: inventory_items', () => {
 
     it('should prevent Staff from updating items', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data } = await clientAny
@@ -225,7 +225,7 @@ describe('RLS: inventory_items', () => {
 
     it('should prevent Staff from deleting items', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data } = await clientAny
@@ -241,7 +241,7 @@ describe('RLS: inventory_items', () => {
 
     it('should allow Owner to insert items into their store', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -268,7 +268,7 @@ describe('RLS: inventory_items', () => {
 
     it('should allow Owner to update items in their store', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -293,7 +293,7 @@ describe('RLS: inventory_items', () => {
   describe('Platform Admin Access', () => {
     it('should allow platform admin to see ALL items across stores', async () => {
       const client = await createAuthenticatedClient(platformAdmin)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -314,7 +314,7 @@ describe('RLS: inventory_items', () => {
 
     it('should allow platform admin to modify items in any store', async () => {
       const client = await createAuthenticatedClient(platformAdmin)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Update item in Store B (which platform admin is not a member of)
@@ -340,7 +340,7 @@ describe('RLS: inventory_items', () => {
   describe('Data Integrity', () => {
     it('should enforce unique constraint on (store_id, name) within same store', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Try to create duplicate item name in Store A
@@ -360,7 +360,7 @@ describe('RLS: inventory_items', () => {
 
     it('should allow same item name in different stores', async () => {
       const client = await createAuthenticatedClient(ownerB)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Create item with same name as Store A's item, but in Store B
