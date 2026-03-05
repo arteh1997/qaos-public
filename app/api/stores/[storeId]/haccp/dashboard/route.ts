@@ -8,6 +8,21 @@ interface RouteParams {
   params: Promise<{ storeId: string }>;
 }
 
+// HACCP tables are not yet in the generated Database type.
+// Define lightweight row shapes used by this route.
+interface HaccpCheck {
+  id: string;
+  status: string;
+  completed_at: string;
+  template_id: string | null;
+}
+
+interface HaccpTemplate {
+  id: string;
+  name: string;
+  frequency: string;
+}
+
 /**
  * GET /api/stores/:storeId/haccp/dashboard - HACCP compliance dashboard
  *
@@ -37,7 +52,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // HACCP tables are not yet in the generated Database type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = context.supabase as any;
 
@@ -56,13 +70,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError("Failed to fetch HACCP dashboard data");
     }
 
-    const totalChecks = todayChecks?.length ?? 0;
-    const passedChecks =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      todayChecks?.filter((c: any) => c.status === "pass").length ?? 0;
-    const failedChecks =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      todayChecks?.filter((c: any) => c.status === "fail").length ?? 0;
+    const checks = (todayChecks || []) as HaccpCheck[];
+    const totalChecks = checks.length;
+    const passedChecks = checks.filter((c) => c.status === "pass").length;
+    const failedChecks = checks.filter((c) => c.status === "fail").length;
 
     // Fetch today's out-of-range temperature logs
     const { data: outOfRangeLogs, error: tempError } = await db
@@ -118,9 +129,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .select("id, name, frequency")
       .eq("store_id", storeId)
       .eq("is_active", true);
+
     const completedTemplateIds = new Set(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (todayChecks || []).map((c: any) => c.template_id).filter(Boolean),
+      checks.map((c) => c.template_id).filter(Boolean),
     );
 
     // For weekly templates, also check if completed this week
@@ -128,11 +139,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Monday
     weekStart.setHours(0, 0, 0, 0);
 
+    const templates = (activeTemplates || []) as HaccpTemplate[];
     let weeklyCompletedIds = new Set<string>();
-    const weeklyTemplates = (activeTemplates || []).filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (t: any) => t.frequency === "weekly",
-    );
+    const weeklyTemplates = templates.filter((t) => t.frequency === "weekly");
     if (weeklyTemplates.length > 0) {
       const { data: weekChecks } = await db
         .from("haccp_checks")
@@ -141,32 +150,28 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         .gte("completed_at", weekStart.toISOString())
         .in(
           "template_id",
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          weeklyTemplates.map((t: any) => t.id),
+          weeklyTemplates.map((t) => t.id),
         );
       weeklyCompletedIds = new Set(
-        (weekChecks || [])
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((c: any) => c.template_id)
+        ((weekChecks || []) as HaccpCheck[])
+          .map((c) => c.template_id)
           .filter(Boolean) as string[],
       );
     }
 
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const dueChecks = (activeTemplates || [])
-      .filter((t: any) => {
+    const dueChecks = templates
+      .filter((t) => {
         if (t.frequency === "weekly") {
           return !weeklyCompletedIds.has(t.id);
         }
         // daily and shift templates — check if done today
         return !completedTemplateIds.has(t.id);
       })
-      .map((t: any) => ({
+      .map((t) => ({
         id: t.id,
         name: t.name,
         frequency: t.frequency,
       }));
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     return apiSuccess(
       {
