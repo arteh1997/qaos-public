@@ -1,0 +1,65 @@
+name: Close Linear Issue on Merge
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [closed]
+
+jobs:
+  close-linear-issue:
+    name: Mark Linear Issue Done
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract Linear issue ID
+        id: extract
+        run: |
+          # Try PR title first (e.g. "fix(tags): description [QOS-33]")
+          ISSUE_ID=$(echo "${{ github.event.pull_request.title }}" | grep -oE '[A-Z]+-[0-9]+' | head -1)
+
+          # Fall back to branch name (e.g. "feat/QOS-33-fix-tag-usage-count")
+          if [ -z "$ISSUE_ID" ]; then
+            ISSUE_ID=$(echo "${{ github.event.pull_request.head.ref }}" | grep -oE '[A-Z]+-[0-9]+' | head -1)
+          fi
+
+          echo "issue_id=$ISSUE_ID" >> $GITHUB_OUTPUT
+          echo "Found Linear issue ID: $ISSUE_ID"
+
+      - name: Mark issue as Done in Linear
+        if: steps.extract.outputs.issue_id != ''
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          ISSUE_ID: ${{ steps.extract.outputs.issue_id }}
+        run: |
+          # Find the issue's internal UUID and team ID, then resolve the "Done" state ID
+          QUERY=$(cat <<'GQL'
+          {
+            "query": "query($id: String!) { issue(id: $id) { id team { id states { nodes { id name type } } } } }",
+            "variables": { "id": "$ISSUE_ID" }
+          }
+          GQL
+          )
+
+          RESPONSE=$(curl -s -X POST https://api.linear.app/graphql \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"query(\$id: String!) { issue(id: \$id) { id team { states { nodes { id name type } } } } }\",\"variables\":{\"id\":\"$ISSUE_ID\"}}")
+
+          INTERNAL_ID=$(echo "$RESPONSE" | jq -r '.data.issue.id')
+          DONE_STATE_ID=$(echo "$RESPONSE" | jq -r '.data.issue.team.states.nodes[] | select(.type == "completed") | .id' | head -1)
+
+          echo "Internal ID: $INTERNAL_ID"
+          echo "Done state ID: $DONE_STATE_ID"
+
+          if [ -z "$INTERNAL_ID" ] || [ "$INTERNAL_ID" = "null" ]; then
+            echo "Could not find Linear issue $ISSUE_ID — skipping"
+            exit 0
+          fi
+
+          # Update the issue state to Done
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"mutation(\$id: String!, \$stateId: String!) { issueUpdate(id: \$id, input: { stateId: \$stateId }) { success } }\",\"variables\":{\"id\":\"$INTERNAL_ID\",\"stateId\":\"$DONE_STATE_ID\"}}"
+
+          echo "Linear issue $ISSUE_ID marked as Done"

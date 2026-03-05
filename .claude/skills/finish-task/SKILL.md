@@ -13,41 +13,66 @@ You are finishing the current task. Follow these steps exactly and STOP if any s
 git rev-parse --abbrev-ref HEAD
 ```
 
-Extract the Linear issue ID from the branch name (e.g., `WIP/QOS-36-fix-clover-sandbox-url` → `QOS-36`).
+Extract the Linear issue ID from the branch name (e.g., `feat/QOS-36-fix-clover-sandbox-url` → `QOS-36`).
 
-If the branch doesn't match `WIP/*`, STOP:
+If the branch doesn't match `feat/*`, STOP:
 
 > "You're not on a feature branch. Start a task first with `/start-task QOS-XX`."
 
-## 2. Run all checks
+## 2. Check if work was already done
+
+```bash
+git diff develop..HEAD --stat
+```
+
+**If there are no code changes** (only ROADMAP.md or nothing at all), this is a "fix already existed" case. Skip to the **Already-Done Fast Path** below.
+
+---
+
+### Already-Done Fast Path
+
+If the fix was already in `develop` before this branch was created:
+
+1. Update `ROADMAP.md` — change the issue row from `Backlog` to `Done`
+2. Commit: `git commit -m "chore(roadmap): mark QOS-XX as Done — fix was already in develop [QOS-XX]"`
+3. Push and open a PR to `develop`
+4. Set Linear state to `"Done"` via `save_issue`
+5. Confirm:
+
+> Task finished: QOS-XX — fix already existed in `develop`
+> PR: {PR URL}
+> Linear status: Done
+
+**Stop here — do not run lint/tests for a no-code change.**
+
+---
+
+## 3. Run all checks
 
 Run each check sequentially. If ANY fails, STOP and fix the issues before continuing.
 
 ```bash
-npm run lint
+pnpm lint
 ```
 
 If lint fails → fix the lint errors, then re-run.
 
 ```bash
-npm run test:run
+pnpm test:run
 ```
 
 If tests fail → fix the failing tests, then re-run.
 
 **Do not proceed past this step until all checks pass cleanly.**
 
-## 3. Stage and commit
+Note: RLS tests in `tests/integration/rls/` require live Supabase credentials and are expected to fail in local/CI environments without those secrets — ignore failures in that directory only.
 
-Stage all changes:
+## 4. Stage and commit
+
+Update `ROADMAP.md` first — change the issue row from `Backlog` or `In Progress` to `Done`. Then stage everything:
 
 ```bash
 git add -A
-```
-
-Review what's staged:
-
-```bash
 git status
 git diff --cached --stat
 ```
@@ -64,17 +89,17 @@ Create a conventional commit. Determine the type from the changes:
 git commit -m "type(scope): concise description [QOS-XX]"
 ```
 
-Example: `git commit -m "fix(categories): add store_id filter to prevent cross-tenant leak [QOS-36]"`
+Example: `git commit -m "fix(tags): scope tag usage counts by store_id to prevent cross-tenant leak [QOS-33]"`
 
-## 4. Push the branch
+## 5. Push the branch
 
 ```bash
-git push -u origin WIP/QOS-XX-description
+git push -u origin feat/QOS-XX-description
 ```
 
-## 5. Create pull request
+## 6. Create pull request and enable auto-merge
 
-Use the GitHub CLI:
+Use the GitHub CLI to create the PR, then immediately enable auto-merge so it merges automatically once CI passes and CodeRabbit approves:
 
 ```bash
 gh pr create \
@@ -96,35 +121,34 @@ Resolves QOS-XX — {issue title from Linear}
 [QOS-XX](https://linear.app/qaos/issue/QOS-XX)"
 ```
 
-## 6. Update Linear
+Then enable auto-merge (squash):
+
+```bash
+gh pr merge --auto --squash
+```
+
+## 7. Update Linear
 
 Use the Linear MCP `save_issue` tool:
 
 - Set `state` to `"In Review"`
 
-## 7. Update ROADMAP.md
-
-Mark the issue as complete in `ROADMAP.md` by changing its status from `Backlog` or `In Progress` to `Done`:
-
-- Find the row matching the issue ID (e.g., `QOS-36`)
-- Change the Status column to `Done`
-- Stage and commit this change on the current branch before the PR is created (include it in step 3's commit, or as a separate commit)
+Linear will be automatically advanced to `"Done"` by the GitHub Actions workflow when the PR merges.
 
 ## 8. Confirm
 
 > Task finished: QOS-XX — {title}
-> PR created: {PR URL}
-> Linear status: In Review
+> PR created: {PR URL} (auto-merge enabled)
+> Linear status: In Review → Done automatically on merge
 > Checks passed: lint, tests
->
-> The developer will review the PR, merge via GitHub, and delete the branch.
 
 ## Important Rules
 
-- NEVER skip the lint/test step
+- NEVER skip the lint/test step (except for the already-done fast path)
 - NEVER force push
 - NEVER push directly to `main` or `develop` — always go through a PR
 - NEVER merge the PR — the developer reviews and merges manually via GitHub
 - NEVER commit, push, or merge while on `main` or `develop` — respect the safety hooks
 - If checks fail, fix them in the SAME branch and re-run `/finish-task`
 - Keep commits atomic — one logical change per commit
+- Always use `pnpm`, not `npm run`
