@@ -60,7 +60,7 @@ export async function createTestUser(options: {
   }
 
   // Create auth user
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const adminAny = adminClient as any
   const { data: authData, error: authError } = await adminAny.auth.admin.createUser({
     email,
@@ -126,7 +126,7 @@ export async function createTestStore(options: {
     subscriptionStatus = 'active',
   } = options
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const adminAny = adminClient as any
   const { data, error } = await adminAny
     .from('stores')
@@ -212,7 +212,7 @@ export async function createAuthenticatedClient(
  * Delete a test user and all associated data
  */
 export async function deleteTestUser(userId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const adminAny = adminClient as any
 
   // Delete store memberships
@@ -229,7 +229,7 @@ export async function deleteTestUser(userId: string) {
  * Delete a test user by email (useful for cleanup of failed test runs)
  */
 export async function deleteTestUserByEmail(email: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const adminAny = adminClient as any
 
   // Find user by email
@@ -245,7 +245,7 @@ export async function deleteTestUserByEmail(email: string) {
  * Delete a test store and all associated data
  */
 export async function deleteTestStore(storeId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const adminAny = adminClient as any
 
   // CASCADE will handle most relationships, but clean up explicitly
@@ -272,7 +272,7 @@ export async function createTestInventoryItem(options: {
     unitOfMeasure = 'kg',
   } = options
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const adminAny = adminClient as any
   const { data, error } = await adminAny
     .from('inventory_items')
@@ -315,7 +315,7 @@ export async function createTestShift(options: {
   const startTimestamp = `${date}T${startTime}`
   const endTimestamp = `${date}T${endTime}`
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const adminAny = adminClient as any
   const { data, error } = await adminAny
     .from('shifts')
@@ -339,7 +339,7 @@ export async function createTestShift(options: {
  * Clean up all test data (use sparingly - clears entire test database)
  */
 export async function cleanupAllTestData() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const adminAny = adminClient as any
 
   // Get all test users (those with test emails)

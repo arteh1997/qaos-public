@@ -77,7 +77,7 @@ describe('RLS: audit_logs', () => {
     })
 
     // Create audit logs using admin (service role)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const adminAny = adminClient as any
 
     const { data: log1 } = await adminAny
@@ -143,7 +143,7 @@ describe('RLS: audit_logs', () => {
 
   afterAll(async () => {
     // Clean up audit logs
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const adminAny = adminClient as any
     await adminAny
       .from('audit_logs')
@@ -163,7 +163,7 @@ describe('RLS: audit_logs', () => {
   describe('Store Isolation', () => {
     it('should allow Owner A to see only Store A logs', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -188,7 +188,7 @@ describe('RLS: audit_logs', () => {
 
     it('should allow Owner B to see only Store B logs', async () => {
       const client = await createAuthenticatedClient(ownerB)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -210,7 +210,7 @@ describe('RLS: audit_logs', () => {
 
     it('should prevent Owner A from accessing Store B logs directly', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data } = await clientAny
@@ -227,7 +227,7 @@ describe('RLS: audit_logs', () => {
   describe('Role-Based Access', () => {
     it('should allow Manager to see logs for their store', async () => {
       const client = await createAuthenticatedClient(managerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -247,7 +247,7 @@ describe('RLS: audit_logs', () => {
 
     it('should allow Staff to see their own audit logs', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -270,7 +270,7 @@ describe('RLS: audit_logs', () => {
 
     it('should prevent Staff from seeing other users audit logs', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -287,7 +287,7 @@ describe('RLS: audit_logs', () => {
   describe('Platform Admin Access', () => {
     it('should allow platform admin to see ALL audit logs across stores', async () => {
       const client = await createAuthenticatedClient(platformAdmin)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -309,7 +309,7 @@ describe('RLS: audit_logs', () => {
   describe('Immutability', () => {
     it('should prevent Owner from updating audit logs', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -325,7 +325,7 @@ describe('RLS: audit_logs', () => {
 
     it('should prevent Owner from deleting audit logs', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -341,7 +341,7 @@ describe('RLS: audit_logs', () => {
 
     it('should prevent Platform Admin from updating audit logs', async () => {
       const client = await createAuthenticatedClient(platformAdmin)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -356,7 +356,7 @@ describe('RLS: audit_logs', () => {
     })
 
     it('should allow service role to insert audit logs', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const adminAny = adminClient as any
 
       const { data, error } = await adminAny
@@ -397,7 +397,7 @@ describe('RLS: audit_logs', () => {
 
       // Add them to Store B as well
       const client = await createAuthenticatedClient(ownerB)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
       await clientAny
         .from('store_users')
@@ -409,7 +409,7 @@ describe('RLS: audit_logs', () => {
         })
 
       // Create a log for them in Store B
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const adminAny = adminClient as any
       const { data: multiLog } = await adminAny
         .from('audit_logs')
@@ -427,7 +427,7 @@ describe('RLS: audit_logs', () => {
 
       // Query as multi-store user
       const multiClient = await createAuthenticatedClient(multiStoreUser)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const multiClientAny = multiClient as any
       const { data, error } = await multiClientAny
         .from('audit_logs')

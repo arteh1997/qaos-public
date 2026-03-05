@@ -99,7 +99,7 @@ describe('RLS: store_users', () => {
   describe('Store Isolation', () => {
     it('should allow Owner A to see only Store A team members', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -123,7 +123,7 @@ describe('RLS: store_users', () => {
 
     it('should prevent Owner A from seeing Store B team members', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -138,7 +138,7 @@ describe('RLS: store_users', () => {
 
     it('should prevent Owner A from querying specific Store B membership', async () => {
       // First, get a Store B membership ID using admin
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const adminAny = adminClient as any
       const { data: storeBMemberships } = await adminAny
         .from('store_users')
@@ -151,7 +151,7 @@ describe('RLS: store_users', () => {
 
       // Try to query it as Owner A
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -166,7 +166,7 @@ describe('RLS: store_users', () => {
 
     it('should allow Staff to see team members from their store', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -187,7 +187,7 @@ describe('RLS: store_users', () => {
   describe('Role-Based Permissions', () => {
     it('should allow Owner to add team members to their store', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Create a new test user (not in any store yet)
@@ -225,7 +225,7 @@ describe('RLS: store_users', () => {
 
     it('should prevent Owner from adding members to other stores', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Create a new user
@@ -255,7 +255,7 @@ describe('RLS: store_users', () => {
 
     it('should allow Manager to view team members', async () => {
       const client = await createAuthenticatedClient(managerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -270,7 +270,7 @@ describe('RLS: store_users', () => {
 
     it('should allow Manager to add team members', async () => {
       const client = await createAuthenticatedClient(managerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Create a new user
@@ -306,7 +306,7 @@ describe('RLS: store_users', () => {
 
     it('should prevent Staff from adding team members', async () => {
       const client = await createAuthenticatedClient(staffA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Create a new user
@@ -338,7 +338,7 @@ describe('RLS: store_users', () => {
   describe('Platform Admin Access', () => {
     it('should allow platform admin to see ALL store memberships', async () => {
       const client = await createAuthenticatedClient(platformAdmin)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny
@@ -358,7 +358,7 @@ describe('RLS: store_users', () => {
 
     it('should allow platform admin to modify memberships in any store', async () => {
       const client = await createAuthenticatedClient(platformAdmin)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       // Get Staff B's membership
@@ -392,7 +392,7 @@ describe('RLS: store_users', () => {
   describe('Self-Management', () => {
     it('should allow users to view their own memberships', async () => {
       const client = await createAuthenticatedClient(ownerA)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const clientAny = client as any
 
       const { data, error } = await clientAny

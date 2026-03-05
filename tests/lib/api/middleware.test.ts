@@ -55,7 +55,7 @@ function createAuthContext(options: {
     },
     stores: options.stores ?? [],
     requestId: 'test-request-id',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     supabase: {} as any,
   }
 }

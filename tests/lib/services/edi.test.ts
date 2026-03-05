@@ -3,7 +3,7 @@ import crypto from 'crypto'
 
 // Create chainable query builder mock that is also thenable (like Supabase queries)
 function createChainableMock(resolvedValue: unknown = { data: null, error: null }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const mock: Record<string, ReturnType<typeof vi.fn>> & { then?: any } = {}
   const methods = [
     'select', 'insert', 'update', 'delete', 'upsert',
@@ -20,7 +20,7 @@ function createChainableMock(resolvedValue: unknown = { data: null, error: null 
     }
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   mock.then = ((resolve?: any) => Promise.resolve(resolvedValue).then(resolve)) as any
   return mock
 }
