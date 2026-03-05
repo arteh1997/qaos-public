@@ -9,7 +9,7 @@ import { lightspeedAdapter } from "@/lib/services/pos/adapters/lightspeed";
 
 describe("lightspeedAdapter", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    mockFetch.mockReset();
   });
 
   describe("getAuthUrl", () => {
