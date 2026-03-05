@@ -42,7 +42,7 @@
 
 | ID      | Status  |
 | ------- | ------- |
-| QOS-32  | Backlog |
+| QOS-32  | Done    |
 | QOS-33  | Backlog |
 | QOS-34  | Backlog |
 | QOS-35  | Backlog |
