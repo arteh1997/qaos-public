@@ -14,14 +14,17 @@ describe("lightspeedAdapter", () => {
 
   describe("getAuthUrl", () => {
     it("returns a valid Lightspeed OAuth URL", () => {
-      const url = lightspeedAdapter.getAuthUrl!("store-1", "state-token-123");
+      const raw = lightspeedAdapter.getAuthUrl!("store-1", "state-token-123");
+      const url = new URL(raw);
 
-      expect(url).toContain(
+      expect(url.origin + url.pathname).toBe(
         "https://cloud.lightspeedapp.com/oauth/authorize.php",
       );
-      expect(url).toContain("response_type=code");
-      expect(url).toContain("scope=employee%3Asales+employee%3Ainventory");
-      expect(url).toContain("state=state-token-123");
+      expect(url.searchParams.get("response_type")).toBe("code");
+      expect(url.searchParams.get("scope")).toBe(
+        "employee:sales employee:inventory",
+      );
+      expect(url.searchParams.get("state")).toBe("state-token-123");
     });
   });
 
