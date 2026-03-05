@@ -1291,6 +1291,220 @@ describe("Xero Accounting Integration API", () => {
 
       expect(response.status).toBe(403);
     });
+
+    it("should use per-category GL mappings for line items", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        STORE_UUID,
+      );
+
+      const connectionQuery = createChainableMock({
+        data: sampleConnection,
+        error: null,
+      });
+      const invoiceDetailQuery = createChainableMock({
+        data: sampleInvoice,
+        error: null,
+      });
+      const lineItemsQuery = createChainableMock({
+        data: sampleLineItems,
+        error: null,
+      });
+      const insertSyncLogQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+      const updateConnectionQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return storeUsersQuery;
+      });
+
+      let connectionCallCount = 0;
+      mockAdminClient.from.mockImplementation((table: string) => {
+        if (table === "accounting_connections") {
+          connectionCallCount++;
+          if (connectionCallCount === 1) return connectionQuery;
+          return updateConnectionQuery;
+        }
+        if (table === "invoices") return invoiceDetailQuery;
+        if (table === "invoice_line_items") return lineItemsQuery;
+        if (table === "accounting_sync_log") return insertSyncLogQuery;
+        if (table === "suppliers")
+          return createChainableMock({
+            data: {
+              id: "sup-1",
+              name: "Fresh Foods Co",
+              email: "info@freshfoods.com",
+              phone: "020-1234-5678",
+            },
+            error: null,
+          });
+        if (table === "audit_logs")
+          return createChainableMock({ data: null, error: null });
+        return createChainableMock({ data: null, error: null });
+      });
+
+      const { POST } =
+        await import("@/app/api/stores/[storeId]/accounting/sync/route");
+      const request = createMockRequest(
+        "POST",
+        `/api/stores/${STORE_UUID}/accounting/sync`,
+        { entity_id: INVOICE_UUID },
+      );
+      const response = await POST(request, {
+        params: Promise.resolve({ storeId: STORE_UUID }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+
+      // Verify createBill was called with correct per-category account codes
+      const billArg = mockCreateBill.mock.calls[0][1];
+      // First line item: category "Produce" → mapped to "5100"
+      expect(billArg.line_items[0].account_code).toBe("5100");
+      // Second line item: category null → falls back to _default "5000"
+      expect(billArg.line_items[1].account_code).toBe("5000");
+    });
+
+    it("should return 500 when token is revoked during credential fetch", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        STORE_UUID,
+      );
+
+      const connectionQuery = createChainableMock({
+        data: sampleConnection,
+        error: null,
+      });
+      const updateConnectionQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+
+      const { TokenRevokedError } =
+        await import("@/lib/services/accounting/types");
+      mockGetXeroCredentials.mockRejectedValue(new TokenRevokedError("Xero"));
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return storeUsersQuery;
+      });
+
+      let connectionCallCount = 0;
+      mockAdminClient.from.mockImplementation((table: string) => {
+        if (table === "accounting_connections") {
+          connectionCallCount++;
+          if (connectionCallCount === 1) return connectionQuery;
+          return updateConnectionQuery;
+        }
+        return createChainableMock({ data: null, error: null });
+      });
+
+      const { POST } =
+        await import("@/app/api/stores/[storeId]/accounting/sync/route");
+      const request = createMockRequest(
+        "POST",
+        `/api/stores/${STORE_UUID}/accounting/sync`,
+        { entity_id: INVOICE_UUID },
+      );
+      const response = await POST(request, {
+        params: Promise.resolve({ storeId: STORE_UUID }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.success).toBe(false);
+      // Error message is sanitized (contains "token" → redacted), so check for generic error
+      expect(data.message).toBeDefined();
+    });
+
+    it("should handle rate limit errors from Xero API", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        STORE_UUID,
+      );
+
+      const connectionQuery = createChainableMock({
+        data: sampleConnection,
+        error: null,
+      });
+      const invoiceDetailQuery = createChainableMock({
+        data: sampleInvoice,
+        error: null,
+      });
+      const lineItemsQuery = createChainableMock({
+        data: sampleLineItems,
+        error: null,
+      });
+      const insertSyncLogQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+      const updateConnectionQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+
+      const { RateLimitError } =
+        await import("@/lib/services/accounting/types");
+      mockCreateBill.mockRejectedValue(new RateLimitError("Xero", 60));
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return storeUsersQuery;
+      });
+
+      let connectionCallCount = 0;
+      mockAdminClient.from.mockImplementation((table: string) => {
+        if (table === "accounting_connections") {
+          connectionCallCount++;
+          if (connectionCallCount === 1) return connectionQuery;
+          return updateConnectionQuery;
+        }
+        if (table === "invoices") return invoiceDetailQuery;
+        if (table === "invoice_line_items") return lineItemsQuery;
+        if (table === "accounting_sync_log") return insertSyncLogQuery;
+        if (table === "suppliers")
+          return createChainableMock({
+            data: {
+              id: "sup-1",
+              name: "Fresh Foods Co",
+              email: "info@freshfoods.com",
+              phone: "020-1234-5678",
+            },
+            error: null,
+          });
+        if (table === "audit_logs")
+          return createChainableMock({ data: null, error: null });
+        return createChainableMock({ data: null, error: null });
+      });
+
+      const { POST } =
+        await import("@/app/api/stores/[storeId]/accounting/sync/route");
+      const request = createMockRequest(
+        "POST",
+        `/api/stores/${STORE_UUID}/accounting/sync`,
+        { entity_id: INVOICE_UUID },
+      );
+      const response = await POST(request, {
+        params: Promise.resolve({ storeId: STORE_UUID }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.data.failed).toBe(1);
+      expect(data.data.results[0].success).toBe(false);
+      expect(data.data.results[0].error).toContain("rate limit");
+    });
   });
 
   // ================================================================
