@@ -1,50 +1,46 @@
-'use client'
+"use client";
 
-import { useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Navbar } from '@/components/layout/Navbar'
-import { GlobalKeyboardShortcuts } from '@/components/GlobalKeyboardShortcuts'
-import { Skeleton } from '@/components/ui/skeleton'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Navbar } from "@/components/layout/Navbar";
+import { GlobalKeyboardShortcuts } from "@/components/GlobalKeyboardShortcuts";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
-export function DashboardShell({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const { isLoading, role, user, stores, currentStore } = useAuth()
+export function DashboardShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isLoading, role, user, stores, currentStore } = useAuth();
 
   // Redirect to onboarding if user has no stores
   useEffect(() => {
     if (!isLoading && user && stores && stores.length === 0) {
-      router.push('/onboarding')
+      router.push("/onboarding");
     }
-  }, [isLoading, user, stores, router])
+  }, [isLoading, user, stores, router]);
 
   // Redirect to store setup if current store hasn't completed setup
   // Allow access to store pages (wizard lives there), billing, and profile
   useEffect(() => {
-    if (isLoading || !currentStore?.store) return
-    if (currentStore.store.setup_completed_at) return
+    if (isLoading || !currentStore?.store) return;
+    if (currentStore.store.setup_completed_at) return;
 
     const isAllowedDuringSetup =
-      pathname.startsWith('/stores') ||
-      pathname.startsWith('/billing') ||
-      pathname.startsWith('/profile')
+      pathname.startsWith("/stores") ||
+      pathname.startsWith("/billing") ||
+      pathname.startsWith("/profile");
 
     if (!isAllowedDuringSetup) {
-      router.push('/')
+      router.push("/");
     }
-  }, [isLoading, currentStore, pathname, router])
+  }, [isLoading, currentStore, pathname, router]);
 
   // Show nothing while redirecting to onboarding
   if (!isLoading && user && stores && stores.length === 0) {
-    return null
+    return null;
   }
 
   if (isLoading) {
@@ -52,8 +48,8 @@ export function DashboardShell({
       <div className="fixed inset-0 flex flex-col bg-background text-foreground">
         {/* Navbar skeleton */}
         <div className="h-14 bg-navbar px-4 flex items-center justify-between">
-          <Skeleton className="h-6 w-32 bg-white/20" />
-          <Skeleton className="h-10 w-10 rounded-full bg-white/20" />
+          <Skeleton className="h-6 w-32 bg-foreground/20" />
+          <Skeleton className="h-10 w-10 rounded-full bg-foreground/20" />
         </div>
         <div className="flex flex-1 min-h-0">
           {/* Sidebar skeleton */}
@@ -77,7 +73,7 @@ export function DashboardShell({
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -106,12 +102,10 @@ export function DashboardShell({
           tabIndex={-1}
         >
           <div className="mx-auto max-w-6xl px-6 py-6 md:px-10 md:py-8">
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
+            <ErrorBoundary>{children}</ErrorBoundary>
           </div>
         </main>
       </div>
     </div>
-  )
+  );
 }

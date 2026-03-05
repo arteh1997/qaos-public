@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import React, { useState, useMemo, useCallback, memo } from 'react'
-import { Profile, StoreUser } from '@/types'
+import React, { useState, useMemo, useCallback, memo } from "react";
+import { Profile, StoreUser } from "@/types";
 import {
   Table,
   TableBody,
@@ -9,29 +9,40 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
-import { MoreHorizontal, Edit, Users, UserPlus, ArrowUp, ArrowDown, Trash2 } from 'lucide-react'
-import { UsersTableSkeleton } from '@/components/ui/skeletons'
-import { EmptyState } from '@/components/ui/empty-state'
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
+import {
+  MoreHorizontal,
+  Edit,
+  Users,
+  UserPlus,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+} from "lucide-react";
+import { UsersTableSkeleton } from "@/components/ui/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
 
 // Store user entry with store name for display
-type StoreUserWithStore = Pick<StoreUser, 'store_id' | 'role' | 'is_billing_owner'> & {
-  store: { id: string; name: string } | null
-}
+type StoreUserWithStore = Pick<
+  StoreUser,
+  "store_id" | "role" | "is_billing_owner"
+> & {
+  store: { id: string; name: string } | null;
+};
 
 type UserWithStore = Profile & {
-  store?: { id: string; name: string } | null
-  store_users?: StoreUserWithStore[]
-}
+  store?: { id: string; name: string } | null;
+  store_users?: StoreUserWithStore[];
+};
 
 /**
  * Get the display role for a user relative to a specific store (if selected)
@@ -44,44 +55,47 @@ type UserWithStore = Profile & {
 function getDisplayRole(user: UserWithStore, selectedStoreId?: string): string {
   if (selectedStoreId && user.store_users) {
     // Find the user's membership at the selected store
-    const storeUserEntry = user.store_users.find(su => su.store_id === selectedStoreId)
+    const storeUserEntry = user.store_users.find(
+      (su) => su.store_id === selectedStoreId,
+    );
 
     if (storeUserEntry) {
-      if (storeUserEntry.role === 'Owner') {
-        return storeUserEntry.is_billing_owner ? 'Owner' : 'Co-Owner'
+      if (storeUserEntry.role === "Owner") {
+        return storeUserEntry.is_billing_owner ? "Owner" : "Co-Owner";
       }
-      return storeUserEntry.role
+      return storeUserEntry.role;
     }
 
     // User is not a member of the selected store - show their profile role
-    return user.role
+    return user.role;
   }
 
   // No store selected - fall back to checking if billing owner of any store
-  const isBillingOwner = user.store_users?.some(su => su.is_billing_owner) ?? false
+  const isBillingOwner =
+    user.store_users?.some((su) => su.is_billing_owner) ?? false;
 
-  if (user.role === 'Owner') {
-    return isBillingOwner ? 'Owner' : 'Co-Owner'
+  if (user.role === "Owner") {
+    return isBillingOwner ? "Owner" : "Co-Owner";
   }
 
-  return user.role
+  return user.role;
 }
 
 /**
  * Get formatted role string for a store user entry
  */
 function getStoreRoleDisplay(su: StoreUserWithStore): string {
-  if (su.role === 'Owner') {
-    return su.is_billing_owner ? 'Owner' : 'Co-Owner'
+  if (su.role === "Owner") {
+    return su.is_billing_owner ? "Owner" : "Co-Owner";
   }
-  return su.role
+  return su.role;
 }
 
 /**
  * Check if user is the billing owner (cannot be deactivated or have role changed)
  */
 function isBillingOwner(user: UserWithStore): boolean {
-  return user.store_users?.some(su => su.is_billing_owner) ?? false
+  return user.store_users?.some((su) => su.is_billing_owner) ?? false;
 }
 
 /**
@@ -89,71 +103,86 @@ function isBillingOwner(user: UserWithStore): boolean {
  * - If selectedStoreId is provided, show that store name
  * - If no selectedStoreId, show all store names
  */
-function getStoresDisplay(user: UserWithStore, selectedStoreId?: string): React.ReactNode {
+function getStoresDisplay(
+  user: UserWithStore,
+  selectedStoreId?: string,
+): React.ReactNode {
   if (selectedStoreId) {
     // When filtered by store, show that store name
-    const storeEntry = user.store_users?.find(su => su.store_id === selectedStoreId)
-    return storeEntry?.store?.name || user.store?.name || '-'
+    const storeEntry = user.store_users?.find(
+      (su) => su.store_id === selectedStoreId,
+    );
+    return storeEntry?.store?.name || user.store?.name || "-";
   }
 
   // No filter - show all store names
   if (!user.store_users || user.store_users.length === 0) {
-    return user.store?.name || '-'
+    return user.store?.name || "-";
   }
 
   // Single store - just show the name
   if (user.store_users.length === 1) {
-    return user.store_users[0].store?.name || 'Unknown'
+    return user.store_users[0].store?.name || "Unknown";
   }
 
   // Multiple stores - show as comma-separated list
-  return user.store_users.map(su => su.store?.name || 'Unknown').join(', ')
+  return user.store_users.map((su) => su.store?.name || "Unknown").join(", ");
 }
 
 // Sort configuration
-type SortKey = 'name' | 'email' | 'role' | 'store' | 'status'
-type SortDirection = 'asc' | 'desc'
+type SortKey = "name" | "email" | "role" | "store" | "status";
+type SortDirection = "asc" | "desc";
 
 interface SortConfig {
-  key: SortKey
-  direction: SortDirection
+  key: SortKey;
+  direction: SortDirection;
 }
 
 // Priority for role sorting (lower = shows first in ascending order)
 const ROLE_PRIORITY: Record<string, number> = {
-  'Owner': 1,
-  'Manager': 2,
-  'Staff': 3,
-}
+  Owner: 1,
+  Manager: 2,
+  Staff: 3,
+};
 
 // Priority for status sorting (lower = shows first in ascending order)
 const STATUS_PRIORITY: Record<string, number> = {
-  'Active': 1,
-  'Invited': 2,
-  'Inactive': 3,
-}
+  Active: 1,
+  Invited: 2,
+  Inactive: 3,
+};
 
 interface SortableHeaderProps {
-  label: string
-  sortKey: SortKey
-  currentSort: SortConfig | null
-  onSort: (key: SortKey) => void
-  className?: string
+  label: string;
+  sortKey: SortKey;
+  currentSort: SortConfig | null;
+  onSort: (key: SortKey) => void;
+  className?: string;
 }
 
-function SortableHeader({ label, sortKey, currentSort, onSort, className = '' }: SortableHeaderProps) {
-  const isActive = currentSort?.key === sortKey
-  const direction = isActive ? currentSort.direction : null
+function SortableHeader({
+  label,
+  sortKey,
+  currentSort,
+  onSort,
+  className = "",
+}: SortableHeaderProps) {
+  const isActive = currentSort?.key === sortKey;
+  const direction = isActive ? currentSort.direction : null;
 
   return (
     <TableHead
       className={`cursor-pointer select-none hover:bg-muted/50 transition-colors ${className}`}
       onClick={() => onSort(sortKey)}
     >
-      <div className={`flex items-center gap-1 ${className.includes('text-right') ? 'justify-end' : ''}`}>
+      <div
+        className={`flex items-center gap-1 ${className.includes("text-right") ? "justify-end" : ""}`}
+      >
         <span>{label}</span>
-        <span className={`transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`}>
-          {direction === 'asc' ? (
+        <span
+          className={`transition-opacity ${isActive ? "opacity-100" : "opacity-0"}`}
+        >
+          {direction === "asc" ? (
             <ArrowUp className="h-3.5 w-3.5" />
           ) : (
             <ArrowDown className="h-3.5 w-3.5" />
@@ -161,16 +190,16 @@ function SortableHeader({ label, sortKey, currentSort, onSort, className = '' }:
         </span>
       </div>
     </TableHead>
-  )
+  );
 }
 
 interface UsersTableProps {
-  users: UserWithStore[]
-  selectedStoreId?: string  // When set, show role relative to this store
-  isLoading?: boolean
-  onInvite?: () => void
-  onEdit?: (user: Profile) => void
-  onDelete?: (user: Profile) => void
+  users: UserWithStore[];
+  selectedStoreId?: string; // When set, show role relative to this store
+  isLoading?: boolean;
+  onInvite?: () => void;
+  onEdit?: (user: Profile) => void;
+  onDelete?: (user: Profile) => void;
 }
 
 export const UsersTable = memo(function UsersTable({
@@ -181,89 +210,89 @@ export const UsersTable = memo(function UsersTable({
   onEdit,
   onDelete,
 }: UsersTableProps) {
-  const [actionUser, setActionUser] = useState<Profile | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
+  const [actionUser, setActionUser] = useState<Profile | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const handleSort = useCallback((key: SortKey) => {
-    setSortConfig(current => {
+    setSortConfig((current) => {
       if (current?.key === key) {
         return {
           key,
-          direction: current.direction === 'asc' ? 'desc' : 'asc'
-        }
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
       }
-      return { key, direction: 'asc' }
-    })
-  }, [])
+      return { key, direction: "asc" };
+    });
+  }, []);
 
   const sortedUsers = useMemo(() => {
-    if (!sortConfig) return users
+    if (!sortConfig) return users;
 
     return [...users].sort((a, b) => {
-      let aVal: string | number
-      let bVal: string | number
-      const multiplier = sortConfig.direction === 'asc' ? 1 : -1
+      let aVal: string | number;
+      let bVal: string | number;
+      const multiplier = sortConfig.direction === "asc" ? 1 : -1;
 
       switch (sortConfig.key) {
-        case 'name':
-          aVal = (a.full_name || '').toLowerCase()
-          bVal = (b.full_name || '').toLowerCase()
-          break
-        case 'email':
-          aVal = a.email.toLowerCase()
-          bVal = b.email.toLowerCase()
-          break
-        case 'role':
-          aVal = ROLE_PRIORITY[a.role] ?? 99
-          bVal = ROLE_PRIORITY[b.role] ?? 99
-          break
-        case 'store':
+        case "name":
+          aVal = (a.full_name || "").toLowerCase();
+          bVal = (b.full_name || "").toLowerCase();
+          break;
+        case "email":
+          aVal = a.email.toLowerCase();
+          bVal = b.email.toLowerCase();
+          break;
+        case "role":
+          aVal = ROLE_PRIORITY[a.role] ?? 99;
+          bVal = ROLE_PRIORITY[b.role] ?? 99;
+          break;
+        case "store":
           // Put unassigned ("-") at the end
-          aVal = a.store?.name?.toLowerCase() || 'zzz'
-          bVal = b.store?.name?.toLowerCase() || 'zzz'
-          break
-        case 'status':
-          aVal = STATUS_PRIORITY[a.status] ?? 99
-          bVal = STATUS_PRIORITY[b.status] ?? 99
-          break
+          aVal = a.store?.name?.toLowerCase() || "zzz";
+          bVal = b.store?.name?.toLowerCase() || "zzz";
+          break;
+        case "status":
+          aVal = STATUS_PRIORITY[a.status] ?? 99;
+          bVal = STATUS_PRIORITY[b.status] ?? 99;
+          break;
         default:
-          return 0
+          return 0;
       }
 
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal) * multiplier
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return aVal.localeCompare(bVal) * multiplier;
       }
 
-      if (aVal < bVal) return -1 * multiplier
-      if (aVal > bVal) return 1 * multiplier
-      return 0
-    })
-  }, [users, sortConfig])
+      if (aVal < bVal) return -1 * multiplier;
+      if (aVal > bVal) return 1 * multiplier;
+      return 0;
+    });
+  }, [users, sortConfig]);
 
   const handleDelete = () => {
-    if (!actionUser) return
-    onDelete?.(actionUser)
-    setActionUser(null)
-    setShowDeleteConfirm(false)
-  }
+    if (!actionUser) return;
+    onDelete?.(actionUser);
+    setActionUser(null);
+    setShowDeleteConfirm(false);
+  };
 
   const roleColors: Record<string, string> = {
-    Owner: 'bg-amber-500',
-    'Co-Owner': 'bg-amber-400', // Slightly lighter to distinguish from billing owner
-    Manager: 'bg-purple-500',
-    Admin: 'bg-amber-500', // Legacy: maps to Owner
-    Staff: 'bg-emerald-500',
-  }
+    Owner: "bg-amber-500",
+    "Co-Owner": "bg-amber-400", // Slightly lighter to distinguish from billing owner
+    Manager: "bg-purple-500",
+    Admin: "bg-amber-500", // Legacy: maps to Owner
+    Staff: "bg-emerald-500",
+  };
 
   const statusColors = {
-    Active: 'default' as const,
-    Invited: 'outline' as const,
-    Inactive: 'secondary' as const,
-  }
+    Active: "default" as const,
+    Invited: "outline" as const,
+    Inactive: "secondary" as const,
+  };
 
   if (isLoading) {
-    return <UsersTableSkeleton />
+    return <UsersTableSkeleton />;
   }
 
   return (
@@ -276,27 +305,36 @@ export const UsersTable = memo(function UsersTable({
               icon={Users}
               title="No users found"
               description="Invite team members to help manage your restaurant inventory."
-              action={onInvite ? {
-                label: "Invite User",
-                onClick: onInvite,
-                icon: UserPlus,
-              } : undefined}
+              action={
+                onInvite
+                  ? {
+                      label: "Invite User",
+                      onClick: onInvite,
+                      icon: UserPlus,
+                    }
+                  : undefined
+              }
             />
           </div>
         ) : (
           sortedUsers.map((user) => (
-            <div
-              key={user.id}
-              className="border rounded-lg p-3"
-            >
+            <div key={user.id} className="border rounded-lg p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm truncate">{user.full_name || 'No name'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  <p className="font-medium text-sm truncate">
+                    {user.full_name || "No name"}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user.email}
+                  </p>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0"
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -308,8 +346,8 @@ export const UsersTable = memo(function UsersTable({
                     {!isBillingOwner(user) && onDelete && (
                       <DropdownMenuItem
                         onClick={() => {
-                          setActionUser(user)
-                          setShowDeleteConfirm(true)
+                          setActionUser(user);
+                          setShowDeleteConfirm(true);
                         }}
                         className="text-destructive"
                       >
@@ -321,7 +359,9 @@ export const UsersTable = memo(function UsersTable({
                 </DropdownMenu>
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-2">
-                <Badge className={`text-white text-xs ${roleColors[getDisplayRole(user, selectedStoreId)]}`}>
+                <Badge
+                  className={`text-primary-foreground text-xs ${roleColors[getDisplayRole(user, selectedStoreId)]}`}
+                >
                   {getDisplayRole(user, selectedStoreId)}
                 </Badge>
                 <Badge variant={statusColors[user.status]} className="text-xs">
@@ -384,11 +424,15 @@ export const UsersTable = memo(function UsersTable({
                     icon={Users}
                     title="No users found"
                     description="Invite team members to help manage your restaurant inventory."
-                    action={onInvite ? {
-                      label: "Invite User",
-                      onClick: onInvite,
-                      icon: UserPlus,
-                    } : undefined}
+                    action={
+                      onInvite
+                        ? {
+                            label: "Invite User",
+                            onClick: onInvite,
+                            icon: UserPlus,
+                          }
+                        : undefined
+                    }
                   />
                 </TableCell>
               </TableRow>
@@ -397,7 +441,9 @@ export const UsersTable = memo(function UsersTable({
                 <TableRow key={user.id}>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{user.full_name || 'No name'}</p>
+                      <p className="font-medium">
+                        {user.full_name || "No name"}
+                      </p>
                       <p className="text-sm text-muted-foreground md:hidden">
                         {user.email}
                       </p>
@@ -407,7 +453,9 @@ export const UsersTable = memo(function UsersTable({
                     {user.email}
                   </TableCell>
                   <TableCell>
-                    <Badge className={`text-white ${roleColors[getDisplayRole(user, selectedStoreId)]}`}>
+                    <Badge
+                      className={`text-primary-foreground ${roleColors[getDisplayRole(user, selectedStoreId)]}`}
+                    >
                       {getDisplayRole(user, selectedStoreId)}
                     </Badge>
                   </TableCell>
@@ -435,12 +483,15 @@ export const UsersTable = memo(function UsersTable({
                         {!isBillingOwner(user) && onDelete && (
                           <DropdownMenuItem
                             onClick={() => {
-                              setActionUser(user)
-                              setShowDeleteConfirm(true)
+                              setActionUser(user);
+                              setShowDeleteConfirm(true);
                             }}
                             className="text-destructive"
                           >
-                            <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                            <Trash2
+                              className="mr-2 h-4 w-4"
+                              aria-hidden="true"
+                            />
                             Remove from Store
                           </DropdownMenuItem>
                         )}
@@ -458,8 +509,8 @@ export const UsersTable = memo(function UsersTable({
       <ConfirmDialog
         open={showDeleteConfirm && !!actionUser}
         onOpenChange={(open) => {
-          setShowDeleteConfirm(open)
-          if (!open) setActionUser(null)
+          setShowDeleteConfirm(open);
+          if (!open) setActionUser(null);
         }}
         title="Remove User from Store"
         description={`Are you sure you want to remove ${actionUser?.full_name || actionUser?.email} from this store? They will lose access to this store but their account will remain active.`}
@@ -468,5 +519,5 @@ export const UsersTable = memo(function UsersTable({
         onConfirm={handleDelete}
       />
     </>
-  )
-})
+  );
+});

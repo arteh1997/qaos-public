@@ -451,10 +451,10 @@ function StoreFormBody({
                                     (shiftType) => {
                                       const shiftStyles = {
                                         opening:
-                                          "text-emerald-700 bg-emerald-50 border-emerald-200",
-                                        mid: "text-blue-700 bg-blue-50 border-blue-200",
+                                          "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+                                        mid: "text-blue-400 bg-blue-500/10 border-blue-500/20",
                                         closing:
-                                          "text-purple-700 bg-purple-50 border-purple-200",
+                                          "text-purple-400 bg-purple-500/10 border-purple-500/20",
                                       };
                                       const shiftLabels = {
                                         opening: "Opening",

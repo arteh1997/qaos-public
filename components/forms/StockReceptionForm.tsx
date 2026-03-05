@@ -318,9 +318,9 @@ export function StockReceptionForm({
 
       {/* Quick stats */}
       {lowStockCount > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-          <span className="text-sm text-amber-700">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+          <span className="text-sm text-amber-400">
             <strong>{lowStockCount}</strong> item
             {lowStockCount !== 1 ? "s" : ""} below minimum stock level
           </span>
@@ -348,9 +348,9 @@ export function StockReceptionForm({
                   group relative border rounded-lg px-4 py-3 transition-colors
                   ${
                     hasReceived
-                      ? "bg-emerald-50 border-emerald-200"
+                      ? "bg-emerald-500/10 border-emerald-500/20"
                       : isLowStock
-                        ? "bg-card border-amber-200"
+                        ? "bg-card border-amber-500/20"
                         : "bg-card hover:bg-muted/50"
                   }
                 `}
@@ -373,7 +373,7 @@ export function StockReceptionForm({
                       {isLowStock && (
                         <Badge
                           variant="outline"
-                          className="text-amber-700 border-amber-300 bg-amber-50 text-[10px] h-5 shrink-0"
+                          className="text-amber-400 border-amber-300 bg-amber-500/10 text-[10px] h-5 shrink-0"
                         >
                           Low Stock
                         </Badge>
@@ -390,7 +390,7 @@ export function StockReceptionForm({
                   <div className="text-right shrink-0 hidden sm:block">
                     <p className="text-xs text-muted-foreground">In Stock</p>
                     <p
-                      className={`text-sm font-mono font-semibold ${isLowStock ? "text-amber-600" : "text-muted-foreground"}`}
+                      className={`text-sm font-mono font-semibold ${isLowStock ? "text-amber-400" : "text-muted-foreground"}`}
                     >
                       {item.current_quantity}
                       {item.par_level !== null && (
@@ -437,7 +437,7 @@ export function StockReceptionForm({
                           transition-all flex items-center justify-center gap-1
                           ${
                             hasReceived
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-300 hover:bg-emerald-100"
                               : "bg-card hover:bg-muted border-input"
                           }
                         `}
@@ -500,7 +500,7 @@ export function StockReceptionForm({
                       Stock:
                     </span>
                     <span
-                      className={`text-xs font-mono font-semibold ${isLowStock ? "text-amber-600" : "text-foreground"}`}
+                      className={`text-xs font-mono font-semibold ${isLowStock ? "text-amber-400" : "text-foreground"}`}
                     >
                       {item.current_quantity}
                       {item.par_level !== null && (

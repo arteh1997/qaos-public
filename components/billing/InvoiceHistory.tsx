@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -11,23 +11,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Download, Receipt } from 'lucide-react'
-import { format } from 'date-fns'
-import { Invoice } from '@/types/billing'
-import { formatPrice } from '@/lib/stripe/billing-config'
+} from "@/components/ui/table";
+import { Download, Receipt } from "lucide-react";
+import { format } from "date-fns";
+import { Invoice } from "@/types/billing";
+import { formatPrice } from "@/lib/stripe/billing-config";
 
 const STATUS_STYLES: Record<string, string> = {
-  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  open: 'bg-blue-50 text-blue-700 border-blue-200',
-  draft: 'bg-muted/50 text-muted-foreground border-muted',
-  void: 'bg-muted/50 text-muted-foreground border-muted',
-  uncollectible: 'bg-destructive/5 text-destructive/70 border-red-200',
-}
+  paid: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  open: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  draft: "bg-muted/50 text-muted-foreground border-muted",
+  void: "bg-muted/50 text-muted-foreground border-muted",
+  uncollectible: "bg-destructive/5 text-destructive/70 border-red-500/20",
+};
 
 interface InvoiceHistoryProps {
-  invoices: Invoice[]
-  isLoading: boolean
+  invoices: Invoice[];
+  isLoading: boolean;
 }
 
 export function InvoiceHistory({ invoices, isLoading }: InvoiceHistoryProps) {
@@ -63,17 +63,19 @@ export function InvoiceHistory({ invoices, isLoading }: InvoiceHistoryProps) {
                     <TableHead className="text-xs">Store</TableHead>
                     <TableHead className="text-xs">Amount</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs text-right">Invoice</TableHead>
+                    <TableHead className="text-xs text-right">
+                      Invoice
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map(invoice => (
+                  {invoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="text-sm tabular-nums">
-                        {format(new Date(invoice.date), 'MMM d, yyyy')}
+                        {format(new Date(invoice.date), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {invoice.store_name || '—'}
+                        {invoice.store_name || "—"}
                       </TableCell>
                       <TableCell className="text-sm font-medium tabular-nums">
                         {formatPrice(invoice.amount_paid || invoice.amount_due)}
@@ -83,10 +85,14 @@ export function InvoiceHistory({ invoices, isLoading }: InvoiceHistoryProps) {
                           variant="outline"
                           className={`${STATUS_STYLES[invoice.status] || STATUS_STYLES.draft} border text-[10px] px-1.5 py-0`}
                         >
-                          {invoice.status === 'paid' ? 'Paid' :
-                           invoice.status === 'open' ? 'Open' :
-                           invoice.status === 'void' ? 'Void' :
-                           invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                          {invoice.status === "paid"
+                            ? "Paid"
+                            : invoice.status === "open"
+                              ? "Open"
+                              : invoice.status === "void"
+                                ? "Void"
+                                : invoice.status.charAt(0).toUpperCase() +
+                                  invoice.status.slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -97,7 +103,11 @@ export function InvoiceHistory({ invoices, isLoading }: InvoiceHistoryProps) {
                             className="h-7"
                             asChild
                           >
-                            <a href={invoice.invoice_pdf} target="_blank" rel="noopener noreferrer">
+                            <a
+                              href={invoice.invoice_pdf}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
                               <Download className="h-3.5 w-3.5" />
                             </a>
                           </Button>
@@ -111,7 +121,7 @@ export function InvoiceHistory({ invoices, isLoading }: InvoiceHistoryProps) {
 
             {/* Mobile card list */}
             <div className="sm:hidden space-y-2">
-              {invoices.map(invoice => (
+              {invoices.map((invoice) => (
                 <div key={invoice.id} className="rounded-md border px-3 py-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -119,7 +129,7 @@ export function InvoiceHistory({ invoices, isLoading }: InvoiceHistoryProps) {
                         {formatPrice(invoice.amount_paid || invoice.amount_due)}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {format(new Date(invoice.date), 'MMM d, yyyy')}
+                        {format(new Date(invoice.date), "MMM d, yyyy")}
                         {invoice.store_name && ` · ${invoice.store_name}`}
                       </p>
                     </div>
@@ -128,11 +138,23 @@ export function InvoiceHistory({ invoices, isLoading }: InvoiceHistoryProps) {
                         variant="outline"
                         className={`${STATUS_STYLES[invoice.status] || STATUS_STYLES.draft} border text-[10px] px-1.5 py-0`}
                       >
-                        {invoice.status === 'paid' ? 'Paid' : invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        {invoice.status === "paid"
+                          ? "Paid"
+                          : invoice.status.charAt(0).toUpperCase() +
+                            invoice.status.slice(1)}
                       </Badge>
                       {invoice.invoice_pdf && (
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild>
-                          <a href={invoice.invoice_pdf} target="_blank" rel="noopener noreferrer">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          asChild
+                        >
+                          <a
+                            href={invoice.invoice_pdf}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
                             <Download className="h-3.5 w-3.5" />
                           </a>
                         </Button>
@@ -146,5 +168,5 @@ export function InvoiceHistory({ invoices, isLoading }: InvoiceHistoryProps) {
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

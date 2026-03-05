@@ -145,7 +145,7 @@ function UserFormBody({
                   )}
                   <FormDescription>
                     {isBillingOwner ? (
-                      <span className="text-amber-600 dark:text-amber-500">
+                      <span className="text-amber-400 dark:text-amber-500">
                         This user is the billing owner and their role cannot be
                         changed.
                       </span>
@@ -185,7 +185,7 @@ function UserFormBody({
                   </Select>
                   {isBillingOwner && (
                     <FormDescription>
-                      <span className="text-amber-600 dark:text-amber-500">
+                      <span className="text-amber-400 dark:text-amber-500">
                         Billing owner status cannot be changed.
                       </span>
                     </FormDescription>

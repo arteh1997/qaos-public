@@ -1,51 +1,53 @@
-'use client'
+"use client";
 
-import { Button } from '@/components/ui/button'
-import { ArrowRight } from 'lucide-react'
-import Link from 'next/link'
-import { ScrollReveal } from './ScrollReveal'
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export function CTA() {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-80px" });
+
   return (
-    <section className="py-24 lg:py-36">
-      <div className="container mx-auto px-6 lg:px-8">
-        <ScrollReveal>
-          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#2d2a26] via-[#1f1d1a] to-[#2d2a26] px-8 py-20 text-center lg:px-20 lg:py-28">
-            {/* Background decoration */}
-            <div className="absolute inset-0 -z-10">
-              <div className="absolute left-0 top-0 h-[400px] w-[400px] rounded-full bg-[#2d7a4f]/10 blur-3xl" />
-              <div className="absolute right-0 bottom-0 h-[500px] w-[500px] rounded-full bg-[#b58a3a]/5 blur-3xl" />
-            </div>
+    <section ref={ref} className="py-32 md:py-40 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[200px]" />
+      </div>
 
-            {/* Dot grid overlay at low opacity */}
-            <div className="absolute inset-0 dot-grid opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #faf8f5 1px, transparent 1px)' }} />
-
-            <h2 className="mb-6 text-3xl font-bold tracking-tight text-[#faf8f5] sm:text-4xl lg:text-5xl xl:text-6xl leading-tight">
-              Your business deserves better
-            </h2>
-            <p className="mx-auto mb-12 max-w-2xl text-lg lg:text-xl text-[#faf8f5]/70 leading-relaxed">
-              Join operators who&apos;ve stopped losing money to inventory chaos.
-              Start your free trial today — no credit card required.
-            </p>
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button
-                asChild
-                size="lg"
-                variant="secondary"
-                className="text-base sm:text-lg px-10 py-7 h-auto shadow-xl hover:shadow-2xl transition-all duration-300"
-              >
-                <Link href="/login?signup=true">
-                  Start 1-Month Free Trial
-                  <ArrowRight className="ml-2.5 h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-            <p className="mt-8 text-sm text-[#faf8f5]/40">
-              1-month free trial. Setup in 5 minutes. Cancel anytime.
-            </p>
+      <div className="container px-6 md:px-8 relative z-10">
+        <motion.div
+          className="text-center max-w-3xl mx-auto"
+          initial={{ opacity: 0, y: 40 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h2 className="section-headline sm:hero-headline mb-8">
+            Stop guessing.
+            <br />
+            <span className="glow-text">Start knowing.</span>
+          </h2>
+          <p className="text-muted-foreground text-lg mb-12 max-w-lg mx-auto">
+            Qaos is launching soon. Be among the first kitchens to turn instinct
+            into intelligence.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/login?signup=true"
+              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-10 py-4 rounded-full text-base font-semibold hover:brightness-110 transition-all"
+            >
+              Join the waitlist
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link
+              href="/contact"
+              className="inline-flex items-center justify-center gap-2 border border-border text-foreground px-10 py-4 rounded-full text-base font-medium hover:bg-card transition-colors"
+            >
+              Get in touch
+            </Link>
           </div>
-        </ScrollReveal>
+        </motion.div>
       </div>
     </section>
-  )
+  );
 }

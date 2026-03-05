@@ -1,11 +1,17 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useTags, useDeleteTag, type Tag } from '@/hooks/useTags'
-import { TagForm } from './TagForm'
-import { TagBadge } from './TagBadge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState } from "react";
+import { useTags, useDeleteTag, type Tag } from "@/hooks/useTags";
+import { TagForm } from "./TagForm";
+import { TagBadge } from "./TagBadge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,63 +21,72 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Plus, Edit, Trash2, Loader2, AlertCircle, Tag as TagIcon } from 'lucide-react'
-import { useAuth } from '@/components/providers/AuthProvider'
-import { toast } from 'sonner'
-import { PageGuide } from '@/components/help/PageGuide'
+} from "@/components/ui/alert-dialog";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Loader2,
+  AlertCircle,
+  Tag as TagIcon,
+} from "lucide-react";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { toast } from "sonner";
+import { PageGuide } from "@/components/help/PageGuide";
 
 interface TagListProps {
-  storeId: string
+  storeId: string;
 }
 
 export function TagList({ storeId }: TagListProps) {
-  const { user, profile } = useAuth()
-  const { data: tags, isLoading, error } = useTags(storeId)
-  const [formOpen, setFormOpen] = useState(false)
-  const [selectedTag, setSelectedTag] = useState<Tag | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [tagToDelete, setTagToDelete] = useState<Tag | null>(null)
+  const { user, profile } = useAuth();
+  const { data: tags, isLoading, error } = useTags(storeId);
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tagToDelete, setTagToDelete] = useState<Tag | null>(null);
 
-  const deleteMutation = useDeleteTag(storeId, tagToDelete?.id || '')
+  const deleteMutation = useDeleteTag(storeId, tagToDelete?.id || "");
 
   // Check if user is Owner
-  const isOwner = profile?.role === 'Owner'
+  const isOwner = profile?.role === "Owner";
 
   const handleEdit = (tag: Tag) => {
-    setSelectedTag(tag)
-    setFormOpen(true)
-  }
+    setSelectedTag(tag);
+    setFormOpen(true);
+  };
 
   const handleDelete = (tag: Tag) => {
-    setTagToDelete(tag)
-    setDeleteDialogOpen(true)
-  }
+    setTagToDelete(tag);
+    setDeleteDialogOpen(true);
+  };
 
   const confirmDelete = async () => {
-    if (!tagToDelete) return
+    if (!tagToDelete) return;
 
     try {
-      await deleteMutation.mutateAsync()
-      toast.success('Tag deleted successfully')
-      setDeleteDialogOpen(false)
-      setTagToDelete(null)
+      await deleteMutation.mutateAsync();
+      toast.success("Tag deleted successfully");
+      setDeleteDialogOpen(false);
+      setTagToDelete(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete tag')
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete tag",
+      );
     }
-  }
+  };
 
   const handleFormClose = () => {
-    setFormOpen(false)
-    setSelectedTag(null)
-  }
+    setFormOpen(false);
+    setSelectedTag(null);
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -84,7 +99,7 @@ export function TagList({ storeId }: TagListProps) {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -132,7 +147,7 @@ export function TagList({ storeId }: TagListProps) {
                   <div className="flex-1">
                     <TagBadge name={tag.name} color={tag.color} />
                     <CardDescription className="mt-2 text-xs">
-                      {tag.description || 'No description'}
+                      {tag.description || "No description"}
                     </CardDescription>
                   </div>
                 </div>
@@ -140,7 +155,8 @@ export function TagList({ storeId }: TagListProps) {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">
-                    Used {tag.usage_count || 0} time{tag.usage_count !== 1 ? 's' : ''}
+                    Used {tag.usage_count || 0} time
+                    {tag.usage_count !== 1 ? "s" : ""}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -183,10 +199,12 @@ export function TagList({ storeId }: TagListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Tag</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{tagToDelete?.name}</strong>?
+              Are you sure you want to delete{" "}
+              <strong>{tagToDelete?.name}</strong>?
               {(tagToDelete?.usage_count || 0) > 0 && (
-                <span className="block mt-2 text-amber-600 font-medium">
-                  This tag is currently used on {tagToDelete?.usage_count} item(s). Deleting it will remove the tag from all items.
+                <span className="block mt-2 text-amber-400 font-medium">
+                  This tag is currently used on {tagToDelete?.usage_count}{" "}
+                  item(s). Deleting it will remove the tag from all items.
                 </span>
               )}
             </AlertDialogDescription>
@@ -209,5 +227,5 @@ export function TagList({ storeId }: TagListProps) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

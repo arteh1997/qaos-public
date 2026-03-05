@@ -164,7 +164,7 @@ export default function MyPayPage() {
         <CardContent className="space-y-4">
           {hourlyRate === null ? (
             <div className="rounded-md bg-amber-500/10 border border-amber-500/50 px-4 py-3">
-              <p className="text-sm text-amber-700 dark:text-amber-400">
+              <p className="text-sm text-amber-400">
                 Your hourly rate hasn&apos;t been set yet. Please contact your
                 manager.
               </p>
@@ -188,7 +188,7 @@ export default function MyPayPage() {
                   <p className="text-sm text-muted-foreground">
                     Calculated Pay
                   </p>
-                  <p className="text-2xl font-semibold tracking-tight text-emerald-600">
+                  <p className="text-2xl font-semibold tracking-tight text-emerald-400">
                     {formatCurrency(weeklyEarnings.gross_pay)}
                   </p>
                 </div>
@@ -315,7 +315,7 @@ export default function MyPayPage() {
                           {format(new Date(payRun.period_end), "d MMM yyyy")}
                         </CardTitle>
                         <div className="flex items-center gap-2">
-                          <Badge className="border-transparent bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                          <Badge className="border-transparent bg-emerald-500/10 text-emerald-400 hover:bg-emerald-100">
                             Paid
                           </Badge>
                           {isExpanded ? (
@@ -344,7 +344,7 @@ export default function MyPayPage() {
                           <span className="text-muted-foreground">
                             Gross Pay:{" "}
                           </span>
-                          <span className="font-medium text-emerald-600">
+                          <span className="font-medium text-emerald-400">
                             {formatCurrency(item.gross_pay)}
                           </span>
                         </div>
@@ -402,7 +402,7 @@ export default function MyPayPage() {
                               <span
                                 className={
                                   item.adjustments > 0
-                                    ? "text-emerald-600"
+                                    ? "text-emerald-400"
                                     : "text-destructive"
                                 }
                               >
@@ -413,7 +413,7 @@ export default function MyPayPage() {
                           )}
                           <div className="flex justify-between font-medium border-t pt-2">
                             <span>Total</span>
-                            <span className="text-emerald-600">
+                            <span className="text-emerald-400">
                               {formatCurrency(item.gross_pay)}
                             </span>
                           </div>

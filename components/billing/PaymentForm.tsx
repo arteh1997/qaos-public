@@ -1,83 +1,83 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 import {
   useStripe,
   useElements,
   PaymentElement,
   Elements,
-} from '@stripe/react-stripe-js'
-import { loadStripe } from '@stripe/stripe-js'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, AlertCircle, Lock } from 'lucide-react'
+} from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, AlertCircle, Lock } from "lucide-react";
 
 const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
-)
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
+);
 
 interface PaymentFormProps {
-  onSuccess: (paymentMethodId: string) => void
-  onError?: (error: string) => void
-  submitLabel?: string
-  isSubmitting?: boolean
+  onSuccess: (paymentMethodId: string) => void;
+  onError?: (error: string) => void;
+  submitLabel?: string;
+  isSubmitting?: boolean;
 }
 
 function PaymentFormContent({
   onSuccess,
   onError,
-  submitLabel = 'Add Payment Method',
+  submitLabel = "Add Payment Method",
   isSubmitting: externalSubmitting = false,
 }: PaymentFormProps) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const stripe = useStripe();
+  const elements = useElements();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!stripe || !elements) {
-      return
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
       // Confirm the SetupIntent
       const { error: confirmError, setupIntent } = await stripe.confirmSetup({
         elements,
-        redirect: 'if_required',
-      })
+        redirect: "if_required",
+      });
 
       if (confirmError) {
-        setError(confirmError.message || 'Failed to confirm payment method')
-        onError?.(confirmError.message || 'Failed to confirm payment method')
-      } else if (setupIntent && setupIntent.status === 'succeeded') {
+        setError(confirmError.message || "Failed to confirm payment method");
+        onError?.(confirmError.message || "Failed to confirm payment method");
+      } else if (setupIntent && setupIntent.status === "succeeded") {
         // Extract payment method ID
-        const paymentMethodId = setupIntent.payment_method as string
-        onSuccess(paymentMethodId)
+        const paymentMethodId = setupIntent.payment_method as string;
+        onSuccess(paymentMethodId);
       } else {
-        setError('Unexpected error. Please try again.')
-        onError?.('Unexpected error. Please try again.')
+        setError("Unexpected error. Please try again.");
+        onError?.("Unexpected error. Please try again.");
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred'
-      setError(message)
-      onError?.(message)
+      const message = err instanceof Error ? err.message : "An error occurred";
+      setError(message);
+      onError?.(message);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const isSubmittingAny = isLoading || externalSubmitting
+  const isSubmittingAny = isLoading || externalSubmitting;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <PaymentElement
         options={{
-          layout: 'tabs',
+          layout: "tabs",
         }}
       />
 
@@ -102,43 +102,46 @@ function PaymentFormContent({
         {submitLabel}
       </Button>
     </form>
-  )
+  );
 }
 
 interface PaymentFormWrapperProps extends PaymentFormProps {
-  clientSecret: string
+  clientSecret: string;
 }
 
-export function PaymentForm({ clientSecret, ...props }: PaymentFormWrapperProps) {
+export function PaymentForm({
+  clientSecret,
+  ...props
+}: PaymentFormWrapperProps) {
   return (
     <Elements
       stripe={stripePromise}
       options={{
         clientSecret,
         appearance: {
-          theme: 'stripe',
+          theme: "stripe",
           variables: {
-            colorPrimary: '#0f172a',
-            colorBackground: '#ffffff',
-            colorText: '#1e293b',
-            colorDanger: '#dc2626',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            spacingUnit: '4px',
-            borderRadius: '8px',
+            colorPrimary: "#0f172a",
+            colorBackground: "#0a0a0a",
+            colorText: "#1e293b",
+            colorDanger: "#dc2626",
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            spacingUnit: "4px",
+            borderRadius: "8px",
           },
           rules: {
-            '.Input': {
-              border: '1px solid #e2e8f0',
-              boxShadow: 'none',
+            ".Input": {
+              border: "1px solid #e2e8f0",
+              boxShadow: "none",
             },
-            '.Input:focus': {
-              border: '1px solid #0f172a',
-              boxShadow: '0 0 0 1px #0f172a',
+            ".Input:focus": {
+              border: "1px solid #0f172a",
+              boxShadow: "0 0 0 1px #0f172a",
             },
-            '.Label': {
-              fontWeight: '500',
-              fontSize: '14px',
-              marginBottom: '6px',
+            ".Label": {
+              fontWeight: "500",
+              fontSize: "14px",
+              marginBottom: "6px",
             },
           },
         },
@@ -146,5 +149,5 @@ export function PaymentForm({ clientSecret, ...props }: PaymentFormWrapperProps)
     >
       <PaymentFormContent {...props} />
     </Elements>
-  )
+  );
 }

@@ -29,17 +29,17 @@ const STATUS_CONFIG: Record<
 > = {
   trialing: {
     label: "Free Trial",
-    className: "bg-blue-50 text-blue-700 border-blue-200",
+    className: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     icon: Zap,
   },
   active: {
     label: "Active",
-    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     icon: Check,
   },
   past_due: {
     label: "Past Due",
-    className: "bg-destructive/5 text-destructive/70 border-red-200",
+    className: "bg-destructive/5 text-destructive/70 border-red-500/20",
     icon: AlertTriangle,
   },
   canceled: {
@@ -49,7 +49,7 @@ const STATUS_CONFIG: Record<
   },
   unpaid: {
     label: "Payment Failed",
-    className: "bg-destructive/5 text-destructive/70 border-red-200",
+    className: "bg-destructive/5 text-destructive/70 border-red-500/20",
     icon: AlertCircle,
   },
 };
@@ -186,7 +186,7 @@ export function PlanOverviewCard({
             </div>
           )}
           {isCancelling && cancelDate && (
-            <div className="flex items-center gap-2 text-sm text-amber-700">
+            <div className="flex items-center gap-2 text-sm text-amber-400">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>
                 Cancelling — access until{" "}
@@ -198,7 +198,7 @@ export function PlanOverviewCard({
             !isCancelling &&
             primaryStatus === "trialing" &&
             trialDaysRemaining > 0 && (
-              <div className="flex items-center gap-2 text-sm text-blue-700">
+              <div className="flex items-center gap-2 text-sm text-blue-400">
                 <Calendar className="h-4 w-4 shrink-0" />
                 <span>
                   {trialDaysRemaining} day{trialDaysRemaining !== 1 ? "s" : ""}{" "}

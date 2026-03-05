@@ -1,37 +1,34 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useAuth } from '@/hooks/useAuth'
-import { useShifts } from '@/hooks/useShifts'
-import { useStores } from '@/hooks/useStores'
-import { ShiftsTable } from '@/components/tables/ShiftsTable'
-import { StaffWeeklyView } from '@/components/timetable/StaffWeeklyView'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Clock, LogIn, LogOut, Calendar, List } from 'lucide-react'
-import { format, isFuture, isPast } from 'date-fns'
-import { PageGuide } from '@/components/help/PageGuide'
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useShifts } from "@/hooks/useShifts";
+import { useStores } from "@/hooks/useStores";
+import { ShiftsTable } from "@/components/tables/ShiftsTable";
+import { StaffWeeklyView } from "@/components/timetable/StaffWeeklyView";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Clock, LogIn, LogOut, Calendar, List } from "lucide-react";
+import { format, isFuture, isPast } from "date-fns";
+import { PageGuide } from "@/components/help/PageGuide";
 
-type ViewMode = 'calendar' | 'list'
+type ViewMode = "calendar" | "list";
 
 export default function MyShiftsPage() {
-  const { user } = useAuth()
-  const {
-    shifts,
-    todayShifts,
-    clockIn,
-    clockOut,
-    isLoading,
-  } = useShifts(null, user?.id)  // Only filter by user, not store
-  const { stores, isLoading: storesLoading } = useStores()
+  const { user } = useAuth();
+  const { shifts, todayShifts, clockIn, clockOut, isLoading } = useShifts(
+    null,
+    user?.id,
+  ); // Only filter by user, not store
+  const { stores, isLoading: storesLoading } = useStores();
 
-  const [viewMode, setViewMode] = useState<ViewMode>('calendar')
-  const [currentWeek, setCurrentWeek] = useState(new Date())
-  const [isClockingIn, setIsClockingIn] = useState(false)
-  const [isClockingOut, setIsClockingOut] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [isClockingIn, setIsClockingIn] = useState(false);
+  const [isClockingOut, setIsClockingOut] = useState(false);
 
   if (isLoading || storesLoading) {
     return (
@@ -40,40 +37,42 @@ export default function MyShiftsPage() {
         <Skeleton className="h-40" />
         <Skeleton className="h-96" />
       </div>
-    )
+    );
   }
 
   // Separate shifts into categories
-  const now = new Date()
+  const now = new Date();
 
   // Upcoming: starts in the future
-  const upcomingShifts = shifts.filter(s => {
-    const start = new Date(s.start_time)
-    return isFuture(start)
-  })
+  const upcomingShifts = shifts.filter((s) => {
+    const start = new Date(s.start_time);
+    return isFuture(start);
+  });
 
   // Past: ended (end time is past) OR clocked out
-  const pastShifts = shifts.filter(s => {
-    const end = new Date(s.end_time)
-    return isPast(end) || !!s.clock_out_time
-  })
+  const pastShifts = shifts.filter((s) => {
+    const end = new Date(s.end_time);
+    return isPast(end) || !!s.clock_out_time;
+  });
 
   // Current/Active: started but not ended, and not clocked out
   // This includes shifts that span multiple days
-  const activeShifts = shifts.filter(s => {
-    const start = new Date(s.start_time)
-    const end = new Date(s.end_time)
-    return start <= now && end >= now && !s.clock_out_time
-  })
+  const activeShifts = shifts.filter((s) => {
+    const start = new Date(s.start_time);
+    const end = new Date(s.end_time);
+    return start <= now && end >= now && !s.clock_out_time;
+  });
 
   // Today's shift for the card display - either active or starting today
-  const todayShift = activeShifts[0] || todayShifts[0]
+  const todayShift = activeShifts[0] || todayShifts[0];
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">My Shifts</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            My Shifts
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Your upcoming and past shifts
           </p>
@@ -82,16 +81,19 @@ export default function MyShiftsPage() {
         <div className="flex items-center gap-2">
           <PageGuide pageKey="my-shifts" />
           {/* View Toggle */}
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+          <Tabs
+            value={viewMode}
+            onValueChange={(v) => setViewMode(v as ViewMode)}
+          >
             <TabsList>
-            <TabsTrigger value="calendar" className="gap-1.5 sm:gap-2">
-              <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Calendar</span>
-            </TabsTrigger>
-            <TabsTrigger value="list" className="gap-1.5 sm:gap-2">
-              <List className="h-4 w-4" />
-              <span className="hidden sm:inline">List</span>
-            </TabsTrigger>
+              <TabsTrigger value="calendar" className="gap-1.5 sm:gap-2">
+                <Calendar className="h-4 w-4" />
+                <span className="hidden sm:inline">Calendar</span>
+              </TabsTrigger>
+              <TabsTrigger value="list" className="gap-1.5 sm:gap-2">
+                <List className="h-4 w-4" />
+                <span className="hidden sm:inline">List</span>
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -104,10 +106,14 @@ export default function MyShiftsPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                {activeShifts.includes(todayShift) ? 'Current Shift' : "Today's Shift"}
+                {activeShifts.includes(todayShift)
+                  ? "Current Shift"
+                  : "Today's Shift"}
               </CardTitle>
               {todayShift.clock_in_time && !todayShift.clock_out_time && (
-                <Badge variant="default" className="bg-emerald-600">Clocked In</Badge>
+                <Badge variant="default" className="bg-emerald-600">
+                  Clocked In
+                </Badge>
               )}
               {todayShift.clock_out_time && (
                 <Badge variant="secondary">Completed</Badge>
@@ -121,8 +127,8 @@ export default function MyShiftsPage() {
             <div>
               <p className="text-sm text-muted-foreground">Scheduled</p>
               <p className="text-xl font-bold">
-                {format(new Date(todayShift.start_time), 'MMM d, h:mm a')} -{' '}
-                {format(new Date(todayShift.end_time), 'MMM d, h:mm a')}
+                {format(new Date(todayShift.start_time), "MMM d, h:mm a")} -{" "}
+                {format(new Date(todayShift.end_time), "MMM d, h:mm a")}
               </p>
             </div>
 
@@ -131,8 +137,8 @@ export default function MyShiftsPage() {
               {todayShift.clock_in_time && (
                 <div>
                   <p className="text-sm text-muted-foreground">Clocked In</p>
-                  <p className="text-lg font-semibold text-emerald-600">
-                    {format(new Date(todayShift.clock_in_time), 'h:mm a')}
+                  <p className="text-lg font-semibold text-emerald-400">
+                    {format(new Date(todayShift.clock_in_time), "h:mm a")}
                   </p>
                 </div>
               )}
@@ -140,7 +146,7 @@ export default function MyShiftsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Clocked Out</p>
                   <p className="text-lg font-semibold">
-                    {format(new Date(todayShift.clock_out_time), 'h:mm a')}
+                    {format(new Date(todayShift.clock_out_time), "h:mm a")}
                   </p>
                 </div>
               )}
@@ -157,35 +163,35 @@ export default function MyShiftsPage() {
               {!todayShift.clock_in_time && (
                 <Button
                   onClick={async () => {
-                    setIsClockingIn(true)
+                    setIsClockingIn(true);
                     try {
-                      await clockIn(todayShift.id)
+                      await clockIn(todayShift.id);
                     } finally {
-                      setIsClockingIn(false)
+                      setIsClockingIn(false);
                     }
                   }}
                   disabled={isClockingIn}
                   className="bg-emerald-600 hover:bg-green-700"
                 >
                   <LogIn className="mr-2 h-4 w-4" />
-                  {isClockingIn ? 'Clocking In...' : 'Clock In'}
+                  {isClockingIn ? "Clocking In..." : "Clock In"}
                 </Button>
               )}
               {todayShift.clock_in_time && !todayShift.clock_out_time && (
                 <Button
                   variant="destructive"
                   onClick={async () => {
-                    setIsClockingOut(true)
+                    setIsClockingOut(true);
                     try {
-                      await clockOut(todayShift.id)
+                      await clockOut(todayShift.id);
                     } finally {
-                      setIsClockingOut(false)
+                      setIsClockingOut(false);
                     }
                   }}
                   disabled={isClockingOut}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  {isClockingOut ? 'Clocking Out...' : 'Clock Out'}
+                  {isClockingOut ? "Clocking Out..." : "Clock Out"}
                 </Button>
               )}
             </div>
@@ -202,7 +208,7 @@ export default function MyShiftsPage() {
       )}
 
       {/* Weekly Calendar View */}
-      {viewMode === 'calendar' && (
+      {viewMode === "calendar" && (
         <StaffWeeklyView
           shifts={shifts}
           stores={stores}
@@ -212,7 +218,7 @@ export default function MyShiftsPage() {
       )}
 
       {/* List View */}
-      {viewMode === 'list' && (
+      {viewMode === "list" && (
         <>
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Upcoming Shifts</h2>
@@ -236,5 +242,5 @@ export default function MyShiftsPage() {
         </>
       )}
     </div>
-  )
+  );
 }

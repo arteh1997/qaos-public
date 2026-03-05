@@ -248,7 +248,7 @@ function QuickShiftModalContent({
                           </span>
                         )}
                         {!hours.isOpen && (
-                          <span className="text-amber-600 ml-2 text-xs">
+                          <span className="text-amber-400 ml-2 text-xs">
                             (Closed {DAY_NAMES[dayOfWeek]})
                           </span>
                         )}
@@ -261,13 +261,13 @@ function QuickShiftModalContent({
 
           {/* Store closed warning */}
           {store && storeHoursForDay && !storeHoursForDay.isOpen && (
-            <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
-              <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm">
+              <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
                 <span className="font-medium text-amber-800 dark:text-amber-200">
                   Store is closed on {DAY_NAMES[dayOfWeek]}s
                 </span>
-                <p className="text-amber-700 dark:text-amber-300 text-xs mt-0.5">
+                <p className="text-amber-400 dark:text-amber-300 text-xs mt-0.5">
                   You can still add a shift using custom times if needed.
                 </p>
               </div>
@@ -333,7 +333,7 @@ function QuickShiftModalContent({
             </div>
 
             {!hasShiftPatterns && mode === "preset" && selectedStore && (
-              <p className="text-xs text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 p-2 rounded font-medium">
+              <p className="text-xs text-amber-900 dark:text-amber-300 bg-amber-500/10 p-2 rounded font-medium">
                 {storeHoursForDay && !storeHoursForDay.isOpen
                   ? `Store is closed on ${DAY_NAMES[dayOfWeek]}s. Use custom time or select a different day.`
                   : `No shift patterns configured for ${DAY_NAMES[dayOfWeek]}. Set them in store settings or use custom time.`}

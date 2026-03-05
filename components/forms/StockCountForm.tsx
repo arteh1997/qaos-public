@@ -514,8 +514,8 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
     <div className="space-y-4">
       {/* Draft Recovery Banner */}
       {hasDraft && showDraftBanner && (
-        <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
-          <RotateCcw className="h-4 w-4 text-amber-600" />
+        <Alert className="bg-amber-500/10 border-amber-500/20">
+          <RotateCcw className="h-4 w-4 text-amber-400" />
           <AlertDescription className="flex items-center justify-between gap-4">
             <span className="text-sm">
               You have an unsaved draft from{" "}
