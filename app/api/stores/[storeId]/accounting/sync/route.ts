@@ -12,12 +12,44 @@ import {
   xeroAdapter,
   getXeroCredentials,
 } from "@/lib/services/accounting/xero";
+import {
+  quickbooksAdapter,
+  getQuickBooksCredentials,
+} from "@/lib/services/accounting/quickbooks";
 import { triggerSyncSchema } from "@/lib/validations/accounting";
 import { auditLog } from "@/lib/audit";
 import type {
   AccountingCredentials,
   AccountingBill,
+  AccountingProviderAdapter,
 } from "@/lib/services/accounting/types";
+
+function getProviderAdapter(provider: string): AccountingProviderAdapter {
+  switch (provider) {
+    case "xero":
+      return xeroAdapter;
+    case "quickbooks":
+      return quickbooksAdapter;
+    default:
+      throw new Error(`Unsupported accounting provider: ${provider}`);
+  }
+}
+
+function getCredentialsFn(
+  provider: string,
+): (
+  connectionId: string,
+  credentials: AccountingCredentials,
+) => Promise<AccountingCredentials> {
+  switch (provider) {
+    case "xero":
+      return getXeroCredentials;
+    case "quickbooks":
+      return getQuickBooksCredentials;
+    default:
+      throw new Error(`Unsupported accounting provider: ${provider}`);
+  }
+}
 
 interface RouteParams {
   params: Promise<{ storeId: string }>;
@@ -57,21 +89,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const supabase = createAdminClient();
 
-    // Get active Xero connection
+    // Get active accounting connection (any provider)
     const { data: connection } = await supabase
       .from("accounting_connections")
       .select("*")
       .eq("store_id", storeId)
-      .eq("provider", "xero")
       .eq("is_active", true)
       .single();
 
     if (!connection) {
       return apiBadRequest(
-        "No active Xero connection found",
+        "No active accounting connection found",
         context.requestId,
       );
     }
+
+    const adapter = getProviderAdapter(connection.provider);
+    const getCredentials = getCredentialsFn(connection.provider);
 
     // Mark as syncing
     await supabase
@@ -81,7 +115,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const rawCredentials =
       connection.credentials as unknown as AccountingCredentials;
-    const credentials = await getXeroCredentials(connection.id, rawCredentials);
+    const credentials = await getCredentials(connection.id, rawCredentials);
     const config = (connection.config || {}) as Record<string, unknown>;
     const glMappings = (config.gl_mappings || {}) as Record<string, string>;
     const defaultAccountCode = glMappings["_default"] || "5000"; // Cost of Goods Sold
@@ -103,6 +137,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         parsed.data.entity_id,
         glMappings,
         defaultAccountCode,
+        adapter,
       );
       results.push(result);
     } else {
@@ -138,6 +173,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             invoice.id,
             glMappings,
             defaultAccountCode,
+            adapter,
           );
           results.push(result);
         }
@@ -162,7 +198,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       storeId,
       action: "accounting.sync_triggered",
       details: {
-        provider: "xero",
+        provider: connection.provider,
         synced: results.filter((r) => r.success).length,
         failed: results.filter((r) => !r.success).length,
       },
@@ -193,6 +229,7 @@ async function syncSingleInvoice(
   invoiceId: string,
   glMappings: Record<string, string>,
   defaultAccountCode: string,
+  adapter: AccountingProviderAdapter,
 ) {
   try {
     // Get invoice
@@ -227,7 +264,7 @@ async function syncSingleInvoice(
         supplierName = supplier.name;
         supplierEmail = supplier.email || undefined;
         supplierPhone = supplier.phone || undefined;
-        contactId = await xeroAdapter.findOrCreateContact(credentials, {
+        contactId = await adapter.findOrCreateContact(credentials, {
           name: supplier.name,
           email: supplierEmail,
           phone: supplierPhone,
@@ -271,7 +308,7 @@ async function syncSingleInvoice(
         }),
     };
 
-    const result = await xeroAdapter.createBill(credentials, bill);
+    const result = await adapter.createBill(credentials, bill);
 
     // Log sync result
     await supabase.from("accounting_sync_log").insert({

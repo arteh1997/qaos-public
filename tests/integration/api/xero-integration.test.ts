@@ -104,6 +104,16 @@ vi.mock("@/lib/services/accounting/xero", () => ({
   revokeXeroToken: (...args: unknown[]) => mockRevokeXeroToken(...args),
 }));
 
+vi.mock("@/lib/services/accounting/quickbooks", () => ({
+  quickbooksAdapter: {
+    provider: "quickbooks",
+    createBill: vi.fn(),
+    findOrCreateContact: vi.fn(),
+  },
+  getQuickBooksCredentials: vi.fn(),
+  revokeQuickBooksToken: vi.fn(),
+}));
+
 vi.mock("@/lib/validations/accounting", async () => {
   const { z } = await import("zod");
   return {
@@ -1156,7 +1166,7 @@ describe("Xero Accounting Integration API", () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain("No active Xero connection found");
+      expect(data.message).toContain("No active accounting connection found");
     });
 
     it("should return 400 for invalid sync request schema", async () => {

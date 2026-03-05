@@ -117,6 +117,9 @@ vi.mock("@/lib/csrf", () => ({
 const mockGetQuickBooksAuthUrl = vi.fn();
 const mockExchangeCodeForTokens = vi.fn();
 const mockRevokeQuickBooksToken = vi.fn().mockResolvedValue(undefined);
+const mockGetQuickBooksCredentials = vi.fn();
+const mockQbCreateBill = vi.fn();
+const mockQbFindOrCreateContact = vi.fn();
 
 vi.mock("@/lib/services/accounting/quickbooks", () => ({
   getQuickBooksAuthUrl: (...args: unknown[]) =>
@@ -125,9 +128,24 @@ vi.mock("@/lib/services/accounting/quickbooks", () => ({
     mockExchangeCodeForTokens(...args),
   revokeQuickBooksToken: (...args: unknown[]) =>
     mockRevokeQuickBooksToken(...args),
+  getQuickBooksCredentials: (...args: unknown[]) =>
+    mockGetQuickBooksCredentials(...args),
   quickbooksAdapter: {
     provider: "quickbooks",
+    createBill: (...args: unknown[]) => mockQbCreateBill(...args),
+    findOrCreateContact: (...args: unknown[]) =>
+      mockQbFindOrCreateContact(...args),
   },
+}));
+
+vi.mock("@/lib/services/accounting/xero", () => ({
+  xeroAdapter: {
+    provider: "xero",
+    createBill: vi.fn(),
+    findOrCreateContact: vi.fn(),
+  },
+  getXeroCredentials: vi.fn(),
+  revokeXeroToken: vi.fn(),
 }));
 
 vi.mock("@/lib/validations/accounting", async () => {
@@ -287,6 +305,51 @@ const sampleCredentials = {
   realm_id: REALM_ID,
 };
 
+const INVOICE_UUID = "aa111111-1111-4111-a111-111111111111";
+
+const sampleInvoice = {
+  id: INVOICE_UUID,
+  store_id: STORE_UUID,
+  invoice_number: "INV-2026-001",
+  invoice_date: "2026-02-20",
+  due_date: "2026-03-20",
+  total_amount: 600,
+  currency: "GBP",
+  status: "applied",
+  supplier_id: "sup-1",
+  suppliers: {
+    id: "sup-1",
+    name: "Fresh Foods Co",
+    email: "info@freshfoods.com",
+    phone: "020-1234-5678",
+  },
+};
+
+const sampleLineItems = [
+  {
+    id: "li-1",
+    invoice_id: INVOICE_UUID,
+    description: "Tomatoes 5kg",
+    quantity: 10,
+    unit_price: 25,
+    total_price: 250,
+    match_status: "auto_matched",
+    sort_order: 0,
+    inventory_items: { name: "Tomatoes", category: "Produce" },
+  },
+  {
+    id: "li-2",
+    invoice_id: INVOICE_UUID,
+    description: "Olive Oil 1L",
+    quantity: 5,
+    unit_price: 50,
+    total_price: 250,
+    match_status: "manual_matched",
+    sort_order: 1,
+    inventory_items: { name: "Olive Oil", category: null },
+  },
+];
+
 // ── Tests ──
 
 describe("QuickBooks Accounting Integration API", () => {
@@ -298,6 +361,14 @@ describe("QuickBooks Accounting Integration API", () => {
     );
     mockExchangeCodeForTokens.mockResolvedValue(sampleCredentials);
     mockRevokeQuickBooksToken.mockResolvedValue(undefined);
+    mockGetQuickBooksCredentials.mockResolvedValue(
+      sampleConnection.credentials,
+    );
+    mockQbCreateBill.mockResolvedValue({
+      success: true,
+      external_id: "qbo-bill-001",
+    });
+    mockQbFindOrCreateContact.mockResolvedValue("qbo-vendor-001");
   });
 
   // ================================================================
@@ -1439,6 +1510,226 @@ describe("QuickBooks Accounting Integration API", () => {
       // Based on the route code: revokeQuickBooksToken is awaited directly,
       // so if it throws, the outer catch returns 500
       expect(response.status).toBe(500);
+    });
+  });
+
+  // ================================================================
+  // POST /api/stores/[storeId]/accounting/sync — QuickBooks sync
+  // ================================================================
+  describe("POST /api/stores/[storeId]/accounting/sync", () => {
+    it("should use per-category GL mappings for QuickBooks line items", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        STORE_UUID,
+      );
+
+      const connectionQuery = createChainableMock({
+        data: sampleConnection,
+        error: null,
+      });
+      const invoiceDetailQuery = createChainableMock({
+        data: sampleInvoice,
+        error: null,
+      });
+      const lineItemsQuery = createChainableMock({
+        data: sampleLineItems,
+        error: null,
+      });
+      const insertSyncLogQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+      const updateConnectionQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return storeUsersQuery;
+      });
+
+      let connectionCallCount = 0;
+      mockAdminClient.from.mockImplementation((table: string) => {
+        if (table === "accounting_connections") {
+          connectionCallCount++;
+          if (connectionCallCount === 1) return connectionQuery;
+          return updateConnectionQuery;
+        }
+        if (table === "invoices") return invoiceDetailQuery;
+        if (table === "invoice_line_items") return lineItemsQuery;
+        if (table === "accounting_sync_log") return insertSyncLogQuery;
+        if (table === "suppliers")
+          return createChainableMock({
+            data: {
+              id: "sup-1",
+              name: "Fresh Foods Co",
+              email: "info@freshfoods.com",
+              phone: "020-1234-5678",
+            },
+            error: null,
+          });
+        if (table === "audit_logs")
+          return createChainableMock({ data: null, error: null });
+        return createChainableMock({ data: null, error: null });
+      });
+
+      const { POST } =
+        await import("@/app/api/stores/[storeId]/accounting/sync/route");
+      const request = createMockRequest(
+        "POST",
+        `/api/stores/${STORE_UUID}/accounting/sync`,
+        { entity_id: INVOICE_UUID },
+      );
+      const response = await POST(request, {
+        params: Promise.resolve({ storeId: STORE_UUID }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+
+      // Verify createBill was called with correct per-category account codes
+      const billArg = mockQbCreateBill.mock.calls[0][1];
+      // First line item: category "Produce" → mapped to "5100"
+      expect(billArg.line_items[0].account_code).toBe("5100");
+      // Second line item: category null → falls back to _default "5000"
+      expect(billArg.line_items[1].account_code).toBe("5000");
+    });
+
+    it("should return 500 when QuickBooks token is revoked", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        STORE_UUID,
+      );
+
+      const connectionQuery = createChainableMock({
+        data: sampleConnection,
+        error: null,
+      });
+      const updateConnectionQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+
+      const { TokenRevokedError } =
+        await import("@/lib/services/accounting/types");
+      mockGetQuickBooksCredentials.mockRejectedValue(
+        new TokenRevokedError("QuickBooks"),
+      );
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return storeUsersQuery;
+      });
+
+      let connectionCallCount = 0;
+      mockAdminClient.from.mockImplementation((table: string) => {
+        if (table === "accounting_connections") {
+          connectionCallCount++;
+          if (connectionCallCount === 1) return connectionQuery;
+          return updateConnectionQuery;
+        }
+        return createChainableMock({ data: null, error: null });
+      });
+
+      const { POST } =
+        await import("@/app/api/stores/[storeId]/accounting/sync/route");
+      const request = createMockRequest(
+        "POST",
+        `/api/stores/${STORE_UUID}/accounting/sync`,
+        { entity_id: INVOICE_UUID },
+      );
+      const response = await POST(request, {
+        params: Promise.resolve({ storeId: STORE_UUID }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.success).toBe(false);
+      expect(data.message).toBeDefined();
+    });
+
+    it("should handle rate limit errors from QuickBooks API", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        STORE_UUID,
+      );
+
+      const connectionQuery = createChainableMock({
+        data: sampleConnection,
+        error: null,
+      });
+      const invoiceDetailQuery = createChainableMock({
+        data: sampleInvoice,
+        error: null,
+      });
+      const lineItemsQuery = createChainableMock({
+        data: sampleLineItems,
+        error: null,
+      });
+      const insertSyncLogQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+      const updateConnectionQuery = createChainableMock({
+        data: null,
+        error: null,
+      });
+
+      const { RateLimitError } =
+        await import("@/lib/services/accounting/types");
+      mockQbCreateBill.mockRejectedValue(new RateLimitError("QuickBooks", 60));
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return storeUsersQuery;
+      });
+
+      let connectionCallCount = 0;
+      mockAdminClient.from.mockImplementation((table: string) => {
+        if (table === "accounting_connections") {
+          connectionCallCount++;
+          if (connectionCallCount === 1) return connectionQuery;
+          return updateConnectionQuery;
+        }
+        if (table === "invoices") return invoiceDetailQuery;
+        if (table === "invoice_line_items") return lineItemsQuery;
+        if (table === "accounting_sync_log") return insertSyncLogQuery;
+        if (table === "suppliers")
+          return createChainableMock({
+            data: {
+              id: "sup-1",
+              name: "Fresh Foods Co",
+              email: "info@freshfoods.com",
+              phone: "020-1234-5678",
+            },
+            error: null,
+          });
+        if (table === "audit_logs")
+          return createChainableMock({ data: null, error: null });
+        return createChainableMock({ data: null, error: null });
+      });
+
+      const { POST } =
+        await import("@/app/api/stores/[storeId]/accounting/sync/route");
+      const request = createMockRequest(
+        "POST",
+        `/api/stores/${STORE_UUID}/accounting/sync`,
+        { entity_id: INVOICE_UUID },
+      );
+      const response = await POST(request, {
+        params: Promise.resolve({ storeId: STORE_UUID }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.data.failed).toBe(1);
+      expect(data.data.results[0].success).toBe(false);
+      expect(data.data.results[0].error).toContain("rate limit");
     });
   });
 });
