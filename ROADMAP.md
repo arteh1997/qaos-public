@@ -53,7 +53,7 @@
 
 | ID     | Status  |
 | ------ | ------- |
-| QOS-42 | Backlog |
+| QOS-42 | Done    |
 | QOS-45 | Backlog |
 | QOS-46 | Backlog |
 | QOS-47 | Backlog |
