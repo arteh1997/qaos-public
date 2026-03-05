@@ -62,11 +62,21 @@ async function qboFetch(
   const res = await fetch(url, { ...options, headers });
 
   if (res.status === 429) {
-    const retryAfter = res.headers.get("Retry-After");
-    throw new RateLimitError(
-      "QuickBooks",
-      retryAfter ? parseInt(retryAfter, 10) : null,
-    );
+    const retryAfterRaw = res.headers.get("Retry-After");
+    let retryAfter: number | null = null;
+    if (retryAfterRaw) {
+      const parsed = Number(retryAfterRaw);
+      if (!Number.isNaN(parsed)) {
+        retryAfter = parsed;
+      } else {
+        // HTTP-date format — compute seconds from now
+        const date = Date.parse(retryAfterRaw);
+        if (!Number.isNaN(date)) {
+          retryAfter = Math.max(0, Math.ceil((date - Date.now()) / 1000));
+        }
+      }
+    }
+    throw new RateLimitError("QuickBooks", retryAfter);
   }
 
   return res;

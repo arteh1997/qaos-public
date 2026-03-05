@@ -24,6 +24,8 @@ import type {
   AccountingProviderAdapter,
 } from "@/lib/services/accounting/types";
 
+const SUPPORTED_PROVIDERS = ["xero", "quickbooks"] as const;
+
 function getProviderAdapter(provider: string): AccountingProviderAdapter {
   switch (provider) {
     case "xero":
@@ -31,7 +33,7 @@ function getProviderAdapter(provider: string): AccountingProviderAdapter {
     case "quickbooks":
       return quickbooksAdapter;
     default:
-      throw new Error(`Unsupported accounting provider: ${provider}`);
+      throw new Error("Unsupported accounting provider");
   }
 }
 
@@ -47,7 +49,7 @@ function getCredentialsFn(
     case "quickbooks":
       return getQuickBooksCredentials;
     default:
-      throw new Error(`Unsupported accounting provider: ${provider}`);
+      throw new Error("Unsupported accounting provider");
   }
 }
 
@@ -89,12 +91,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const supabase = createAdminClient();
 
-    // Get active accounting connection (any provider)
+    // Get active accounting connection (any supported provider)
     const { data: connection } = await supabase
       .from("accounting_connections")
       .select("*")
       .eq("store_id", storeId)
+      .in("provider", SUPPORTED_PROVIDERS)
       .eq("is_active", true)
+      .limit(1)
       .single();
 
     if (!connection) {
