@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r \".tool_input.command // empty\"); if [ -z \"$CMD\" ]; then exit 0; fi; if echo \"$CMD\" | grep -qE \"^(git\\s+checkout|git\\s+switch)\\s+-b\"; then exit 0; fi; if echo \"$CMD\" | grep -qE \"^(git\\s+commit|git\\s+add|git\\s+push)\"; then BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\"); if [ \"$BRANCH\" = \"main\" ] || [ \"$BRANCH\" = \"develop\" ]; then echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"deny\\\",\\\"permissionDecisionReason\\\":\\\"BLOCKED: You are on $BRANCH. Create a feature branch first with: git checkout -b feat/ART-XX-description\\\"}}\" && exit 0; fi; fi; exit 0'",
+            "command": "bash -c 'INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r \".tool_input.command // empty\"); if [ -z \"$CMD\" ]; then exit 0; fi; if echo \"$CMD\" | grep -qE \"^(git\\s+checkout|git\\s+switch)\\s+-b\"; then exit 0; fi; if echo \"$CMD\" | grep -qE \"^(git\\s+commit|git\\s+add|git\\s+push)\"; then BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"unknown\"); if [ \"$BRANCH\" = \"main\" ] || [ \"$BRANCH\" = \"develop\" ]; then echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"deny\\\",\\\"permissionDecisionReason\\\":\\\"BLOCKED: You are on $BRANCH. Create a feature branch first with: git checkout -b WIP/<issue-id>-description\\\"}}\" && exit 0; fi; fi; exit 0'",
             "timeout": 10,
             "statusMessage": "Checking branch safety..."
           }

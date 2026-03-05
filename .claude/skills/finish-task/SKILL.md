@@ -13,35 +13,29 @@ You are finishing the current task. Follow these steps exactly and STOP if any s
 git rev-parse --abbrev-ref HEAD
 ```
 
-Extract the Linear issue ID from the branch name (e.g., `feat/ART-32-fix-tenant-leak` → `ART-32`).
+Extract the Linear issue ID from the branch name (e.g., `WIP/QOS-36-fix-clover-sandbox-url` → `QOS-36`).
 
-If the branch doesn't match `feat/ART-*`, STOP:
+If the branch doesn't match `WIP/*`, STOP:
 
-> "You're not on a feature branch. Start a task first with `/start-task ART-XX`."
+> "You're not on a feature branch. Start a task first with `/start-task QOS-XX`."
 
 ## 2. Run all checks
 
 Run each check sequentially. If ANY fails, STOP and fix the issues before continuing.
 
 ```bash
-pnpm lint
+npm run lint
 ```
 
 If lint fails → fix the lint errors, then re-run.
 
 ```bash
-pnpm typecheck
-```
-
-If typecheck fails → fix the type errors, then re-run.
-
-```bash
-pnpm test
+npm run test:run
 ```
 
 If tests fail → fix the failing tests, then re-run.
 
-**Do not proceed past this step until all three pass cleanly.**
+**Do not proceed past this step until all checks pass cleanly.**
 
 ## 3. Stage and commit
 
@@ -67,15 +61,15 @@ Create a conventional commit. Determine the type from the changes:
 - Config/tooling → `chore`
 
 ```bash
-git commit -m "type(scope): concise description [ART-XX]"
+git commit -m "type(scope): concise description [QOS-XX]"
 ```
 
-Example: `git commit -m "fix(categories): add store_id filter to prevent cross-tenant leak [ART-32]"`
+Example: `git commit -m "fix(categories): add store_id filter to prevent cross-tenant leak [QOS-36]"`
 
 ## 4. Push the branch
 
 ```bash
-git push -u origin feat/ART-XX-description
+git push -u origin WIP/QOS-XX-description
 ```
 
 ## 5. Create pull request
@@ -85,22 +79,21 @@ Use the GitHub CLI:
 ```bash
 gh pr create \
   --base develop \
-  --title "type(scope): description [ART-XX]" \
+  --title "type(scope): description [QOS-XX]" \
   --body "## Summary
 
-Resolves ART-XX — {issue title from Linear}
+Resolves QOS-XX — {issue title from Linear}
 
 ## Changes
 {bullet list of what changed}
 
 ## Testing
 - [ ] Lint passes
-- [ ] TypeScript passes
 - [ ] Tests pass
 - [ ] Manual testing done
 
 ## Linear
-[ART-XX](https://linear.app/issue/ART-XX)"
+[QOS-XX](https://linear.app/qaos/issue/QOS-XX)"
 ```
 
 ## 6. Update Linear
@@ -109,18 +102,39 @@ Use the Linear MCP `save_issue` tool:
 
 - Set `state` to `"In Review"`
 
-## 7. Confirm
+## 7. Merge into develop and clean up
 
-> Task finished: ART-XX — {title}
+Merge the feature branch into `develop`, then delete it:
+
+```bash
+git checkout develop
+git pull origin develop
+git merge WIP/QOS-XX-description
+git push origin develop
+git branch -d WIP/QOS-XX-description
+git push origin --delete WIP/QOS-XX-description
+```
+
+You should now be on `develop` with the feature branch fully merged and deleted (both locally and remotely).
+
+## 8. Update ROADMAP.md
+
+Mark the issue as complete in `ROADMAP.md` by changing its status from `Backlog` or `In Progress` to `Done`:
+
+- Find the row matching the issue ID (e.g., `QOS-36`)
+- Change the Status column to `Done`
+
+## 9. Confirm
+
+> Task finished: QOS-XX — {title}
 > PR created: {PR URL}
+> Merged into `develop` and branch deleted
 > Linear status: In Review
-> Checks passed: lint, typecheck, tests
->
-> CodeRabbit will review the PR automatically. Wait for its review before merging.
+> Checks passed: lint, tests
 
 ## Important Rules
 
-- NEVER skip the lint/typecheck/test step
+- NEVER skip the lint/test step
 - NEVER force push
 - NEVER create a PR targeting `main` — always target `develop`
 - If checks fail, fix them in the SAME branch and re-run `/finish-task`
