@@ -14,7 +14,7 @@ describe("cloverAdapter", () => {
 
   describe("getAuthUrl", () => {
     it("uses production OAuth URL", () => {
-      const url = cloverAdapter.getAuthUrl("store-1", "state-token");
+      const url = cloverAdapter.getAuthUrl!("store-1", "state-token");
       expect(url).toContain("https://www.clover.com/oauth/v2/authorize");
       expect(url).not.toContain("sandbox");
     });
@@ -31,7 +31,7 @@ describe("cloverAdapter", () => {
           }),
       });
 
-      await cloverAdapter.exchangeCode("auth-code");
+      await cloverAdapter.exchangeCode!("auth-code");
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("https://www.clover.com/oauth/v2/token"),
@@ -49,7 +49,7 @@ describe("cloverAdapter", () => {
         json: () => Promise.resolve({ elements: [] }),
       });
 
-      await cloverAdapter.fetchMenuItems({
+      await cloverAdapter.fetchMenuItems!({
         merchant_id: "m1",
         access_token: "tok",
       });
@@ -68,7 +68,7 @@ describe("cloverAdapter", () => {
         json: () => Promise.resolve({ elements: [] }),
       });
 
-      await cloverAdapter.fetchMenuItems({
+      await cloverAdapter.fetchMenuItems!({
         merchant_id: "m1",
         access_token: "tok",
       });
