@@ -446,7 +446,7 @@ function ShiftFormBody({
 
                       {/* Preset not available message */}
                       {entry.mode === "preset" && !hasPatterns && (
-                        <p className="text-xs text-amber-900 dark:text-amber-300 bg-amber-500/10 p-2 rounded font-medium">
+                        <p className="text-xs text-amber-300 bg-amber-500/10 p-2 rounded font-medium">
                           No shift patterns configured for{" "}
                           {dayOfWeek ? DAY_NAMES[dayOfWeek] : "this day"}. Use
                           custom time or configure patterns in store settings.
@@ -480,7 +480,7 @@ function ShiftFormBody({
                           </div>
                           {/* Overnight shift indicator */}
                           {isOvernightShift(entry.startTime, entry.endTime) && (
-                            <div className="flex items-center gap-2 p-2 bg-indigo-50 dark:bg-indigo-950/50 rounded text-xs text-indigo-700 dark:text-indigo-300">
+                            <div className="flex items-center gap-2 p-2 bg-indigo-950/50 rounded text-xs text-indigo-300">
                               <MoonStar className="h-4 w-4 flex-shrink-0" />
                               <span>
                                 Overnight shift: ends {entry.endTime} on{" "}
@@ -552,10 +552,7 @@ function ShiftFormBody({
                           {format(parseISO(entry.date), "MMM d")}: {times.start}{" "}
                           - {times.end}
                           {overnight && (
-                            <span className="text-indigo-600 dark:text-indigo-400">
-                              {" "}
-                              (+1 day)
-                            </span>
+                            <span className="text-indigo-400"> (+1 day)</span>
                           )}
                           {entry.mode === "preset" && (
                             <span className="text-muted-foreground">
