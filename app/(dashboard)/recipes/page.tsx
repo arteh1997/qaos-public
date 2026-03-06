@@ -35,6 +35,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PageGuide } from "@/components/help/PageGuide";
 import { IngredientForm } from "@/components/recipes/IngredientForm";
 import { MenuItemForm } from "@/components/recipes/MenuItemForm";
+import { RecipeForm } from "@/components/recipes/RecipeForm";
+import type { CreateRecipeFormData } from "@/lib/validations/recipes";
 import {
   UtensilsCrossed,
   Plus,
@@ -45,6 +47,7 @@ import {
   PoundSterling,
   ShoppingBag,
   ChevronRight,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -81,6 +84,7 @@ export default function MenuCostsPage() {
     recipes,
     fetchRecipes,
     createRecipe,
+    updateRecipe,
     deleteRecipe,
     isSubmitting: submittingRecipe,
   } = useRecipes(storeId);
@@ -119,6 +123,7 @@ export default function MenuCostsPage() {
 
   const [showMenuItemForm, setShowMenuItemForm] = useState(false);
   const [showIngredientForm, setShowIngredientForm] = useState(false);
+  const [showRecipeForm, setShowRecipeForm] = useState(false);
   const [deletingMenuItemId, setDeletingMenuItemId] = useState<string | null>(
     null,
   );
@@ -281,6 +286,18 @@ export default function MenuCostsPage() {
     }
   };
 
+  const handleUpdateRecipe = async (data: CreateRecipeFormData) => {
+    if (!recipeDetail) return;
+    try {
+      await updateRecipe(recipeDetail.id, data);
+      fetchRecipe();
+      fetchAnalysis();
+      toast.success("Recipe updated");
+    } catch {
+      toast.error("Failed to update recipe");
+    }
+  };
+
   const handleSaveCost = async (inventoryItemId: string) => {
     const value = parseFloat(editingCostValue);
     if (isNaN(value) || value < 0) {
@@ -387,12 +404,28 @@ export default function MenuCostsPage() {
                     : ""}
                 </p>
               )}
+              <p className="text-sm text-muted-foreground">
+                Yields {recipeDetail.yield_quantity} {recipeDetail.yield_unit}
+                {recipeDetail.cost_per_unit > 0 &&
+                  recipeDetail.yield_quantity > 1 &&
+                  ` · ${formatCurrency(recipeDetail.cost_per_unit)} per ${recipeDetail.yield_unit}`}
+              </p>
             </div>
           </div>
-          <Button size="sm" onClick={() => setShowIngredientForm(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Ingredient
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowRecipeForm(true)}
+            >
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+            <Button size="sm" onClick={() => setShowIngredientForm(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Ingredient
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -650,6 +683,14 @@ export default function MenuCostsPage() {
           onSubmit={handleAddIngredient}
           isSubmitting={submittingIngredient}
           inventoryItems={inventoryOptions}
+        />
+        <RecipeForm
+          key={recipeDetail.updated_at}
+          open={showRecipeForm}
+          onOpenChange={setShowRecipeForm}
+          onSubmit={handleUpdateRecipe}
+          isSubmitting={submittingRecipe}
+          recipe={recipeDetail}
         />
       </div>
     );
