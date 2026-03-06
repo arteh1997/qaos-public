@@ -47,8 +47,10 @@ function createChainableMock(
   });
 
   // Make the mock thenable so it can be awaited without calling .single()
-  mock.then = (resolve: (value: unknown) => unknown) =>
-    Promise.resolve(resolvedValue).then(resolve);
+  mock.then = ((resolve?: ((value: unknown) => unknown) | null) =>
+    Promise.resolve(resolvedValue).then(
+      resolve ?? undefined,
+    )) as typeof Promise.prototype.then;
 
   return mock;
 }
