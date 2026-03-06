@@ -29,7 +29,8 @@ vi.mock("next/server", () => {
           ...(init?.headers ?? {}),
         },
       });
-      (res as { json: () => Promise<unknown> }).json = async () => data;
+      (res as unknown as { json: () => Promise<unknown> }).json = async () =>
+        data;
       return res;
     }
   }
