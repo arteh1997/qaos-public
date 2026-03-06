@@ -47,7 +47,7 @@
 | QOS-34  | Done    |
 | QOS-35  | Backlog |
 | QOS-208 | Backlog |
-| QOS-209 | Backlog |
+| QOS-209 | Done    |
 
 ### Lane 4: Frontend UI Wiring
 

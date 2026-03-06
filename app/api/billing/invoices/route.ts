@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { withApiAuth } from "@/lib/api/middleware";
-import { apiSuccess, apiError } from "@/lib/api/response";
+import { apiSuccess, apiError, apiForbidden } from "@/lib/api/response";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/config";
@@ -20,6 +20,16 @@ export async function GET(request: NextRequest) {
     if (!auth.success) return auth.response;
 
     const { context } = auth;
+
+    // Only the billing owner can view invoices
+    const isBillingOwner = context.stores.some((s) => s.is_billing_owner);
+    if (!isBillingOwner && !context.profile.is_platform_admin) {
+      return apiForbidden(
+        "Only the billing owner can view invoices",
+        context.requestId,
+      );
+    }
+
     const supabase = createAdminClient();
 
     // Get Stripe customer ID
