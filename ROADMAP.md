@@ -62,7 +62,7 @@
 | QOS-70 | Backlog |
 | QOS-71 | Done    |
 | QOS-70 | Done    |
-| QOS-71 | Backlog |
+| QOS-71 | Done    |
 
 ### Lane 5: Accessibility & Design
 
