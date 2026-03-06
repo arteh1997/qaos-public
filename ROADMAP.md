@@ -56,7 +56,7 @@
 | QOS-42 | Done    |
 | QOS-45 | Done    |
 | QOS-46 | Done    |
-| QOS-47 | Backlog |
+| QOS-47 | Done    |
 | QOS-60 | Done    |
 | QOS-69 | Backlog |
 | QOS-70 | Done    |
