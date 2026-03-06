@@ -465,4 +465,82 @@ describe("Bulk Import API Tests", () => {
       });
     });
   });
+
+  describe("GET /api/users/bulk-import/template", () => {
+    function createTemplateRequest(): NextRequest {
+      const url = new URL(
+        "http://localhost:3000/api/users/bulk-import/template",
+      );
+      return {
+        method: "GET",
+        nextUrl: url,
+        url: url.toString(),
+        headers: new Headers(),
+        cookies: {
+          get: vi.fn(),
+          set: vi.fn(),
+          delete: vi.fn(),
+        },
+      } as unknown as NextRequest;
+    }
+
+    it("should return 401 when not authenticated", async () => {
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+
+      const { GET } =
+        await import("@/app/api/users/bulk-import/template/route");
+
+      const response = await GET(createTemplateRequest());
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.code).toBe("UNAUTHORIZED");
+    });
+
+    it("should return 403 for Staff users", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser("Staff");
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return profileQuery;
+      });
+
+      const { GET } =
+        await import("@/app/api/users/bulk-import/template/route");
+
+      const response = await GET(createTemplateRequest());
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.code).toBe("FORBIDDEN");
+    });
+
+    it("should return CSV template for Owner", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser("Owner");
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return profileQuery;
+      });
+
+      const { GET } =
+        await import("@/app/api/users/bulk-import/template/route");
+
+      const response = await GET(createTemplateRequest());
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("text/csv");
+      expect(response.headers.get("Content-Disposition")).toContain(
+        "user-import-template.csv",
+      );
+
+      const body = (response as unknown as { _body: string })._body;
+      expect(body).toMatch(/^email,role,storeId/);
+    });
+  });
 });
