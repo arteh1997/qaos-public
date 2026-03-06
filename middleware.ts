@@ -33,7 +33,7 @@ const securityHeaders = {
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://va.vercel-scripts.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.supabase.co",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io https://vitals.vercel-insights.com https://va.vercel-scripts.com",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io https://vitals.vercel-insights.com https://va.vercel-scripts.com https://accounts.google.com https://oauth2.googleapis.com",
     "frame-src https://js.stripe.com",
     "font-src 'self'",
   ].join("; "),
