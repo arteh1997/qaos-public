@@ -1,14 +1,38 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+type StatsCardVariant = "default" | "warning" | "success" | "danger";
 
 interface StatsCardProps {
-  title: string
-  value: string | number
-  description?: string
-  icon?: React.ReactNode
-  className?: string
-  variant?: 'default' | 'warning' | 'success' | 'danger'
+  title: string;
+  value: string | number;
+  description?: string;
+  icon?: React.ReactNode;
+  className?: string;
+  variant?: StatsCardVariant;
 }
+
+const cardStyles: Record<StatsCardVariant, string> = {
+  default: "",
+  warning: "border-amber-500 bg-amber-500/10",
+  success: "border-emerald-500 bg-emerald-500/10",
+  danger: "border-destructive bg-destructive/10",
+};
+
+const iconStyles: Record<StatsCardVariant, string> = {
+  default:
+    "text-muted-foreground group-hover:text-foreground transition-colors duration-200",
+  warning: "text-amber-600 dark:text-amber-400",
+  success: "text-emerald-600 dark:text-emerald-400",
+  danger: "text-destructive",
+};
+
+const valueStyles: Record<StatsCardVariant, string> = {
+  default: "",
+  warning: "",
+  success: "",
+  danger: "text-destructive",
+};
 
 export function StatsCard({
   title,
@@ -16,29 +40,29 @@ export function StatsCard({
   description,
   icon,
   className,
-  variant = 'default',
+  variant = "default",
 }: StatsCardProps) {
-  const variantStyles = {
-    default: '',
-    warning: 'border-amber-500/50 bg-amber-500/10',
-    success: 'border-emerald-500/50 bg-emerald-500/10',
-    danger: 'border-destructive/50 bg-destructive/10',
-  }
-
   return (
-    <Card className={cn('group py-5 gap-4', variantStyles[variant], className)}>
+    <Card className={cn("group py-5 gap-4", cardStyles[variant], className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <div className="text-muted-foreground group-hover:text-foreground transition-colors duration-200">
-          {icon}
-        </div>
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
+        <div className={iconStyles[variant]}>{icon}</div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-semibold tracking-tight">{value}</div>
+        <div
+          className={cn(
+            "text-2xl font-semibold tracking-tight",
+            valueStyles[variant],
+          )}
+        >
+          {value}
+        </div>
         {description && (
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

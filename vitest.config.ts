@@ -6,8 +6,11 @@ export default defineConfig({
     globals: true,
     environment: "node",
     // Use jsdom for hook tests
-    environmentMatchGlobs: [["tests/hooks/**", "jsdom"]],
-    include: ["**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts}"],
+    environmentMatchGlobs: [
+      ["tests/hooks/**", "jsdom"],
+      ["tests/components/**", "jsdom"],
+    ],
+    include: ["**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,tsx}"],
     exclude: ["node_modules", ".next", "dist"],
     coverage: {
       provider: "v8",
