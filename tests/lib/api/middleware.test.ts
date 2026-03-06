@@ -347,21 +347,18 @@ describe("API Middleware Helpers", () => {
     });
 
     describe("Edge Cases", () => {
-      it("should handle non-numeric page value as NaN", () => {
+      it("should fall back to default page 1 for non-numeric page value", () => {
         const request = createMockRequest({ page: "abc" });
         const result = parsePaginationParams(request);
 
-        // parseInt('abc') returns NaN, Math.max(1, NaN) returns NaN
-        // This is a known edge case - the middleware doesn't handle NaN
-        expect(result.page).toBeNaN();
+        expect(result.page).toBe(1);
       });
 
-      it("should handle non-numeric pageSize value as NaN", () => {
+      it("should fall back to default pageSize 20 for non-numeric pageSize value", () => {
         const request = createMockRequest({ pageSize: "large" });
         const result = parsePaginationParams(request);
 
-        // Math.min/max with NaN returns NaN
-        expect(result.pageSize).toBeNaN();
+        expect(result.pageSize).toBe(20);
       });
 
       it("should handle decimal page values", () => {

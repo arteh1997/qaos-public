@@ -1,22 +1,22 @@
-import { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { rateLimit, RateLimitConfig } from '@/lib/rate-limit'
-import { validateCSRFToken } from '@/lib/csrf'
-import { AppRole, StoreUserWithStore, LegacyAppRole } from '@/types'
+import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { rateLimit, RateLimitConfig } from "@/lib/rate-limit";
+import { validateCSRFToken } from "@/lib/csrf";
+import { AppRole, StoreUserWithStore, LegacyAppRole } from "@/types";
 import {
   generateRequestId,
   apiUnauthorized,
   apiForbidden,
   apiRateLimited,
   apiBadRequest,
-} from './response'
+} from "./response";
 import {
   canAccessStore as canAccessStoreAuth,
   getRoleAtStore,
   canManageStore as canManageStoreAuth,
   canManageUsersAtStore as canManageUsersAuth,
   normalizeRole,
-} from '@/lib/auth'
+} from "@/lib/auth";
 
 /**
  * API Middleware Helpers
@@ -27,35 +27,35 @@ import {
  */
 
 export interface AuthContext {
-  user: { id: string; email?: string; fullName?: string }
+  user: { id: string; email?: string; fullName?: string };
   profile: {
-    role: AppRole | null
-    store_id: string | null
-    is_platform_admin: boolean
-  }
-  stores: StoreUserWithStore[]  // User's store memberships
-  requestId: string
-  supabase: Awaited<ReturnType<typeof createClient>>
+    role: AppRole | null;
+    store_id: string | null;
+    is_platform_admin: boolean;
+  };
+  stores: StoreUserWithStore[]; // User's store memberships
+  requestId: string;
+  supabase: Awaited<ReturnType<typeof createClient>>;
 }
 
 export interface ApiMiddlewareOptions {
   /** Required roles to access the endpoint (checked against any store membership) */
-  allowedRoles?: AppRole[]
+  allowedRoles?: AppRole[];
   /** Required roles at a specific store (pass storeId in request to check) */
-  requireRoleAtStore?: AppRole[]
+  requireRoleAtStore?: AppRole[];
   /** Rate limit configuration */
   rateLimit?: {
-    key: string
-    config: RateLimitConfig
-  }
+    key: string;
+    config: RateLimitConfig;
+  };
   /** Whether the endpoint requires authentication (default: true) */
-  requireAuth?: boolean
+  requireAuth?: boolean;
   /** Whether to require platform admin access */
-  requirePlatformAdmin?: boolean
+  requirePlatformAdmin?: boolean;
   /** Whether to require CSRF token validation for state-changing requests (default: false) */
-  requireCSRF?: boolean
+  requireCSRF?: boolean;
   /** Whether to require an active subscription for the store (default: false) */
-  requireActiveSubscription?: boolean
+  requireActiveSubscription?: boolean;
 }
 
 /**
@@ -64,11 +64,11 @@ export interface ApiMiddlewareOptions {
  */
 function extractStoreId(request: NextRequest): string | null {
   return (
-    request.nextUrl.searchParams.get('store_id') ||
-    request.nextUrl.searchParams.get('storeId') ||
+    request.nextUrl.searchParams.get("store_id") ||
+    request.nextUrl.searchParams.get("storeId") ||
     request.nextUrl.pathname.match(/\/api\/stores\/([^/]+)/)?.[1] ||
     null
-  )
+  );
 }
 
 /**
@@ -77,12 +77,12 @@ function extractStoreId(request: NextRequest): string | null {
  */
 function checkSubscriptionStatus(
   storeId: string | null,
-  stores: StoreUserWithStore[]
+  stores: StoreUserWithStore[],
 ): boolean {
-  if (!storeId) return true
-  const targetStore = stores.find(s => s.store_id === storeId)
-  if (!targetStore?.store?.subscription_status) return true
-  return ['active', 'trialing'].includes(targetStore.store.subscription_status)
+  if (!storeId) return true;
+  const targetStore = stores.find((s) => s.store_id === storeId);
+  if (!targetStore?.store?.subscription_status) return true;
+  return ["active", "trialing"].includes(targetStore.store.subscription_status);
 }
 
 /**
@@ -91,12 +91,12 @@ function checkSubscriptionStatus(
  */
 export async function withApiAuth(
   request: NextRequest,
-  options: ApiMiddlewareOptions = {}
+  options: ApiMiddlewareOptions = {},
 ): Promise<
   | { success: true; context: AuthContext }
   | { success: false; response: ReturnType<typeof apiUnauthorized> }
 > {
-  const requestId = generateRequestId()
+  const requestId = generateRequestId();
   const {
     allowedRoles,
     requireRoleAtStore,
@@ -105,29 +105,34 @@ export async function withApiAuth(
     requirePlatformAdmin = false,
     requireCSRF = false,
     requireActiveSubscription = false,
-  } = options
+  } = options;
 
   // Validate CSRF token for state-changing requests
   if (requireCSRF) {
-    const method = request.method.toUpperCase()
-    const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+    const method = request.method.toUpperCase();
+    const isStateChanging = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
 
     if (isStateChanging) {
-      const isValidCSRF = await validateCSRFToken(request)
+      const isValidCSRF = await validateCSRFToken(request);
       if (!isValidCSRF) {
-        return { success: false, response: apiBadRequest('Invalid or missing CSRF token', requestId) }
+        return {
+          success: false,
+          response: apiBadRequest("Invalid or missing CSRF token", requestId),
+        };
       }
     }
   }
 
   // Create Supabase client
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   // Check authentication
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user && requireAuth) {
-    return { success: false, response: apiUnauthorized(requestId) }
+    return { success: false, response: apiUnauthorized(requestId) };
   }
 
   // If no auth required and no user, return minimal context
@@ -135,101 +140,106 @@ export async function withApiAuth(
     return {
       success: true,
       context: {
-        user: { id: '' },
+        user: { id: "" },
         profile: { role: null, store_id: null, is_platform_admin: false },
         stores: [],
         requestId,
         supabase,
       },
-    }
+    };
   }
 
   // Apply rate limiting if configured
   if (rateLimitConfig) {
     const result = await rateLimit(
       `${rateLimitConfig.key}:${user.id}`,
-      rateLimitConfig.config
-    )
+      rateLimitConfig.config,
+    );
     if (!result.success) {
-      return { success: false, response: apiRateLimited(result, requestId) }
+      return { success: false, response: apiRateLimited(result, requestId) };
     }
   }
 
   // Local types for the specific columns we select (avoids dependency on generated types)
   interface ProfileRow {
-    role: string | null
-    store_id: string | null
-    is_platform_admin: boolean
-    default_store_id: string | null
-    full_name: string | null
+    role: string | null;
+    store_id: string | null;
+    is_platform_admin: boolean;
+    default_store_id: string | null;
+    full_name: string | null;
   }
 
   // Fetch profile and store memberships in parallel
   const [profileResult, storesResult] = await Promise.all([
     supabase
-      .from('profiles')
-      .select('role, store_id, is_platform_admin, default_store_id, full_name')
-      .eq('id', user.id)
+      .from("profiles")
+      .select("role, store_id, is_platform_admin, default_store_id, full_name")
+      .eq("id", user.id)
       .single<ProfileRow>(),
     supabase
-      .from('store_users')
-      .select('id, store_id, user_id, role, is_billing_owner, store:stores(id, name, is_active, subscription_status)')
-      .eq('user_id', user.id),
-  ])
+      .from("store_users")
+      .select(
+        "id, store_id, user_id, role, is_billing_owner, store:stores(id, name, is_active, subscription_status)",
+      )
+      .eq("user_id", user.id),
+  ]);
 
-  const profile = profileResult.data
+  const profile = profileResult.data;
   if (!profile) {
-    return { success: false, response: apiUnauthorized(requestId) }
+    return { success: false, response: apiUnauthorized(requestId) };
   }
 
   // Filter out any memberships without valid store data
   const stores = ((storesResult.data || []) as StoreUserWithStore[]).filter(
-    (s) => s.store !== null && s.store !== undefined
-  )
+    (s) => s.store !== null && s.store !== undefined,
+  );
 
   // Check platform admin requirement
   if (requirePlatformAdmin && !profile.is_platform_admin) {
     return {
       success: false,
-      response: apiForbidden('This action requires platform administrator access', requestId),
-    }
+      response: apiForbidden(
+        "This action requires platform administrator access",
+        requestId,
+      ),
+    };
   }
 
   // Check role authorization (any store membership with required role)
   if (allowedRoles && allowedRoles.length > 0) {
     const hasRequiredRole = stores.some((s: StoreUserWithStore) =>
-      allowedRoles.includes(s.role)
-    )
+      allowedRoles.includes(s.role),
+    );
     // Also check legacy profile.role for backward compatibility
-    const legacyRole = normalizeRole(profile.role as AppRole | LegacyAppRole)
-    const hasLegacyRole = legacyRole && allowedRoles.includes(legacyRole)
+    const legacyRole = normalizeRole(profile.role as AppRole | LegacyAppRole);
+    const hasLegacyRole = legacyRole && allowedRoles.includes(legacyRole);
 
     if (!hasRequiredRole && !hasLegacyRole && !profile.is_platform_admin) {
       return {
         success: false,
         response: apiForbidden(
-          `This action requires one of the following roles: ${allowedRoles.join(', ')}`,
-          requestId
+          `This action requires one of the following roles: ${allowedRoles.join(", ")}`,
+          requestId,
         ),
-      }
+      };
     }
   }
 
   // Check role at specific store if required
   if (requireRoleAtStore && requireRoleAtStore.length > 0) {
     // Check query params first, then extract from URL path
-    const storeId = extractStoreId(request)
+    const storeId = extractStoreId(request);
     if (storeId) {
-      const roleAtStore = getRoleAtStore(stores, storeId)
+      const roleAtStore = getRoleAtStore(stores, storeId);
       if (!roleAtStore || !requireRoleAtStore.includes(roleAtStore)) {
         if (!profile.is_platform_admin) {
           return {
             success: false,
             response: apiForbidden(
-              `This action requires one of the following roles at this store: ${requireRoleAtStore.join(', ')}`,
-              requestId
+              `This action requires one of the following roles at this store: ${requireRoleAtStore.join(", ")}`,
+              requestId,
             ),
-          }
+          };
         }
       }
     }
@@ -237,22 +247,26 @@ export async function withApiAuth(
 
   // Check subscription status if required
   if (requireActiveSubscription && !profile.is_platform_admin) {
-    const targetStoreId = extractStoreId(request)
+    const targetStoreId = extractStoreId(request);
     if (!checkSubscriptionStatus(targetStoreId, stores)) {
       return {
         success: false,
         response: apiForbidden(
           "This store's subscription has expired. Please renew to continue.",
-          requestId
+          requestId,
         ),
-      }
+      };
     }
   }
 
   return {
     success: true,
     context: {
-      user: { id: user.id, email: user.email, fullName: profile.full_name || undefined },
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: profile.full_name || undefined,
+      },
       profile: {
         role: normalizeRole(profile.role as AppRole | LegacyAppRole),
         store_id: profile.store_id,
@@ -262,7 +276,7 @@ export async function withApiAuth(
       requestId,
       supabase,
     },
-  }
+  };
 }
 
 /**
@@ -271,15 +285,15 @@ export async function withApiAuth(
  */
 export function canAccessStore(
   context: AuthContext,
-  targetStoreId: string
+  targetStoreId: string,
 ): boolean {
   // Platform admins can access all stores
   if (context.profile.is_platform_admin) {
-    return true
+    return true;
   }
 
   // Check store_users membership
-  return canAccessStoreAuth(context.stores, targetStoreId)
+  return canAccessStoreAuth(context.stores, targetStoreId);
 }
 
 /**
@@ -287,12 +301,12 @@ export function canAccessStore(
  */
 export function canManageStore(
   context: AuthContext,
-  targetStoreId: string
+  targetStoreId: string,
 ): boolean {
   if (context.profile.is_platform_admin) {
-    return true
+    return true;
   }
-  return canManageStoreAuth(context.stores, targetStoreId)
+  return canManageStoreAuth(context.stores, targetStoreId);
 }
 
 /**
@@ -300,12 +314,12 @@ export function canManageStore(
  */
 export function canManageUsersAtStore(
   context: AuthContext,
-  targetStoreId: string
+  targetStoreId: string,
 ): boolean {
   if (context.profile.is_platform_admin) {
-    return true
+    return true;
   }
-  return canManageUsersAuth(context.stores, targetStoreId)
+  return canManageUsersAuth(context.stores, targetStoreId);
 }
 
 /**
@@ -313,16 +327,16 @@ export function canManageUsersAtStore(
  */
 export function getUserRoleAtStore(
   context: AuthContext,
-  targetStoreId: string
+  targetStoreId: string,
 ): AppRole | null {
-  return getRoleAtStore(context.stores, targetStoreId)
+  return getRoleAtStore(context.stores, targetStoreId);
 }
 
 /**
  * Get all store IDs the user has access to
  */
 export function getAccessibleStoreIds(context: AuthContext): string[] {
-  return context.stores.map(s => s.store_id)
+  return context.stores.map((s) => s.store_id);
 }
 
 /**
@@ -330,37 +344,46 @@ export function getAccessibleStoreIds(context: AuthContext): string[] {
  */
 export function parsePaginationParams(
   request: NextRequest,
-  defaults: { page?: number; pageSize?: number } = {}
+  defaults: { page?: number; pageSize?: number } = {},
 ): { page: number; pageSize: number; from: number; to: number } {
-  const searchParams = request.nextUrl.searchParams
+  const searchParams = request.nextUrl.searchParams;
 
-  const page = Math.max(1, parseInt(searchParams.get('page') ?? String(defaults.page ?? 1), 10))
+  const rawPage = parseInt(searchParams.get("page") ?? "", 10);
+  const page = Math.max(
+    1,
+    Number.isFinite(rawPage) ? rawPage : (defaults.page ?? 1),
+  );
+
+  const rawPageSize = parseInt(searchParams.get("pageSize") ?? "", 10);
   const pageSize = Math.min(
     100, // Max page size
-    Math.max(1, parseInt(searchParams.get('pageSize') ?? String(defaults.pageSize ?? 20), 10))
-  )
+    Math.max(
+      1,
+      Number.isFinite(rawPageSize) ? rawPageSize : (defaults.pageSize ?? 20),
+    ),
+  );
 
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
-  return { page, pageSize, from, to }
+  return { page, pageSize, from, to };
 }
 
 /**
  * Parse common filter parameters
  */
 export function parseFilterParams(request: NextRequest): {
-  search: string | null
-  storeId: string | null
-  status: string | null
-  date: string | null
+  search: string | null;
+  storeId: string | null;
+  status: string | null;
+  date: string | null;
 } {
-  const searchParams = request.nextUrl.searchParams
+  const searchParams = request.nextUrl.searchParams;
 
   return {
-    search: searchParams.get('search'),
-    storeId: searchParams.get('store_id'),
-    status: searchParams.get('status'),
-    date: searchParams.get('date'),
-  }
+    search: searchParams.get("search"),
+    storeId: searchParams.get("store_id"),
+    status: searchParams.get("status"),
+    date: searchParams.get("date"),
+  };
 }
