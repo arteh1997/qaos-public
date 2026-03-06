@@ -71,7 +71,7 @@
 | QOS-78 | Done    |
 | QOS-79 | Done    |
 | QOS-80 | Backlog |
-| QOS-81 | Backlog |
+| QOS-81 | Done    |
 
 ---
 
