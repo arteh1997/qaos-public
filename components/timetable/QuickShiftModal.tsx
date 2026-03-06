@@ -264,10 +264,10 @@ function QuickShiftModalContent({
             <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm">
               <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
-                <span className="font-medium text-amber-800 dark:text-amber-200">
+                <span className="font-medium text-amber-200">
                   Store is closed on {DAY_NAMES[dayOfWeek]}s
                 </span>
-                <p className="text-amber-400 dark:text-amber-300 text-xs mt-0.5">
+                <p className="text-amber-400 text-xs mt-0.5">
                   You can still add a shift using custom times if needed.
                 </p>
               </div>
@@ -333,7 +333,7 @@ function QuickShiftModalContent({
             </div>
 
             {!hasShiftPatterns && mode === "preset" && selectedStore && (
-              <p className="text-xs text-amber-900 dark:text-amber-300 bg-amber-500/10 p-2 rounded font-medium">
+              <p className="text-xs text-amber-300 bg-amber-500/10 p-2 rounded font-medium">
                 {storeHoursForDay && !storeHoursForDay.isOpen
                   ? `Store is closed on ${DAY_NAMES[dayOfWeek]}s. Use custom time or select a different day.`
                   : `No shift patterns configured for ${DAY_NAMES[dayOfWeek]}. Set them in store settings or use custom time.`}
@@ -428,7 +428,7 @@ function QuickShiftModalContent({
                 </div>
                 {/* Overnight shift indicator */}
                 {isOvernightShift && (
-                  <div className="flex items-center gap-2 p-2 bg-indigo-50 dark:bg-indigo-950/50 rounded text-xs text-indigo-700 dark:text-indigo-300">
+                  <div className="flex items-center gap-2 p-2 bg-indigo-950/50 rounded text-xs text-indigo-300">
                     <MoonStar className="h-4 w-4 flex-shrink-0" />
                     <span>
                       Overnight shift: ends {customEndTime} on{" "}
@@ -460,10 +460,7 @@ function QuickShiftModalContent({
                   <>
                     {customStartTime} - {customEndTime}
                     {isOvernightShift && (
-                      <span className="text-indigo-600 dark:text-indigo-400">
-                        {" "}
-                        (+1 day)
-                      </span>
+                      <span className="text-indigo-400"> (+1 day)</span>
                     )}
                   </>
                 )}

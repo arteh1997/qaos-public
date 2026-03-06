@@ -47,7 +47,7 @@
 | QOS-34  | Done    |
 | QOS-35  | Backlog |
 | QOS-208 | Backlog |
-| QOS-209 | Backlog |
+| QOS-209 | Done    |
 
 ### Lane 4: Frontend UI Wiring
 
@@ -56,11 +56,13 @@
 | QOS-42 | Done    |
 | QOS-45 | Done    |
 | QOS-46 | Done    |
-| QOS-47 | Backlog |
-| QOS-60 | Backlog |
+| QOS-47 | Done    |
+| QOS-60 | Done    |
 | QOS-69 | Backlog |
 | QOS-70 | Backlog |
 | QOS-71 | Done    |
+| QOS-70 | Done    |
+| QOS-71 | Backlog |
 
 ### Lane 5: Accessibility & Design
 
@@ -69,9 +71,9 @@
 | QOS-40 | Done    |
 | QOS-61 | Done    |
 | QOS-78 | Done    |
-| QOS-79 | Backlog |
+| QOS-79 | Done    |
 | QOS-80 | Backlog |
-| QOS-81 | Backlog |
+| QOS-81 | Done    |
 
 ---
 

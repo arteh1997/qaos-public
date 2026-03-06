@@ -275,7 +275,7 @@ function OnboardContent() {
             minutesRemaining > 0 && (
               <Alert className="mb-4 bg-amber-500/10 border-amber-500/20">
                 <Clock className="h-4 w-4 text-amber-400" />
-                <AlertDescription className="text-amber-400 dark:text-amber-300">
+                <AlertDescription className="text-amber-400">
                   This invitation expires in {minutesRemaining} minute
                   {minutesRemaining !== 1 ? "s" : ""}. Please complete your
                   registration soon.

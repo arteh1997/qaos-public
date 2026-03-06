@@ -10,12 +10,8 @@ export function CTA() {
   const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section ref={ref} className="py-32 md:py-40 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[200px]" />
-      </div>
-
-      <div className="container px-6 md:px-8 relative z-10">
+    <section ref={ref} className="py-32 md:py-40 border-t border-border">
+      <div className="container px-6 md:px-8">
         <motion.div
           className="text-center max-w-3xl mx-auto"
           initial={{ opacity: 0, y: 40 }}

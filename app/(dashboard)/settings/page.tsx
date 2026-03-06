@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useStores } from "@/hooks/useStores";
@@ -15,9 +16,18 @@ import { StoreFormData } from "@/lib/validations/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -79,6 +89,7 @@ function formatTime12h(time: string | null | undefined): string {
 
 export default function SettingsPage() {
   const { currentStore, role } = useAuth();
+  const router = useRouter();
   const storeId = currentStore?.store_id ?? null;
   const store = currentStore?.store ?? null;
   const isOwner = role === "Owner";
@@ -90,6 +101,9 @@ export default function SettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiKeyFormOpen, setApiKeyFormOpen] = useState(false);
   const [webhookFormOpen, setWebhookFormOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { apiKeys, createApiKey, revokeApiKey } = useApiKeys(
     isOwner ? storeId : null,
@@ -165,6 +179,28 @@ export default function SettingsPage() {
       toast.success("Preference updated");
     } catch {
       toast.error("Failed to update preference");
+    }
+  };
+
+  const handleDeleteStore = async () => {
+    if (!storeId || deleteConfirmText !== store.name) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/stores/${storeId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = (await res.json()) as { message?: string };
+        throw new Error(body.message ?? "Failed to delete store");
+      }
+      toast.success("Store deleted");
+      router.push("/stores");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete store",
+      );
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setDeleteConfirmText("");
     }
   };
 
@@ -866,6 +902,45 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* ── DANGER ZONE (Owner only) ── */}
+      {isOwner && (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm sm:text-base font-semibold tracking-tight flex items-center gap-1.5 text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />
+              Danger Zone
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Irreversible actions that permanently affect this store.
+            </p>
+          </div>
+          <Card className="border-destructive/40">
+            <CardContent className="px-4 py-3 sm:px-5 sm:py-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium">
+                    Delete this store
+                  </p>
+                  <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug mt-0.5">
+                    Permanently delete the store and all associated data. This
+                    cannot be undone.
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  Delete Store
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Edit Store Dialog */}
       {isOwnerOrManager && (
         <StoreForm
@@ -890,6 +965,59 @@ export default function SettingsPage() {
             onOpenChange={setWebhookFormOpen}
             onSubmit={createWebhook}
           />
+          {/* Delete Store Confirmation Dialog */}
+          <Dialog
+            open={deleteDialogOpen}
+            onOpenChange={(open) => {
+              setDeleteDialogOpen(open);
+              if (!open) setDeleteConfirmText("");
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete store</DialogTitle>
+                <DialogDescription>
+                  This action is permanent and cannot be undone. All data
+                  associated with{" "}
+                  <span className="font-semibold text-foreground">
+                    {store.name}
+                  </span>{" "}
+                  will be deleted.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 py-2">
+                <Label className="text-xs text-muted-foreground">
+                  Type{" "}
+                  <span className="font-semibold text-foreground">
+                    {store.name}
+                  </span>{" "}
+                  to confirm
+                </Label>
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={store.name}
+                  autoComplete="off"
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteDialogOpen(false)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteStore}
+                  disabled={deleteConfirmText !== store.name || isDeleting}
+                >
+                  {isDeleting ? "Deleting…" : "Delete store"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

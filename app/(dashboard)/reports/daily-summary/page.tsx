@@ -190,7 +190,7 @@ export default function DailySummaryPage() {
 
         <Card className="border-amber-500/20 bg-amber-500/10">
           <CardContent className="py-12 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-900/50">
               <Package className="h-6 w-6 text-amber-400" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Complete Store Setup</h3>

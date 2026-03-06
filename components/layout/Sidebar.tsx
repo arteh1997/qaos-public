@@ -331,7 +331,7 @@ export const Sidebar = memo(function Sidebar({ role }: SidebarProps) {
           <p className="text-xs font-medium text-amber-400">
             Setup in progress
           </p>
-          <p className="text-[11px] text-amber-400/80 dark:text-amber-500/80 mt-0.5">
+          <p className="text-[11px] text-amber-400/80 mt-0.5">
             Complete store setup to unlock all features
           </p>
         </div>

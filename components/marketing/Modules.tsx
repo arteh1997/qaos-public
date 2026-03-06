@@ -31,61 +31,64 @@ export function Modules() {
   const isInView = useInView(ref, { once: true, margin: "-60px" });
 
   return (
-    <section
-      id="modules"
-      ref={ref}
-      className="py-24 md:py-32 relative overflow-hidden"
-    >
-      {/* Background accent */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-highlight/5 rounded-full blur-[150px] -translate-x-1/2" />
-      </div>
-
-      <div className="container px-6 md:px-8 relative z-10">
+    <section id="modules" ref={ref} className="py-24 md:py-32">
+      <div className="container px-6 md:px-8">
+        {/* Two-column header: headline left, sub-line right */}
         <motion.div
-          className="max-w-2xl mb-20"
+          className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 border-b border-border pb-10 mb-20 md:mb-28"
           initial={{ opacity: 0, y: 40 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
-          <span className="text-primary text-xs font-semibold uppercase tracking-widest mb-4 block">
-            Getting started
-          </span>
-          <h2 className="section-headline mb-6">
+          <h2 className="section-headline">
             Up and running
             <br />
             before lunch.
           </h2>
+          <p className="text-muted-foreground text-base max-w-xs leading-relaxed">
+            Three steps. No IT team. No downtime.
+          </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
+        {/* Vertical step timeline */}
+        <div className="max-w-3xl">
           {steps.map((step, i) => (
             <motion.div
               key={step.number}
-              className={`relative p-10 md:p-12 ${i < steps.length - 1 ? "border-b md:border-b-0 md:border-r border-border" : ""}`}
-              initial={{ opacity: 0, y: 50 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              className="flex gap-10 md:gap-16"
+              initial={{ opacity: 0, x: -30 }}
+              animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{
                 duration: 0.7,
-                delay: 0.1 + i * 0.15,
+                delay: 0.15 + i * 0.15,
                 ease: [0.22, 1, 0.36, 1],
               }}
             >
-              <span className="font-display text-6xl font-extrabold text-primary/15 mb-6 block">
-                {step.number}
-              </span>
-              <h3 className="font-display text-xl font-bold text-foreground mb-3">
-                {step.title}
-              </h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {step.description}
-              </p>
+              {/* Step number + vertical connector */}
+              <div className="flex flex-col items-center pt-1 shrink-0">
+                <span className="font-display text-4xl md:text-5xl font-extrabold text-foreground/10 leading-none">
+                  {step.number}
+                </span>
+                {i < steps.length - 1 && (
+                  <div className="w-px flex-1 bg-border mt-4" />
+                )}
+              </div>
+
+              {/* Content */}
+              <div className={i < steps.length - 1 ? "pb-16 md:pb-20" : ""}>
+                <h3 className="font-display text-xl md:text-2xl font-bold text-foreground mb-3">
+                  {step.title}
+                </h3>
+                <p className="text-muted-foreground text-sm md:text-base leading-relaxed">
+                  {step.description}
+                </p>
+              </div>
             </motion.div>
           ))}
         </div>
 
         <motion.div
-          className="mt-16 text-center"
+          className="mt-16"
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.7, delay: 0.6 }}

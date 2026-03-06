@@ -418,7 +418,7 @@ export function MobileNav({ role, variant = "default" }: MobileNavProps) {
             <p className="text-xs font-medium text-amber-400">
               Setup in progress
             </p>
-            <p className="text-[11px] text-amber-400/80 dark:text-amber-500/80 mt-0.5">
+            <p className="text-[11px] text-amber-400/80 mt-0.5">
               Complete store setup to unlock all features
             </p>
           </div>
