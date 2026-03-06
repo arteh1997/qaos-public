@@ -111,7 +111,7 @@ export function TempPasswordDialog({
             </div>
           </div>
 
-          <div className="rounded-md bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-200">
+          <div className="rounded-md bg-amber-500/10 p-3 text-sm text-amber-200">
             <p className="font-medium">Important:</p>
             <ul className="list-disc list-inside mt-1 space-y-1">
               <li>Share this password securely with the user</li>

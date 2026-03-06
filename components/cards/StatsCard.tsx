@@ -22,8 +22,8 @@ const cardStyles: Record<StatsCardVariant, string> = {
 const iconStyles: Record<StatsCardVariant, string> = {
   default:
     "text-muted-foreground group-hover:text-foreground transition-colors duration-200",
-  warning: "text-amber-600 dark:text-amber-400",
-  success: "text-emerald-600 dark:text-emerald-400",
+  warning: "text-amber-400",
+  success: "text-emerald-400",
   danger: "text-destructive",
 };
 

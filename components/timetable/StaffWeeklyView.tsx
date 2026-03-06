@@ -87,17 +87,12 @@ export function StaffWeeklyView({
     );
 
     const colors: Record<string, string> = {
-      opening:
-        "bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700",
-      mid: "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700",
-      closing:
-        "bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700",
+      opening: "bg-emerald-900/30 border-emerald-700",
+      mid: "bg-blue-900/30 border-blue-700",
+      closing: "bg-purple-900/30 border-purple-700",
     };
 
-    return (
-      colors[pattern] ||
-      "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700"
-    );
+    return colors[pattern] || "bg-gray-800 border-gray-700";
   };
 
   const getPatternLabel = (shift: Shift, store?: Store) => {
@@ -348,15 +343,15 @@ export function StaffWeeklyView({
         {/* Legend */}
         <div className="p-2 sm:p-3 border-t bg-muted/20 flex flex-wrap gap-2 sm:gap-3 text-xs">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700" />
+            <div className="w-3 h-3 rounded bg-emerald-900/30 border border-emerald-700" />
             <span>Opening</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700" />
+            <div className="w-3 h-3 rounded bg-blue-900/30 border border-blue-700" />
             <span>Mid</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700" />
+            <div className="w-3 h-3 rounded bg-purple-900/30 border border-purple-700" />
             <span>Closing</span>
           </div>
         </div>

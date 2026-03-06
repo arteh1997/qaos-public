@@ -40,7 +40,7 @@ const SHIFT_COLORS: Record<string, string> = {
   Opening: "bg-green-500/20 border-green-500/50 text-green-400",
   Mid: "bg-blue-500/20 border-blue-500/50 text-blue-400",
   Closing: "bg-purple-500/20 border-purple-500/50 text-purple-400",
-  Custom: "bg-gray-500/20 border-gray-500/50 text-gray-700 dark:text-gray-400",
+  Custom: "bg-gray-500/20 border-gray-500/50 text-gray-400",
 };
 
 export function WeeklyTimetable({
