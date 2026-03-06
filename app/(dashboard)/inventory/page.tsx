@@ -61,12 +61,20 @@ import {
   FileDown,
   Save,
   Undo2,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { exportToCSV, generateExportFilename } from "@/lib/export";
 import { supabaseFetch } from "@/lib/supabase/client";
 import { useCSRF } from "@/hooks/useCSRF";
 import { PageGuide } from "@/components/help/PageGuide";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
 
 const FILTER_DEFAULTS = {
   search: "",
@@ -149,7 +157,7 @@ interface InventoryWithQuantity extends InventoryItem {
 }
 
 function InventoryPageContent() {
-  const { currentStore, refreshProfile } = useAuth();
+  const { currentStore, refreshProfile, role } = useAuth();
   const currentStoreId = currentStore?.store_id;
   const {
     items,
@@ -176,6 +184,11 @@ function InventoryPageContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportDateRange, setExportDateRange] = useState<DateRange | undefined>(
+    undefined,
+  );
+  const [exportPopoverOpen, setExportPopoverOpen] = useState(false);
 
   // Pending changes system - track all unsaved edits
   const [pendingChanges, setPendingChanges] = useState<
@@ -672,6 +685,49 @@ function InventoryPageContent() {
     toast.success(`Exported ${inventoryWithQuantities.length} items`);
   };
 
+  const handleXlsxExport = useCallback(async () => {
+    if (!currentStoreId) return;
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (exportDateRange?.from) {
+        params.set(
+          "start_date",
+          exportDateRange.from.toISOString().split("T")[0],
+        );
+      }
+      if (exportDateRange?.to) {
+        params.set("end_date", exportDateRange.to.toISOString().split("T")[0]);
+      }
+      const qs = params.toString();
+      const url = `/api/stores/${currentStoreId}/export${qs ? `?${qs}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          (data as { message?: string }).message || "Export failed",
+        );
+      }
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      const contentDisposition = response.headers.get("content-disposition");
+      const filenameMatch = contentDisposition?.match(/filename="([^"]+)"/);
+      a.download = filenameMatch?.[1] ?? "export.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+      setExportPopoverOpen(false);
+      toast.success("Export downloaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [currentStoreId, exportDateRange]);
+
   const handleCSVImportSuccess = () => {
     setCsvImportOpen(false);
     refetchItems();
@@ -733,6 +789,52 @@ function InventoryPageContent() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {role === "Owner" && (
+            <Popover
+              open={exportPopoverOpen}
+              onOpenChange={setExportPopoverOpen}
+            >
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="bg-card">
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 space-y-3 p-4">
+                <div>
+                  <p className="text-sm font-medium mb-1">Date range</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Optional — leave blank to export all time
+                  </p>
+                  <DateRangePicker
+                    value={exportDateRange}
+                    onChange={setExportDateRange}
+                    align="end"
+                    placeholder="All time"
+                    className="w-full text-sm h-9"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={handleXlsxExport}
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Download .xlsx
+                    </>
+                  )}
+                </Button>
+              </PopoverContent>
+            </Popover>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="bg-card">
