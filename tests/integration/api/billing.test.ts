@@ -251,4 +251,80 @@ describe("Billing API Integration Tests", () => {
       });
     });
   });
+
+  describe("GET /api/billing/invoices — is_billing_owner guard", () => {
+    it("should return 403 when user is Owner but not billing owner", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        { isBillingOwner: false },
+      );
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return profileQuery;
+      });
+
+      const { GET } = await import("@/app/api/billing/invoices/route");
+
+      const request = createMockRequest("GET", "/api/billing/invoices");
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.success).toBe(false);
+    });
+  });
+
+  describe("GET /api/billing/payment-methods — is_billing_owner guard", () => {
+    it("should return 403 when user is Owner but not billing owner", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        { isBillingOwner: false },
+      );
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return profileQuery;
+      });
+
+      const { GET } = await import("@/app/api/billing/payment-methods/route");
+
+      const request = createMockRequest("GET", "/api/billing/payment-methods");
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.success).toBe(false);
+    });
+  });
+
+  describe("POST /api/billing/payment-methods — is_billing_owner guard", () => {
+    it("should return 403 when user is Owner but not billing owner", async () => {
+      const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+        "Owner",
+        { isBillingOwner: false },
+      );
+
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === "profiles") return profileQuery;
+        if (table === "store_users") return storeUsersQuery;
+        return profileQuery;
+      });
+
+      const { POST } = await import("@/app/api/billing/payment-methods/route");
+
+      const request = createMockRequest(
+        "POST",
+        "/api/billing/payment-methods",
+        { paymentMethodId: "pm_test123" },
+      );
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.success).toBe(false);
+    });
+  });
 });
