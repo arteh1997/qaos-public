@@ -27,11 +27,7 @@ import {
   XCircle,
   AlertCircle,
 } from "lucide-react";
-import {
-  parseUserCSV,
-  generateCSVTemplate,
-  BulkUserRow,
-} from "@/lib/validations/bulk-import";
+import { parseUserCSV, BulkUserRow } from "@/lib/validations/bulk-import";
 import { Store } from "@/types";
 import { toast } from "sonner";
 
@@ -99,16 +95,7 @@ export function BulkUserImportForm({
   );
 
   const handleDownloadTemplate = useCallback(() => {
-    const template = generateCSVTemplate();
-    const blob = new Blob([template], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "user-import-template.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    window.location.href = "/api/users/bulk-import/template";
   }, []);
 
   const handleImport = useCallback(async () => {
