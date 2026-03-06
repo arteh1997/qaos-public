@@ -8,6 +8,13 @@ import { useShifts } from "@/hooks/useShifts";
 import { usePendingInvites } from "@/hooks/usePendingInvites";
 import { InviteUserForm } from "@/components/forms/InviteUserForm";
 import { UserForm } from "@/components/forms/UserForm";
+import { BulkUserImportForm } from "@/components/forms/BulkUserImportForm";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +45,7 @@ import {
   X,
   Send,
   UserPlus,
+  Upload,
 } from "lucide-react";
 import { useCSRF } from "@/hooks/useCSRF";
 import { toast } from "sonner";
@@ -148,6 +156,7 @@ function UsersPageContent() {
 
   // Form state
   const [inviteFormOpen, setInviteFormOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [editFormOpen, setEditFormOpen] = useState(false);
   const [editUser, setEditUser] = useState<Profile | null>(null);
   const [isInviting, setIsInviting] = useState(false);
@@ -367,6 +376,16 @@ function UsersPageContent() {
         </div>
         <div className="flex items-center gap-2">
           <PageGuide pageKey="users" />
+          {(currentUserRole === "Owner" || currentUserRole === "Manager") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkImportOpen(true)}
+            >
+              <Upload className="h-4 w-4 mr-1.5" />
+              Import
+            </Button>
+          )}
           <Button onClick={() => setInviteFormOpen(true)} size="sm">
             <Plus className="h-4 w-4 mr-1.5" />
             Invite
@@ -746,6 +765,23 @@ function UsersPageContent() {
           </div>
         </>
       )}
+
+      {/* Bulk Import Dialog */}
+      <Dialog open={bulkImportOpen} onOpenChange={setBulkImportOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk Import Users</DialogTitle>
+          </DialogHeader>
+          <BulkUserImportForm
+            stores={stores}
+            onSuccess={() => {
+              setBulkImportOpen(false);
+              refetch();
+              refetchInvites();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Dialogs */}
       <InviteUserForm
