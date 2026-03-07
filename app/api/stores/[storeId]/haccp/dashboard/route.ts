@@ -8,21 +8,6 @@ interface RouteParams {
   params: Promise<{ storeId: string }>;
 }
 
-// HACCP tables are not yet in the generated Database type.
-// Define lightweight row shapes used by this route.
-interface HaccpCheck {
-  id: string;
-  status: string;
-  completed_at: string;
-  template_id: string | null;
-}
-
-interface HaccpTemplate {
-  id: string;
-  name: string;
-  frequency: string;
-}
-
 /**
  * GET /api/stores/:storeId/haccp/dashboard - HACCP compliance dashboard
  *
@@ -52,8 +37,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = context.supabase as any;
+    const db = context.supabase;
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -70,7 +54,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return apiError("Failed to fetch HACCP dashboard data");
     }
 
-    const checks = (todayChecks || []) as HaccpCheck[];
+    const checks = todayChecks || [];
     const totalChecks = checks.length;
     const passedChecks = checks.filter((c) => c.status === "pass").length;
     const failedChecks = checks.filter((c) => c.status === "fail").length;
@@ -139,7 +123,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Monday
     weekStart.setHours(0, 0, 0, 0);
 
-    const templates = (activeTemplates || []) as HaccpTemplate[];
+    const templates = activeTemplates || [];
     let weeklyCompletedIds = new Set<string>();
     const weeklyTemplates = templates.filter((t) => t.frequency === "weekly");
     if (weeklyTemplates.length > 0) {
@@ -153,7 +137,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           weeklyTemplates.map((t) => t.id),
         );
       weeklyCompletedIds = new Set(
-        ((weekChecks || []) as HaccpCheck[])
+        (weekChecks || [])
           .map((c) => c.template_id)
           .filter(Boolean) as string[],
       );
