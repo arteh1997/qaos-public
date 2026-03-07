@@ -13,7 +13,7 @@
 | QOS-72  | Done    |
 | QOS-73  | Done    |
 | QOS-74  | Done    |
-| QOS-211 | Backlog |
+| QOS-211 | Done    |
 | QOS-212 | Backlog |
 | QOS-213 | Backlog |
 
