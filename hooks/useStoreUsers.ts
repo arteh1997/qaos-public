@@ -237,6 +237,7 @@ export function useUpdateUserRole(storeId: string | null) {
 export function useTransferBillingOwnership(storeId: string | null) {
   const queryClient = useQueryClient();
   const { csrfFetch } = useCSRF();
+  const { refreshProfile } = useAuth();
 
   return useMutation({
     mutationFn: async (newBillingOwnerUserId: string) => {
@@ -261,6 +262,7 @@ export function useTransferBillingOwnership(storeId: string | null) {
       if (storeId) {
         queryClient.invalidateQueries({ queryKey: ["store-users", storeId] });
       }
+      refreshProfile();
       toast.success("Billing ownership transferred successfully");
     },
     onError: (err) => {
