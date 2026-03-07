@@ -9,6 +9,7 @@ import { GlobalKeyboardShortcuts } from "@/components/GlobalKeyboardShortcuts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { DunningBanner } from "@/components/billing/DunningBanner";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -102,6 +103,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
         >
           <div className="mx-auto max-w-6xl px-6 py-6 md:px-10 md:py-8">
+            <DunningBanner />
             <ErrorBoundary>{children}</ErrorBoundary>
           </div>
         </main>
