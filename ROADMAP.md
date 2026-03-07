@@ -4,18 +4,18 @@
 
 ### Lane 1: POS & Accounting
 
-| ID      | Status  |
-| ------- | ------- |
-| QOS-36  | Done    |
-| QOS-50  | Done    |
-| QOS-51  | Done    |
-| QOS-52  | Done    |
-| QOS-72  | Done    |
-| QOS-73  | Done    |
-| QOS-74  | Done    |
-| QOS-211 | Done    |
-| QOS-212 | Done    |
-| QOS-213 | Backlog |
+| ID      | Status |
+| ------- | ------ |
+| QOS-36  | Done   |
+| QOS-50  | Done   |
+| QOS-51  | Done   |
+| QOS-52  | Done   |
+| QOS-72  | Done   |
+| QOS-73  | Done   |
+| QOS-74  | Done   |
+| QOS-211 | Done   |
+| QOS-212 | Done   |
+| QOS-213 | Done   |
 
 ### Lane 3: Billing & Payments
 
