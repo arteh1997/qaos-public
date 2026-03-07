@@ -1,6 +1,7 @@
 import type { PosProviderAdapter, PosMenuItem, PosOAuthTokens } from "../types";
 import type { PosSaleEvent } from "@/lib/services/pos";
 import { validateUpserveSignature } from "../webhook-validators";
+import * as Sentry from "@sentry/nextjs";
 
 const getClientId = () => process.env.UPSERVE_CLIENT_ID || "";
 const getClientSecret = () => process.env.UPSERVE_CLIENT_SECRET || "";
@@ -133,7 +134,8 @@ export const upserveAdapter: PosProviderAdapter = {
         },
       });
       return res.ok;
-    } catch {
+    } catch (error) {
+      Sentry.captureException(error);
       return false;
     }
   },
