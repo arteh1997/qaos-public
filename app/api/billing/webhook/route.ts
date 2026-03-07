@@ -289,14 +289,23 @@ export async function POST(request: NextRequest) {
             }
 
             // Grace period auto-downgrade: check if first failure was > DUNNING_GRACE_PERIOD_DAYS ago
-            const { data: firstFailure } = await supabaseAdmin
-              .from("billing_events")
-              .select("created_at")
-              .eq("store_id", dbSubscription.store_id)
-              .eq("event_type", "invoice.payment_failed")
-              .order("created_at", { ascending: true })
-              .limit(1)
-              .single();
+            const { data: firstFailure, error: firstFailureError } =
+              await supabaseAdmin
+                .from("billing_events")
+                .select("created_at")
+                .eq("store_id", dbSubscription.store_id)
+                .eq("event_type", "invoice.payment_failed")
+                .order("created_at", { ascending: true })
+                .limit(1)
+                .single();
+
+            if (firstFailureError) {
+              debugError(
+                "Webhook",
+                "Failed to query first payment failure event:",
+                firstFailureError,
+              );
+            }
 
             if (firstFailure) {
               const daysSinceFirstFailure = Math.floor(
@@ -310,7 +319,9 @@ export async function POST(request: NextRequest) {
                   `Grace period expired for store ${dbSubscription.store_id} (${daysSinceFirstFailure} days). Canceling subscription.`,
                 );
 
-                await stripe.subscriptions.cancel(subscriptionId);
+                await stripe.subscriptions.cancel(subscriptionId, undefined, {
+                  idempotencyKey: `grace-cancel-${subscriptionId}-${event.id}`,
+                });
 
                 await logBillingEvent(
                   "subscription.grace_period_expired",
@@ -325,6 +336,25 @@ export async function POST(request: NextRequest) {
                     },
                   },
                 );
+
+                // Notify billing owner of grace period expiration
+                if (dbSubscription.billing_user_id) {
+                  const { data: store } = await supabaseAdmin
+                    .from("stores")
+                    .select("name")
+                    .eq("id", dbSubscription.store_id)
+                    .single();
+
+                  sendNotification({
+                    type: "subscription_cancelled",
+                    storeId: dbSubscription.store_id,
+                    recipientUserId: dbSubscription.billing_user_id,
+                    data: {
+                      storeName: store?.name || "your store",
+                      accessUntil: "immediately",
+                    },
+                  }).catch(() => {});
+                }
               }
             }
           }
