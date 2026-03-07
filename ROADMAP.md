@@ -22,7 +22,7 @@
 | ID     | Status  |
 | ------ | ------- |
 | QOS-37 | Done    |
-| QOS-48 | Backlog |
+| QOS-48 | Done    |
 | QOS-49 | Backlog |
 
 ### Lane 7: Notifications & PWA

@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useState } from "react";
-import { toast } from "sonner";
 import Link from "next/link";
 import { useStore } from "@/hooks/useStore";
 import { useStoreUsers, StoreUserWithProfile } from "@/hooks/useStoreUsers";
@@ -45,11 +44,8 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
     storeUsers,
     isLoading: usersLoading,
     removeUserFromStore,
+    transferBillingOwnership,
   } = useStoreUsers(storeId);
-  // TODO: Implement transferBillingOwnership in useStoreUsers hook
-  const transferBillingOwnership = async (_userId: string) => {
-    toast.error("Billing ownership transfer is not yet implemented");
-  };
   const [userToRemove, setUserToRemove] = useState<StoreUserWithProfile | null>(
     null,
   );
@@ -77,7 +73,7 @@ export default function StoreUsersPage({ params }: StoreUsersPageProps) {
 
   const handleTransferOwnership = async () => {
     if (!userToTransfer) return;
-    await transferBillingOwnership(userToTransfer.id);
+    await transferBillingOwnership(userToTransfer.user_id);
     setUserToTransfer(null);
   };
 
