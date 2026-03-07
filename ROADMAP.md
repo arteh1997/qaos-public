@@ -48,6 +48,7 @@
 | QOS-35  | Done   |
 | QOS-208 | Done   |
 | QOS-209 | Done   |
+| QOS-210 | Done   |
 
 ### Lane 4: Frontend UI Wiring
 
