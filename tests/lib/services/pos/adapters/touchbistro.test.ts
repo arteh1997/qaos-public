@@ -307,6 +307,17 @@ describe("touchBistroAdapter", () => {
       expect(event).toBeNull();
     });
 
+    it("preserves zero quantity for comped items", () => {
+      const event = touchBistroAdapter.normalizeEvent({
+        order_id: "ORD-12",
+        order_items: [
+          { id: "I1", name: "Comped Drink", quantity: 0, price: 0 },
+        ],
+      });
+
+      expect(event?.items[0].quantity).toBe(0);
+    });
+
     it("uses items as fallback for order_items", () => {
       const event = touchBistroAdapter.normalizeEvent({
         order_id: "ORD-11",

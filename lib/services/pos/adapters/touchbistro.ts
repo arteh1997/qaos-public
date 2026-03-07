@@ -14,7 +14,7 @@ function mapOrderToEvent(order: Record<string, unknown>): PosSaleEvent {
       pos_item_id: String(item.menu_item_id || item.id || ""),
       pos_item_name:
         (item.menu_item_name as string) || (item.name as string) || "Unknown",
-      quantity: Number(item.quantity) || 1,
+      quantity: item.quantity != null ? Number(item.quantity) : 1,
       unit_price: item.price ? Number(item.price) : undefined,
     })),
     total_amount: order.total ? Number(order.total) : undefined,
@@ -120,7 +120,7 @@ export const touchBistroAdapter: PosProviderAdapter = {
         pos_item_name: (item.name as string) || "Unknown",
         category: (item.category_name as string) || undefined,
         price: item.price ? Number(item.price) : undefined,
-        currency: "CAD",
+        currency: (item.currency as string) || "CAD",
       }),
     );
   },
