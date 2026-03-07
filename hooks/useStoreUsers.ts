@@ -240,7 +240,7 @@ export function useTransferBillingOwnership(storeId: string | null) {
   const { refreshProfile } = useAuth();
 
   return useMutation({
-    mutationFn: async (newBillingOwnerUserId: string) => {
+    mutationFn: async (newBillingOwnerUserId: string): Promise<void> => {
       if (!storeId) throw new Error("Store ID is required");
 
       const response = await csrfFetch(`/api/stores/${storeId}/billing-owner`, {
@@ -250,13 +250,12 @@ export function useTransferBillingOwnership(storeId: string | null) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.message || "Failed to transfer billing ownership",
+          (errorData as { message?: string }).message ||
+            "Failed to transfer billing ownership",
         );
       }
-
-      return response.json();
     },
     onSuccess: () => {
       if (storeId) {
