@@ -232,6 +232,48 @@ export function useUpdateUserRole(storeId: string | null) {
 }
 
 /**
+ * Mutation hook for transferring billing ownership
+ */
+export function useTransferBillingOwnership(storeId: string | null) {
+  const queryClient = useQueryClient();
+  const { csrfFetch } = useCSRF();
+  const { refreshProfile } = useAuth();
+
+  return useMutation({
+    mutationFn: async (newBillingOwnerUserId: string): Promise<void> => {
+      if (!storeId) throw new Error("Store ID is required");
+
+      const response = await csrfFetch(`/api/stores/${storeId}/billing-owner`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newBillingOwnerId: newBillingOwnerUserId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          (errorData as { message?: string }).message ||
+            "Failed to transfer billing ownership",
+        );
+      }
+    },
+    onSuccess: () => {
+      if (storeId) {
+        queryClient.invalidateQueries({ queryKey: ["store-users", storeId] });
+      }
+      refreshProfile();
+      toast.success("Billing ownership transferred successfully");
+    },
+    onError: (err) => {
+      toast.error(
+        "Failed to transfer billing ownership: " +
+          (err instanceof Error ? err.message : "Unknown error"),
+      );
+    },
+  });
+}
+
+/**
  * Combined hook that matches the old useStoreUsers API
  *
  * @example
@@ -242,6 +284,7 @@ export function useStoreUsers(storeId: string | null) {
   const addMutation = useAddUserToStore(storeId);
   const removeMutation = useRemoveUserFromStore(storeId);
   const updateRoleMutation = useUpdateUserRole(storeId);
+  const transferMutation = useTransferBillingOwnership(storeId);
 
   return {
     storeUsers: query.data || [],
@@ -250,9 +293,11 @@ export function useStoreUsers(storeId: string | null) {
     addUserToStore: addMutation.mutate,
     removeUserFromStore: removeMutation.mutate,
     updateUserRole: updateRoleMutation.mutate,
+    transferBillingOwnership: transferMutation.mutateAsync,
     isAdding: addMutation.isPending,
     isRemoving: removeMutation.isPending,
     isUpdatingRole: updateRoleMutation.isPending,
+    isTransferring: transferMutation.isPending,
     refetch: query.refetch,
   };
 }
