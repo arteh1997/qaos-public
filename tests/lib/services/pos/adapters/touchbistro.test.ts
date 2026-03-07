@@ -9,7 +9,7 @@ const credentials = { api_key: "test-api-key" };
 
 describe("touchBistroAdapter", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    mockFetch.mockReset();
   });
 
   describe("validateConnection", () => {

@@ -2,6 +2,30 @@ import type { PosProviderAdapter, PosMenuItem } from "../types";
 import type { PosSaleEvent } from "@/lib/services/pos";
 import { validateTouchBistroSignature } from "../webhook-validators";
 
+function mapOrderToEvent(order: Record<string, unknown>): PosSaleEvent {
+  const items =
+    (order.order_items as Record<string, unknown>[]) ||
+    (order.items as Record<string, unknown>[]) ||
+    [];
+  return {
+    external_event_id: String(order.order_id || order.bill_id || order.id),
+    event_type: (order.is_refund ? "refund" : "sale") as "sale" | "refund",
+    items: items.map((item) => ({
+      pos_item_id: String(item.menu_item_id || item.id || ""),
+      pos_item_name:
+        (item.menu_item_name as string) || (item.name as string) || "Unknown",
+      quantity: Number(item.quantity) || 1,
+      unit_price: item.price ? Number(item.price) : undefined,
+    })),
+    total_amount: order.total ? Number(order.total) : undefined,
+    currency: (order.currency as string) || "CAD",
+    occurred_at:
+      (order.closed_at as string) ||
+      (order.created_at as string) ||
+      new Date().toISOString(),
+  };
+}
+
 /**
  * TouchBistro Adapter
  *
@@ -27,30 +51,8 @@ export const touchBistroAdapter: PosProviderAdapter = {
 
   normalizeEvent(rawPayload: unknown): PosSaleEvent | null {
     const body = rawPayload as Record<string, unknown>;
-    const orderId = (body.order_id as string) || (body.bill_id as string);
-    if (!orderId) return null;
-
-    const items =
-      (body.order_items as Record<string, unknown>[]) ||
-      (body.items as Record<string, unknown>[]) ||
-      [];
-    return {
-      external_event_id: String(orderId),
-      event_type: body.is_refund ? "refund" : "sale",
-      items: items.map((item) => ({
-        pos_item_id: String(item.menu_item_id || item.id || ""),
-        pos_item_name:
-          (item.menu_item_name as string) || (item.name as string) || "Unknown",
-        quantity: Number(item.quantity) || 1,
-        unit_price: item.price ? Number(item.price) : undefined,
-      })),
-      total_amount: body.total ? Number(body.total) : undefined,
-      currency: (body.currency as string) || "CAD",
-      occurred_at:
-        (body.closed_at as string) ||
-        (body.created_at as string) ||
-        new Date().toISOString(),
-    };
+    if (!(body.order_id as string) && !(body.bill_id as string)) return null;
+    return mapOrderToEvent(body);
   },
 
   async validateConnection(
@@ -94,28 +96,9 @@ export const touchBistroAdapter: PosProviderAdapter = {
       throw new Error(`TouchBistro orders fetch failed: ${res.status}`);
     const data = await res.json();
 
-    return ((data.orders as Record<string, unknown>[]) || []).map((order) => {
-      const items = (order.order_items as Record<string, unknown>[]) || [];
-      return {
-        external_event_id: String(order.id),
-        event_type: (order.is_refund ? "refund" : "sale") as "sale" | "refund",
-        items: items.map((item) => ({
-          pos_item_id: String(item.menu_item_id || item.id || ""),
-          pos_item_name:
-            (item.menu_item_name as string) ||
-            (item.name as string) ||
-            "Unknown",
-          quantity: Number(item.quantity) || 1,
-          unit_price: item.price ? Number(item.price) : undefined,
-        })),
-        total_amount: order.total ? Number(order.total) : undefined,
-        currency: (order.currency as string) || "CAD",
-        occurred_at:
-          (order.closed_at as string) ||
-          (order.created_at as string) ||
-          new Date().toISOString(),
-      };
-    });
+    return ((data.orders as Record<string, unknown>[]) || []).map((order) =>
+      mapOrderToEvent(order),
+    );
   },
 
   async fetchMenuItems(
