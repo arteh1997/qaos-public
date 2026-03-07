@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-// Mock crypto for token generation
+// Hoist mock reference so we can assert on it after the mock is applied
+const mockAuditLog = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
+// Mock crypto for deterministic token generation
 vi.mock("crypto", () => ({
   default: {
     randomBytes: vi.fn(() => ({
@@ -79,9 +82,9 @@ vi.mock("@/lib/email", () => ({
   getAddedToStoreEmailHtml: vi.fn(() => "<html>Added to Store Email</html>"),
 }));
 
-// Mock audit log
+// Mock audit log — use hoisted ref so we can assert on calls
 vi.mock("@/lib/audit", () => ({
-  auditLog: vi.fn(() => Promise.resolve()),
+  auditLog: mockAuditLog,
   computeFieldChanges: vi.fn().mockReturnValue([]),
 }));
 
@@ -271,7 +274,6 @@ describe("Users Invite API Tests", () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Owner");
 
-        // Mock to check inviter's role at store
         const inviterRoleQuery = {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
@@ -308,7 +310,6 @@ describe("Users Invite API Tests", () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Manager");
 
-        // Mock inviter's role check at the store
         const inviterRoleQuery = {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
@@ -445,12 +446,10 @@ describe("Users Invite API Tests", () => {
             return {
               select: vi.fn().mockReturnThis(),
               eq: vi.fn().mockReturnThis(),
-              single: vi
-                .fn()
-                .mockResolvedValue({
-                  data: { full_name: "Inviter" },
-                  error: null,
-                }),
+              single: vi.fn().mockResolvedValue({
+                data: { full_name: "Inviter" },
+                error: null,
+              }),
             };
           return inviterRoleQuery;
         });
@@ -472,6 +471,122 @@ describe("Users Invite API Tests", () => {
 
         expect(response.status).toBe(400);
         expect(data.message).toContain("active invitation already exists");
+      });
+    });
+
+    describe("Successful New User Invitation", () => {
+      it("should insert invite record with correct fields and write audit log", async () => {
+        const { profileQuery, storeUsersQuery } =
+          setupAuthenticatedUser("Owner");
+
+        const inviterRoleQuery = {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { role: "Owner" },
+            error: null,
+          }),
+        };
+
+        // Capture the insert mock so we can assert on it
+        const userInvitesInsertMock = vi
+          .fn()
+          .mockResolvedValue({ data: null, error: null });
+        const userInvitesQuery = {
+          select: vi.fn().mockReturnThis(),
+          insert: userInvitesInsertMock,
+          delete: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockReturnThis(),
+          gt: vi.fn().mockReturnThis(),
+          // No existing invite found
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: { code: "PGRST116" },
+          }),
+        };
+
+        const storeDetailsQuery = {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { id: "store-1", name: "Test Store" },
+            error: null,
+          }),
+        };
+
+        const inviterProfileQuery = {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { full_name: "Store Owner", email: "inviter@example.com" },
+            error: null,
+          }),
+        };
+
+        mockSupabaseClient.from.mockImplementation((table: string) => {
+          if (table === "profiles") return profileQuery;
+          if (table === "store_users") return storeUsersQuery;
+          return inviterRoleQuery;
+        });
+
+        mockAdminClient.from.mockImplementation((table: string) => {
+          if (table === "user_invites") return userInvitesQuery;
+          if (table === "stores") return storeDetailsQuery;
+          if (table === "profiles") return inviterProfileQuery;
+          return inviterRoleQuery;
+        });
+
+        // No existing user with this email
+        mockAdminClient.auth.admin.listUsers.mockResolvedValue({
+          data: { users: [] },
+          error: null,
+        });
+
+        const { POST } = await import("@/app/api/users/invite/route");
+
+        const request = createMockRequest("POST", {
+          email: "newstaff@example.com",
+          role: "Staff",
+          storeId: "store-1",
+        });
+        const response = await POST(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(data.success).toBe(true);
+        expect(data.data).toMatchObject({
+          message: "Invitation sent successfully",
+          email: "newstaff@example.com",
+        });
+        // Verify expires_at is returned
+        expect(data.data.expiresAt).toBeDefined();
+
+        // Verify invite record was inserted with correct fields
+        expect(userInvitesInsertMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            email: "newstaff@example.com",
+            role: "Staff",
+            store_id: "store-1",
+            invited_by: "inviter-123",
+            token: expect.any(String),
+            expires_at: expect.any(String),
+          }),
+        );
+
+        // Verify audit log was written with correct invitation metadata
+        expect(mockAuditLog).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            action: "user.invite",
+            storeId: "store-1",
+            resourceType: "user_invite",
+            details: expect.objectContaining({
+              invitedEmail: "newstaff@example.com",
+              role: "Staff",
+            }),
+          }),
+        );
       });
     });
   });

@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+// Hoist mock references so they're accessible inside vi.mock factories
+const mockAuditLog = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockAdminClient = vi.hoisted(() => ({
+  from: vi.fn(() => ({
+    insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+  })),
+}));
+
 // Create chainable query builder mock
 function createChainableMock(
   resolvedValue: unknown = { data: null, error: null },
@@ -67,6 +75,26 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
 }));
 
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => mockAdminClient),
+}));
+
+vi.mock("@/lib/audit", () => ({
+  auditLog: mockAuditLog,
+}));
+
+vi.mock("@/lib/services/notifications", () => ({
+  sendNotification: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/utils/format-shift", () => ({
+  formatShiftDate: vi
+    .fn()
+    .mockReturnValue({ date: "Jan 15, 2026", dayOfWeek: "Thursday" }),
+  formatShiftTime: vi.fn().mockReturnValue("09:00 AM"),
+  calculateDuration: vi.fn().mockReturnValue("8h 0m"),
+}));
+
 // Mock rate limit to always allow
 vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn(() => ({
@@ -86,6 +114,11 @@ vi.mock("@/lib/csrf", () => ({
   validateCSRFToken: vi.fn().mockResolvedValue(true),
   getCSRFToken: vi.fn().mockResolvedValue("test-csrf-token"),
 }));
+
+// Use valid UUID format (RFC 4122 compliant - version 4, variant a)
+const STORE_UUID = "11111111-1111-4111-a111-111111111111";
+const USER_UUID = "22222222-2222-4222-a222-222222222222";
+const MANAGER_UUID = "33333333-3333-4333-a333-333333333333";
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -115,15 +148,15 @@ function createMockRequest(
 }
 
 // Setup authenticated user with specific role
-function setupAuthenticatedUser(role: string, storeId: string = "store-1") {
+function setupAuthenticatedUser(role: string, storeId: string = STORE_UUID) {
   mockSupabaseClient.auth.getUser.mockResolvedValue({
-    data: { user: { id: "user-123", email: "test@example.com" } },
+    data: { user: { id: MANAGER_UUID, email: "manager@example.com" } },
     error: null,
   });
 
   const profileQuery = createChainableMock({
     data: {
-      id: "user-123",
+      id: MANAGER_UUID,
       role,
       store_id: null,
       is_platform_admin: false,
@@ -137,7 +170,7 @@ function setupAuthenticatedUser(role: string, storeId: string = "store-1") {
       {
         id: "su-1",
         store_id: storeId,
-        user_id: "user-123",
+        user_id: MANAGER_UUID,
         role,
         is_billing_owner: role === "Owner",
         store: { id: storeId, name: "Test Store", is_active: true },
@@ -176,7 +209,7 @@ describe("Shifts API Integration Tests", () => {
     });
 
     describe("Authorized Requests", () => {
-      it("should return shifts list", async () => {
+      it("should return shifts list with expected shape", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Manager");
 
@@ -184,12 +217,12 @@ describe("Shifts API Integration Tests", () => {
           data: [
             {
               id: "shift-1",
-              store_id: "store-1",
-              user_id: "user-456",
-              start_time: "2025-01-15T09:00:00Z",
-              end_time: "2025-01-15T17:00:00Z",
-              store: { id: "store-1", name: "Test Store" },
-              user: { id: "user-456", full_name: "John Doe" },
+              store_id: STORE_UUID,
+              user_id: USER_UUID,
+              start_time: "2026-01-15T09:00:00Z",
+              end_time: "2026-01-15T17:00:00Z",
+              store: { id: STORE_UUID, name: "Test Store" },
+              user: { id: USER_UUID, full_name: "John Doe" },
             },
           ],
           count: 1,
@@ -212,9 +245,19 @@ describe("Shifts API Integration Tests", () => {
         expect(response.status).toBe(200);
         expect(data.success).toBe(true);
         expect(Array.isArray(data.data)).toBe(true);
+        // Verify response body shape includes nested store and user data
+        expect(data.data[0]).toMatchObject({
+          id: "shift-1",
+          store_id: STORE_UUID,
+          user_id: USER_UUID,
+          start_time: "2026-01-15T09:00:00Z",
+          end_time: "2026-01-15T17:00:00Z",
+          store: { id: STORE_UUID, name: "Test Store" },
+          user: { id: USER_UUID, full_name: "John Doe" },
+        });
       });
 
-      it("should filter by store_id", async () => {
+      it("should apply store_id eq filter when store_id param is provided", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Manager");
 
@@ -233,16 +276,16 @@ describe("Shifts API Integration Tests", () => {
         const { GET } = await import("@/app/api/shifts/route");
 
         const request = createMockRequest("GET", undefined, {
-          store_id: "store-1",
+          store_id: STORE_UUID,
         });
         const response = await GET(request);
-        const data = await response.json();
 
         expect(response.status).toBe(200);
-        expect(data.success).toBe(true);
+        // Verify eq filter was applied for the specific store
+        expect(shiftsQuery.eq).toHaveBeenCalledWith("store_id", STORE_UUID);
       });
 
-      it("should filter by date range", async () => {
+      it("should apply date range filters using gte and lte", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Manager");
 
@@ -261,19 +304,26 @@ describe("Shifts API Integration Tests", () => {
         const { GET } = await import("@/app/api/shifts/route");
 
         const request = createMockRequest("GET", undefined, {
-          start_date: "2025-01-01",
-          end_date: "2025-01-31",
+          start_date: "2026-01-01",
+          end_date: "2026-01-31",
         });
         const response = await GET(request);
-        const data = await response.json();
 
         expect(response.status).toBe(200);
-        expect(data.success).toBe(true);
+        // Verify date range filters were applied
+        expect(shiftsQuery.gte).toHaveBeenCalledWith(
+          "start_time",
+          "2026-01-01T00:00:00.000Z",
+        );
+        expect(shiftsQuery.lte).toHaveBeenCalledWith(
+          "end_time",
+          "2026-01-31T23:59:59.999Z",
+        );
       });
     });
 
     describe("Staff Role Restrictions", () => {
-      it("should return shifts for Staff", async () => {
+      it("should scope Staff query to their own user_id", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Staff");
 
@@ -281,10 +331,10 @@ describe("Shifts API Integration Tests", () => {
           data: [
             {
               id: "shift-1",
-              store_id: "store-1",
-              user_id: "user-123",
-              start_time: "2025-01-15T09:00:00Z",
-              end_time: "2025-01-15T17:00:00Z",
+              store_id: STORE_UUID,
+              user_id: MANAGER_UUID,
+              start_time: "2026-01-15T09:00:00Z",
+              end_time: "2026-01-15T17:00:00Z",
             },
           ],
           count: 1,
@@ -302,10 +352,10 @@ describe("Shifts API Integration Tests", () => {
 
         const request = createMockRequest("GET");
         const response = await GET(request);
-        const data = await response.json();
 
         expect(response.status).toBe(200);
-        expect(data.success).toBe(true);
+        // Verify Staff can only see their own shifts
+        expect(shiftsQuery.eq).toHaveBeenCalledWith("user_id", MANAGER_UUID);
       });
     });
   });
@@ -326,8 +376,8 @@ describe("Shifts API Integration Tests", () => {
 
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
         const request = createMockRequest("POST", {
-          store_id: "store-1",
-          user_id: "user-456",
+          store_id: STORE_UUID,
+          user_id: USER_UUID,
           start_time: futureDate.toISOString(),
           end_time: new Date(
             futureDate.getTime() + 8 * 60 * 60 * 1000,
@@ -343,7 +393,7 @@ describe("Shifts API Integration Tests", () => {
     });
 
     describe("Validation", () => {
-      it("should return 400 for missing required fields", async () => {
+      it("should return 400 for missing store_id", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Owner");
 
@@ -357,7 +407,7 @@ describe("Shifts API Integration Tests", () => {
 
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
         const request = createMockRequest("POST", {
-          user_id: "user-456",
+          user_id: USER_UUID,
           start_time: futureDate.toISOString(),
           end_time: new Date(
             futureDate.getTime() + 8 * 60 * 60 * 1000,
@@ -384,8 +434,8 @@ describe("Shifts API Integration Tests", () => {
         const { POST } = await import("@/app/api/shifts/route");
 
         const request = createMockRequest("POST", {
-          store_id: "store-1",
-          user_id: "user-456",
+          store_id: STORE_UUID,
+          user_id: USER_UUID,
           start_time: "not-a-date",
           end_time: "also-not-a-date",
         });
@@ -397,13 +447,8 @@ describe("Shifts API Integration Tests", () => {
       });
     });
 
-    describe("Successful Creation", () => {
-      // Use valid UUID format (RFC 4122 compliant - version 4, variant a)
-      const STORE_UUID = "11111111-1111-4111-a111-111111111111";
-      const USER_UUID = "22222222-2222-4222-a222-222222222222";
-      const USER_UUID_2 = "33333333-3333-4333-a333-333333333333";
-
-      it("should create shift for Owner", async () => {
+    describe("Business Rules", () => {
+      it("should return 400 when shift overlaps with an existing shift", async () => {
         const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
           "Owner",
           STORE_UUID,
@@ -412,26 +457,74 @@ describe("Shifts API Integration Tests", () => {
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
         const endTime = new Date(futureDate.getTime() + 8 * 60 * 60 * 1000);
 
-        // Create a chainable mock for overlap check query
+        // Overlap check returns an existing conflicting shift
+        const overlapCheckQuery = createChainableMock({
+          data: [
+            {
+              id: "existing-shift-999",
+              start_time: futureDate.toISOString(),
+              end_time: endTime.toISOString(),
+            },
+          ],
+          error: null,
+        });
+
+        mockSupabaseClient.from.mockImplementation((table: string) => {
+          if (table === "profiles") return profileQuery;
+          if (table === "store_users") return storeUsersQuery;
+          if (table === "shifts") return overlapCheckQuery;
+          return overlapCheckQuery;
+        });
+
+        const { POST } = await import("@/app/api/shifts/route");
+
+        const request = createMockRequest("POST", {
+          store_id: STORE_UUID,
+          user_id: USER_UUID,
+          start_time: futureDate.toISOString(),
+          end_time: endTime.toISOString(),
+        });
+        const response = await POST(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(data.code).toBe("BAD_REQUEST");
+        expect(data.message).toContain("already has a shift");
+      });
+    });
+
+    describe("Successful Creation", () => {
+      it("should insert shift with correct payload and write audit log for Owner", async () => {
+        const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
+          "Owner",
+          STORE_UUID,
+        );
+
+        const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const endTime = new Date(futureDate.getTime() + 8 * 60 * 60 * 1000);
+
         const overlapCheckResult = { data: [], error: null };
         const overlapCheckQuery = createChainableMock(overlapCheckResult);
 
-        // Create a chainable mock for insert query that returns shift data via .single()
         const insertResultData = {
           id: "new-shift-123",
           store_id: STORE_UUID,
           user_id: USER_UUID,
           start_time: futureDate.toISOString(),
           end_time: endTime.toISOString(),
+          notes: null,
           store: { id: STORE_UUID, name: "Test Store" },
-          user: { id: USER_UUID, full_name: "John Doe" },
+          user: {
+            id: USER_UUID,
+            full_name: "John Doe",
+            email: "john@example.com",
+          },
         };
         const insertQuery = createChainableMock({
           data: insertResultData,
           error: null,
         });
 
-        // Track which operation is being performed
         let isInsertOperation = false;
         const shiftsQueryHandler = {
           select: vi.fn().mockImplementation(() => {
@@ -451,11 +544,20 @@ describe("Shifts API Integration Tests", () => {
             Promise.resolve(overlapCheckResult).then(resolve),
         };
 
+        // Manager profile for notification lookup
+        const managerProfileQuery = createChainableMock({
+          data: { full_name: "Manager Name" },
+          error: null,
+        });
+
         mockSupabaseClient.from.mockImplementation((table: string) => {
-          if (table === "profiles") return profileQuery;
+          if (table === "profiles") {
+            // First profile call is auth check; subsequent is notification lookup
+            return profileQuery;
+          }
           if (table === "store_users") return storeUsersQuery;
           if (table === "shifts") return shiftsQueryHandler;
-          return shiftsQueryHandler;
+          return managerProfileQuery;
         });
 
         const { POST } = await import("@/app/api/shifts/route");
@@ -471,10 +573,44 @@ describe("Shifts API Integration Tests", () => {
 
         expect(response.status).toBe(201);
         expect(data.success).toBe(true);
-        expect(data.data.id).toBe("new-shift-123");
+        // Verify response body contains full shift data with nested relations
+        expect(data.data).toMatchObject({
+          id: "new-shift-123",
+          store_id: STORE_UUID,
+          user_id: USER_UUID,
+          store: { id: STORE_UUID, name: "Test Store" },
+          user: { full_name: "John Doe" },
+        });
+
+        // Verify INSERT was called with correct shift fields
+        expect(shiftsQueryHandler.insert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            store_id: STORE_UUID,
+            user_id: USER_UUID,
+            start_time: futureDate.toISOString(),
+            end_time: endTime.toISOString(),
+          }),
+        );
+
+        // Verify audit log recorded the shift creation with employee details
+        expect(mockAuditLog).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            action: "shift.create",
+            storeId: STORE_UUID,
+            resourceType: "shift",
+            resourceId: "new-shift-123",
+            details: expect.objectContaining({
+              employeeId: USER_UUID,
+              startTime: futureDate.toISOString(),
+              endTime: endTime.toISOString(),
+            }),
+          }),
+        );
       });
 
-      it("should create shift for Manager", async () => {
+      it("should insert shift and write audit log for Manager", async () => {
+        const EMPLOYEE_UUID = "44444444-4444-4444-a444-444444444444";
         const { profileQuery, storeUsersQuery } = setupAuthenticatedUser(
           "Manager",
           STORE_UUID,
@@ -483,24 +619,28 @@ describe("Shifts API Integration Tests", () => {
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
         const endTime = new Date(futureDate.getTime() + 8 * 60 * 60 * 1000);
 
-        // Create a chainable mock for overlap check query
         const overlapCheckResult = { data: [], error: null };
         const overlapCheckQuery = createChainableMock(overlapCheckResult);
 
-        // Create a chainable mock for insert query that returns shift data via .single()
         const insertResultData = {
           id: "new-shift-456",
           store_id: STORE_UUID,
-          user_id: USER_UUID_2,
+          user_id: EMPLOYEE_UUID,
           start_time: futureDate.toISOString(),
           end_time: endTime.toISOString(),
+          notes: null,
+          store: { id: STORE_UUID, name: "Test Store" },
+          user: {
+            id: EMPLOYEE_UUID,
+            full_name: "Jane Smith",
+            email: "jane@example.com",
+          },
         };
         const insertQuery = createChainableMock({
           data: insertResultData,
           error: null,
         });
 
-        // Track which operation is being performed
         let isInsertOperation = false;
         const shiftsQueryHandler = {
           select: vi.fn().mockImplementation(() => {
@@ -520,18 +660,23 @@ describe("Shifts API Integration Tests", () => {
             Promise.resolve(overlapCheckResult).then(resolve),
         };
 
+        const managerProfileQuery = createChainableMock({
+          data: { full_name: "Manager Name" },
+          error: null,
+        });
+
         mockSupabaseClient.from.mockImplementation((table: string) => {
           if (table === "profiles") return profileQuery;
           if (table === "store_users") return storeUsersQuery;
           if (table === "shifts") return shiftsQueryHandler;
-          return shiftsQueryHandler;
+          return managerProfileQuery;
         });
 
         const { POST } = await import("@/app/api/shifts/route");
 
         const request = createMockRequest("POST", {
           store_id: STORE_UUID,
-          user_id: USER_UUID_2,
+          user_id: EMPLOYEE_UUID,
           start_time: futureDate.toISOString(),
           end_time: endTime.toISOString(),
         });
@@ -540,6 +685,30 @@ describe("Shifts API Integration Tests", () => {
 
         expect(response.status).toBe(201);
         expect(data.success).toBe(true);
+        expect(data.data).toMatchObject({
+          id: "new-shift-456",
+          store_id: STORE_UUID,
+          user_id: EMPLOYEE_UUID,
+        });
+
+        // Verify INSERT included correct store and user IDs
+        expect(shiftsQueryHandler.insert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            store_id: STORE_UUID,
+            user_id: EMPLOYEE_UUID,
+          }),
+        );
+
+        // Verify audit log recorded the Manager's action
+        expect(mockAuditLog).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            action: "shift.create",
+            storeId: STORE_UUID,
+            resourceType: "shift",
+            resourceId: "new-shift-456",
+          }),
+        );
       });
     });
   });

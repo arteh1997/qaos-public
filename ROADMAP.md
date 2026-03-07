@@ -79,6 +79,10 @@
 
 Lanes 6 (Testing) + 8 (Cleanup/DevOps) — unassigned, picked up as needed.
 
+| ID     | Status |
+| ------ | ------ |
+| QOS-44 | Done   |
+
 ---
 
 ## Social Media & Branding — 8 issues

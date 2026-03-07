@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+// Hoist mock references so they're accessible inside vi.mock factories
+const mockAuditLog = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockAdminClient = vi.hoisted(() => ({
+  from: vi.fn(() => ({
+    insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+  })),
+}));
+
 // Create chainable query builder mock
 function createChainableMock(
   resolvedValue: unknown = { data: null, error: null },
@@ -67,6 +75,14 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabaseClient)),
 }));
 
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => mockAdminClient),
+}));
+
+vi.mock("@/lib/audit", () => ({
+  auditLog: mockAuditLog,
+}));
+
 // Mock rate limit to always allow
 vi.mock("@/lib/rate-limit", () => ({
   rateLimit: vi.fn(() => ({
@@ -86,6 +102,8 @@ vi.mock("@/lib/csrf", () => ({
   validateCSRFToken: vi.fn().mockResolvedValue(true),
   getCSRFToken: vi.fn().mockResolvedValue("test-csrf-token"),
 }));
+
+const STORE_ID = "550e8400-e29b-41d4-a716-446655440000";
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -135,12 +153,12 @@ function setupAuthenticatedUser(role: string) {
     data: [
       {
         id: "su-1",
-        store_id: "550e8400-e29b-41d4-a716-446655440000",
+        store_id: STORE_ID,
         user_id: "user-123",
         role,
         is_billing_owner: role === "Owner",
         store: {
-          id: "550e8400-e29b-41d4-a716-446655440000",
+          id: STORE_ID,
           name: "Test Store",
           is_active: true,
         },
@@ -178,7 +196,7 @@ describe("Inventory API Integration Tests", () => {
     });
 
     describe("Authorized Requests", () => {
-      it("should return inventory items list", async () => {
+      it("should scope query to store_id and return full item list", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Staff");
 
@@ -190,6 +208,7 @@ describe("Inventory API Integration Tests", () => {
               category: "Produce",
               unit_of_measure: "kg",
               is_active: true,
+              store_id: STORE_ID,
             },
             {
               id: "item-2",
@@ -197,6 +216,7 @@ describe("Inventory API Integration Tests", () => {
               category: "Meat",
               unit_of_measure: "kg",
               is_active: true,
+              store_id: STORE_ID,
             },
           ],
           count: 2,
@@ -213,7 +233,7 @@ describe("Inventory API Integration Tests", () => {
         const { GET } = await import("@/app/api/inventory/route");
 
         const request = createMockRequest("GET", undefined, {
-          store_id: "550e8400-e29b-41d4-a716-446655440000",
+          store_id: STORE_ID,
         });
         const response = await GET(request);
         const data = await response.json();
@@ -221,10 +241,18 @@ describe("Inventory API Integration Tests", () => {
         expect(response.status).toBe(200);
         expect(data.success).toBe(true);
         expect(data.data).toHaveLength(2);
-        expect(data.data[0].name).toBe("Tomatoes");
+        // Verify response body contains expected item fields
+        expect(data.data[0]).toMatchObject({
+          id: "item-1",
+          name: "Tomatoes",
+          category: "Produce",
+          unit_of_measure: "kg",
+        });
+        // Verify multi-tenant store_id filter was applied
+        expect(inventoryQuery.eq).toHaveBeenCalledWith("store_id", STORE_ID);
       });
 
-      it("should include pagination metadata", async () => {
+      it("should return pagination metadata with correct totals", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Staff");
 
@@ -243,7 +271,7 @@ describe("Inventory API Integration Tests", () => {
         const { GET } = await import("@/app/api/inventory/route");
 
         const request = createMockRequest("GET", undefined, {
-          store_id: "550e8400-e29b-41d4-a716-446655440000",
+          store_id: STORE_ID,
           page: "1",
           pageSize: "10",
         });
@@ -251,12 +279,19 @@ describe("Inventory API Integration Tests", () => {
         const data = await response.json();
 
         expect(response.status).toBe(200);
-        expect(data.pagination).toBeDefined();
+        expect(data.pagination).toMatchObject({
+          page: 1,
+          pageSize: 10,
+          totalItems: 1,
+          totalPages: 1,
+          hasNext: false,
+          hasPrev: false,
+        });
       });
     });
 
     describe("Filtering", () => {
-      it("should filter by search term", async () => {
+      it("should apply ilike search filter across name and category columns", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Staff");
 
@@ -275,7 +310,7 @@ describe("Inventory API Integration Tests", () => {
         const { GET } = await import("@/app/api/inventory/route");
 
         const request = createMockRequest("GET", undefined, {
-          store_id: "550e8400-e29b-41d4-a716-446655440000",
+          store_id: STORE_ID,
           search: "tomato",
         });
         const response = await GET(request);
@@ -283,9 +318,13 @@ describe("Inventory API Integration Tests", () => {
 
         expect(response.status).toBe(200);
         expect(data.data).toHaveLength(1);
+        // Verify the or() filter was applied with ilike pattern for name and category
+        expect(inventoryQuery.or).toHaveBeenCalledWith(
+          expect.stringMatching(/ilike.*tomato/i),
+        );
       });
 
-      it("should filter by category", async () => {
+      it("should apply eq filter for category column", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Staff");
 
@@ -304,7 +343,7 @@ describe("Inventory API Integration Tests", () => {
         const { GET } = await import("@/app/api/inventory/route");
 
         const request = createMockRequest("GET", undefined, {
-          store_id: "550e8400-e29b-41d4-a716-446655440000",
+          store_id: STORE_ID,
           category: "Meat",
         });
         const response = await GET(request);
@@ -312,6 +351,8 @@ describe("Inventory API Integration Tests", () => {
 
         expect(response.status).toBe(200);
         expect(data.data[0].category).toBe("Meat");
+        // Verify category eq filter was applied
+        expect(inventoryQuery.eq).toHaveBeenCalledWith("category", "Meat");
       });
     });
   });
@@ -358,6 +399,7 @@ describe("Inventory API Integration Tests", () => {
         const { POST } = await import("@/app/api/inventory/route");
 
         const request = createMockRequest("POST", {
+          store_id: STORE_ID,
           unit_of_measure: "kg",
           is_active: true,
         });
@@ -383,6 +425,7 @@ describe("Inventory API Integration Tests", () => {
 
         const request = createMockRequest("POST", {
           name: "Valid Name",
+          unit_of_measure: "kg",
           is_active: true,
         });
         const response = await POST(request);
@@ -394,7 +437,7 @@ describe("Inventory API Integration Tests", () => {
     });
 
     describe("Duplicate Detection", () => {
-      it("should return 400 if item name already exists", async () => {
+      it("should return 400 if item name already exists in the store", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Owner");
 
@@ -414,7 +457,7 @@ describe("Inventory API Integration Tests", () => {
         const { POST } = await import("@/app/api/inventory/route");
 
         const request = createMockRequest("POST", {
-          store_id: "550e8400-e29b-41d4-a716-446655440000",
+          store_id: STORE_ID,
           name: "Existing Item",
           unit_of_measure: "kg",
           is_active: true,
@@ -428,20 +471,19 @@ describe("Inventory API Integration Tests", () => {
     });
 
     describe("Successful Creation", () => {
-      it("should create inventory item for Owner", async () => {
+      it("should insert item with store_id and write audit log for Owner", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Owner");
 
-        // First call returns null (no existing), second returns created item
         let callCount = 0;
         const inventoryQuery = createChainableMock();
         inventoryQuery.single = vi.fn().mockImplementation(() => {
           callCount++;
           if (callCount === 1) {
-            // First call: check for existing
+            // First call: check for existing (none found)
             return Promise.resolve({ data: null, error: { code: "PGRST116" } });
           }
-          // Second call: insert result
+          // Second call: inserted item
           return Promise.resolve({
             data: {
               id: "new-item-123",
@@ -449,7 +491,8 @@ describe("Inventory API Integration Tests", () => {
               category: "Produce",
               unit_of_measure: "kg",
               is_active: true,
-              created_at: new Date().toISOString(),
+              store_id: STORE_ID,
+              created_at: "2026-01-01T00:00:00Z",
             },
             error: null,
           });
@@ -465,7 +508,7 @@ describe("Inventory API Integration Tests", () => {
         const { POST } = await import("@/app/api/inventory/route");
 
         const request = createMockRequest("POST", {
-          store_id: "550e8400-e29b-41d4-a716-446655440000",
+          store_id: STORE_ID,
           name: "New Ingredient",
           category: "Produce",
           unit_of_measure: "kg",
@@ -476,10 +519,43 @@ describe("Inventory API Integration Tests", () => {
 
         expect(response.status).toBe(201);
         expect(data.success).toBe(true);
-        expect(data.data.name).toBe("New Ingredient");
+        // Verify response body contains full item with store_id
+        expect(data.data).toMatchObject({
+          id: "new-item-123",
+          name: "New Ingredient",
+          category: "Produce",
+          unit_of_measure: "kg",
+          store_id: STORE_ID,
+        });
+
+        // Verify INSERT included store_id for multi-tenant isolation
+        expect(inventoryQuery.insert).toHaveBeenCalledWith(
+          expect.objectContaining({
+            store_id: STORE_ID,
+            name: "New Ingredient",
+            unit_of_measure: "kg",
+            is_active: true,
+          }),
+        );
+
+        // Verify audit log was written with correct action, store, and resource metadata
+        expect(mockAuditLog).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            action: "inventory.item_create",
+            storeId: STORE_ID,
+            resourceType: "inventory_item",
+            resourceId: "new-item-123",
+            details: expect.objectContaining({
+              itemName: "New Ingredient",
+              category: "Produce",
+              unit: "kg",
+            }),
+          }),
+        );
       });
 
-      it("should create inventory item for Manager", async () => {
+      it("should insert item with store_id and write audit log for Manager", async () => {
         const { profileQuery, storeUsersQuery } =
           setupAuthenticatedUser("Manager");
 
@@ -496,6 +572,7 @@ describe("Inventory API Integration Tests", () => {
               name: "Manager Created Item",
               unit_of_measure: "units",
               is_active: true,
+              store_id: STORE_ID,
             },
             error: null,
           });
@@ -510,7 +587,7 @@ describe("Inventory API Integration Tests", () => {
         const { POST } = await import("@/app/api/inventory/route");
 
         const request = createMockRequest("POST", {
-          store_id: "550e8400-e29b-41d4-a716-446655440000",
+          store_id: STORE_ID,
           name: "Manager Created Item",
           unit_of_measure: "units",
           is_active: true,
@@ -520,6 +597,27 @@ describe("Inventory API Integration Tests", () => {
 
         expect(response.status).toBe(201);
         expect(data.success).toBe(true);
+        expect(data.data).toMatchObject({
+          id: "new-item-456",
+          name: "Manager Created Item",
+          store_id: STORE_ID,
+        });
+
+        // Verify INSERT included store_id
+        expect(inventoryQuery.insert).toHaveBeenCalledWith(
+          expect.objectContaining({ store_id: STORE_ID }),
+        );
+
+        // Verify audit log recorded the Manager's action
+        expect(mockAuditLog).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            action: "inventory.item_create",
+            storeId: STORE_ID,
+            resourceType: "inventory_item",
+            resourceId: "new-item-456",
+          }),
+        );
       });
     });
   });
