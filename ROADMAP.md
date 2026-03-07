@@ -14,7 +14,7 @@
 | QOS-73  | Done    |
 | QOS-74  | Done    |
 | QOS-211 | Done    |
-| QOS-212 | Backlog |
+| QOS-212 | Done    |
 | QOS-213 | Backlog |
 
 ### Lane 3: Billing & Payments
