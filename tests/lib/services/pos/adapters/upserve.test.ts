@@ -317,13 +317,28 @@ describe("upserveAdapter", () => {
       expect(event?.items[0].pos_item_name).toBe("Soup");
     });
 
-    it("preserves zero quantity for comped items", () => {
+    it("preserves zero quantity and zero price for comped items", () => {
       const event = upserveAdapter.normalizeEvent({
         orderId: "ORD-54",
+        total: 0,
         items: [{ id: "I1", name: "Comped Wine", quantity: 0, price: 0 }],
       });
 
       expect(event?.items[0].quantity).toBe(0);
+      expect(event?.items[0].unit_price).toBe(0);
+      expect(event?.total_amount).toBe(0);
+    });
+
+    it("returns null for null payload", () => {
+      expect(upserveAdapter.normalizeEvent(null)).toBeNull();
+    });
+
+    it("returns null for undefined payload", () => {
+      expect(upserveAdapter.normalizeEvent(undefined)).toBeNull();
+    });
+
+    it("returns null for primitive payload", () => {
+      expect(upserveAdapter.normalizeEvent("not an object")).toBeNull();
     });
   });
 });

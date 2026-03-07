@@ -21,9 +21,9 @@ function mapOrderToEvent(order: Record<string, unknown>): PosSaleEvent {
       pos_item_name:
         (item.name as string) || (item.itemName as string) || "Unknown",
       quantity: item.quantity != null ? Number(item.quantity) : 1,
-      unit_price: item.price ? Number(item.price) / 100 : undefined,
+      unit_price: item.price != null ? Number(item.price) / 100 : undefined,
     })),
-    total_amount: order.total ? Number(order.total) / 100 : undefined,
+    total_amount: order.total != null ? Number(order.total) / 100 : undefined,
     currency: "USD",
     occurred_at:
       (order.createdAt as string) ||
@@ -111,6 +111,7 @@ export const upserveAdapter: PosProviderAdapter = {
   },
 
   normalizeEvent(rawPayload: unknown): PosSaleEvent | null {
+    if (!rawPayload || typeof rawPayload !== "object") return null;
     const body = rawPayload as Record<string, unknown>;
     if (
       !(body.orderId as string) &&
@@ -176,7 +177,7 @@ export const upserveAdapter: PosProviderAdapter = {
       pos_item_id: String(item.id),
       pos_item_name: (item.name as string) || "Unknown",
       category: (item.category as string) || undefined,
-      price: item.price ? Number(item.price) / 100 : undefined,
+      price: item.price != null ? Number(item.price) / 100 : undefined,
       currency: "USD",
     }));
   },
