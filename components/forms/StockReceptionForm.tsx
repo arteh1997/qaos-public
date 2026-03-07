@@ -91,7 +91,6 @@ export function StockReceptionForm({
         isEditing: false,
       }));
 
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time async seed guarded by ref
       setReceptionItems(items);
     }
   }, [inventoryLoading, inventory, storeId]);

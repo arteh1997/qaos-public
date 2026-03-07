@@ -160,7 +160,6 @@ export function StoreSubscriptionList({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasPaymentMethod, unsubscribedIds]);
 
   const getTrialDaysRemaining = (sub: SubscriptionWithStore) => {

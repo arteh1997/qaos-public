@@ -174,7 +174,6 @@ export function StockCountForm({ storeId, onSuccess }: StockCountFormProps) {
         isEditing: false,
       }));
 
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time async seed guarded by ref
       setCountItems(items);
     }
   }, [inventoryLoading, inventory, storeId]);
