@@ -1,317 +1,429 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe/config'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { syncSubscriptionToDatabase, logBillingEvent } from '@/lib/stripe/server'
-import { sendPaymentFailureEmail, sendTrialEndingEmail } from '@/lib/email'
-import { debugLog, debugError } from '@/lib/debug'
+import { NextRequest, NextResponse } from "next/server";
+import { stripe } from "@/lib/stripe/config";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  syncSubscriptionToDatabase,
+  logBillingEvent,
+} from "@/lib/stripe/server";
+import { sendPaymentFailureEmail, sendTrialEndingEmail } from "@/lib/email";
+import { DUNNING_GRACE_PERIOD_DAYS } from "@/lib/stripe/billing-config";
+import { debugLog, debugError } from "@/lib/debug";
 import {
   getSubscriptionFromInvoice,
   handleDisputeEvent,
-} from '@/lib/services/billingEventHandlers'
-import { sendNotification } from '@/lib/services/notifications'
-import Stripe from 'stripe'
+} from "@/lib/services/billingEventHandlers";
+import { sendNotification } from "@/lib/services/notifications";
+import Stripe from "stripe";
 
 /**
  * POST /api/billing/webhook
  * Handle Stripe webhook events
  */
 export async function POST(request: NextRequest) {
-  const payload = await request.text()
-  const signature = request.headers.get('stripe-signature')
+  const payload = await request.text();
+  const signature = request.headers.get("stripe-signature");
 
   if (!signature) {
-    return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
+    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
-  let event: Stripe.Event
+  let event: Stripe.Event;
 
   try {
     event = stripe.webhooks.constructEvent(
       payload,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET || ''
-    )
+      process.env.STRIPE_WEBHOOK_SECRET || "",
+    );
   } catch (err) {
-    debugError('Webhook', 'Signature verification failed:', err)
-    return NextResponse.json(
-      { error: 'Invalid signature' },
-      { status: 400 }
-    )
+    debugError("Webhook", "Signature verification failed:", err);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const supabaseAdmin = createAdminClient()
+  const supabaseAdmin = createAdminClient();
 
   try {
     // SECURITY: Check if this event has already been processed
     // Stripe may retry webhooks on timeout, so we deduplicate by event ID
     const { data: existingEvent } = await supabaseAdmin
-      .from('billing_events')
-      .select('id')
-      .eq('stripe_event_id', event.id)
-      .single()
+      .from("billing_events")
+      .select("id")
+      .eq("stripe_event_id", event.id)
+      .single();
 
     if (existingEvent) {
-      debugLog('Webhook', `Event ${event.id} already processed, skipping`)
-      return NextResponse.json({ received: true, duplicate: true }, { status: 200 })
+      debugLog("Webhook", `Event ${event.id} already processed, skipping`);
+      return NextResponse.json(
+        { received: true, duplicate: true },
+        { status: 200 },
+      );
     }
 
     switch (event.type) {
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription
-        const storeId = subscription.metadata?.store_id
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const storeId = subscription.metadata?.store_id;
 
         if (storeId) {
-          await syncSubscriptionToDatabase(subscription, storeId)
-          await logBillingEvent(event.type, storeId, subscription.metadata?.user_id || null, {
-            stripeEventId: event.id,
-            status: subscription.status,
-          })
+          await syncSubscriptionToDatabase(subscription, storeId);
+          await logBillingEvent(
+            event.type,
+            storeId,
+            subscription.metadata?.user_id || null,
+            {
+              stripeEventId: event.id,
+              status: subscription.status,
+            },
+          );
         }
-        break
+        break;
       }
 
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object as Stripe.Subscription
-        const storeId = subscription.metadata?.store_id
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const storeId = subscription.metadata?.store_id;
 
         if (storeId) {
           // Update subscription status to canceled
           await supabaseAdmin
-            .from('subscriptions')
+            .from("subscriptions")
             .update({
-              status: 'canceled',
+              status: "canceled",
               updated_at: new Date().toISOString(),
             })
-            .eq('stripe_subscription_id', subscription.id)
+            .eq("stripe_subscription_id", subscription.id);
 
           // Update store subscription status
           await supabaseAdmin
-            .from('stores')
+            .from("stores")
             .update({
-              subscription_status: 'canceled',
+              subscription_status: "canceled",
               updated_at: new Date().toISOString(),
             })
-            .eq('id', storeId)
+            .eq("id", storeId);
 
-          await logBillingEvent('subscription.deleted', storeId, null, {
+          await logBillingEvent("subscription.deleted", storeId, null, {
             stripeEventId: event.id,
-            status: 'canceled',
-          })
+            status: "canceled",
+          });
 
           // Send subscription cancelled email to billing owner
           const { data: store } = await supabaseAdmin
-            .from('stores')
-            .select('name')
-            .eq('id', storeId)
-            .single()
+            .from("stores")
+            .select("name")
+            .eq("id", storeId)
+            .single();
 
           const { data: billingOwner } = await supabaseAdmin
-            .from('store_users')
-            .select('user_id')
-            .eq('store_id', storeId)
-            .eq('is_billing_owner', true)
-            .single()
+            .from("store_users")
+            .select("user_id")
+            .eq("store_id", storeId)
+            .eq("is_billing_owner", true)
+            .single();
 
           if (billingOwner) {
             const accessUntil = subscription.current_period_end
-              ? new Date(subscription.current_period_end * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-              : 'immediately'
+              ? new Date(
+                  subscription.current_period_end * 1000,
+                ).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })
+              : "immediately";
 
             sendNotification({
-              type: 'subscription_cancelled',
+              type: "subscription_cancelled",
               storeId,
               recipientUserId: billingOwner.user_id,
               data: {
-                storeName: store?.name || 'your store',
+                storeName: store?.name || "your store",
                 accessUntil,
               },
-            }).catch(() => {})
+            }).catch(() => {});
           }
         }
-        break
+        break;
       }
 
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = invoice.subscription as string
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoice.subscription as string;
 
         if (subscriptionId) {
-          const dbSubscription = await getSubscriptionFromInvoice(supabaseAdmin, subscriptionId)
+          const dbSubscription = await getSubscriptionFromInvoice(
+            supabaseAdmin,
+            subscriptionId,
+          );
 
           if (dbSubscription) {
-            await logBillingEvent('invoice.paid', dbSubscription.store_id, dbSubscription.billing_user_id, {
-              stripeEventId: event.id,
-              amountCents: invoice.amount_paid,
-              currency: invoice.currency,
-              status: 'paid',
-              metadata: {
-                invoice_id: invoice.id,
-                invoice_number: invoice.number,
+            await logBillingEvent(
+              "invoice.paid",
+              dbSubscription.store_id,
+              dbSubscription.billing_user_id,
+              {
+                stripeEventId: event.id,
+                amountCents: invoice.amount_paid,
+                currency: invoice.currency,
+                status: "paid",
+                metadata: {
+                  invoice_id: invoice.id,
+                  invoice_number: invoice.number,
+                },
               },
-            })
+            );
 
             // Send payment receipt email to billing owner
             if (dbSubscription.billing_user_id) {
               const { data: paidStore } = await supabaseAdmin
-                .from('stores')
-                .select('name')
-                .eq('id', dbSubscription.store_id)
-                .single()
+                .from("stores")
+                .select("name")
+                .eq("id", dbSubscription.store_id)
+                .single();
 
-              const amountPaid = (invoice.amount_paid || 0) / 100
-              const currency = (invoice.currency || 'gbp').toUpperCase()
-              const formattedAmount = `${currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : ''}${amountPaid.toFixed(2)}`
+              const amountPaid = (invoice.amount_paid || 0) / 100;
+              const currency = (invoice.currency || "gbp").toUpperCase();
+              const formattedAmount = `${currency === "GBP" ? "£" : currency === "USD" ? "$" : currency === "EUR" ? "€" : ""}${amountPaid.toFixed(2)}`;
 
               const periodStart = invoice.period_start
-                ? new Date(invoice.period_start * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                : ''
+                ? new Date(invoice.period_start * 1000).toLocaleDateString(
+                    "en-GB",
+                    { day: "numeric", month: "short", year: "numeric" },
+                  )
+                : "";
               const periodEnd = invoice.period_end
-                ? new Date(invoice.period_end * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                : ''
-              const periodLabel = periodStart && periodEnd ? `${periodStart} – ${periodEnd}` : ''
+                ? new Date(invoice.period_end * 1000).toLocaleDateString(
+                    "en-GB",
+                    { day: "numeric", month: "short", year: "numeric" },
+                  )
+                : "";
+              const periodLabel =
+                periodStart && periodEnd ? `${periodStart} – ${periodEnd}` : "";
 
               sendNotification({
-                type: 'payment_succeeded',
+                type: "payment_succeeded",
                 storeId: dbSubscription.store_id,
                 recipientUserId: dbSubscription.billing_user_id,
                 data: {
-                  storeName: paidStore?.name || 'your store',
+                  storeName: paidStore?.name || "your store",
                   formattedAmount,
                   periodLabel,
                 },
-              }).catch(() => {})
+              }).catch(() => {});
             }
           }
         }
-        break
+        break;
       }
 
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = invoice.subscription as string
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoice.subscription as string;
 
         if (subscriptionId) {
-          const dbSubscription = await getSubscriptionFromInvoice(supabaseAdmin, subscriptionId)
+          const dbSubscription = await getSubscriptionFromInvoice(
+            supabaseAdmin,
+            subscriptionId,
+          );
 
           if (dbSubscription) {
             // Update subscription status
             await supabaseAdmin
-              .from('subscriptions')
+              .from("subscriptions")
               .update({
-                status: 'past_due',
+                status: "past_due",
                 updated_at: new Date().toISOString(),
               })
-              .eq('stripe_subscription_id', subscriptionId)
+              .eq("stripe_subscription_id", subscriptionId);
 
             await supabaseAdmin
-              .from('stores')
+              .from("stores")
               .update({
-                subscription_status: 'past_due',
+                subscription_status: "past_due",
                 updated_at: new Date().toISOString(),
               })
-              .eq('id', dbSubscription.store_id)
+              .eq("id", dbSubscription.store_id);
 
-            await logBillingEvent('invoice.payment_failed', dbSubscription.store_id, dbSubscription.billing_user_id, {
-              stripeEventId: event.id,
-              amountCents: invoice.amount_due,
-              currency: invoice.currency,
-              status: 'failed',
-              metadata: {
-                invoice_id: invoice.id,
-                attempt_count: invoice.attempt_count,
+            await logBillingEvent(
+              "invoice.payment_failed",
+              dbSubscription.store_id,
+              dbSubscription.billing_user_id,
+              {
+                stripeEventId: event.id,
+                amountCents: invoice.amount_due,
+                currency: invoice.currency,
+                status: "failed",
+                metadata: {
+                  invoice_id: invoice.id,
+                  attempt_count: invoice.attempt_count,
+                },
               },
-            })
+            );
 
             // Send email notification to billing owner
             const nextRetryDate = invoice.next_payment_attempt
               ? new Date(invoice.next_payment_attempt * 1000)
-              : undefined
+              : undefined;
 
             const emailResult = await sendPaymentFailureEmail({
               storeId: dbSubscription.store_id,
               attemptCount: invoice.attempt_count || 1,
               amountDue: invoice.amount_due || 0,
-              currency: invoice.currency || 'usd',
+              currency: invoice.currency || "usd",
               nextRetryDate,
-            })
+            });
 
             if (!emailResult.success) {
-              debugError('Webhook', 'Failed to send payment failure email:', emailResult.error)
+              debugError(
+                "Webhook",
+                "Failed to send payment failure email:",
+                emailResult.error,
+              );
               // Don't fail the webhook if email fails - log and continue
             } else {
-              debugLog('Webhook', `Payment failure email sent for store ${dbSubscription.store_id}`)
+              debugLog(
+                "Webhook",
+                `Payment failure email sent for store ${dbSubscription.store_id}`,
+              );
+            }
+
+            // Grace period auto-downgrade: check if first failure was > DUNNING_GRACE_PERIOD_DAYS ago
+            const { data: firstFailure } = await supabaseAdmin
+              .from("billing_events")
+              .select("created_at")
+              .eq("store_id", dbSubscription.store_id)
+              .eq("event_type", "invoice.payment_failed")
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .single();
+
+            if (firstFailure) {
+              const daysSinceFirstFailure = Math.floor(
+                (Date.now() - new Date(firstFailure.created_at).getTime()) /
+                  (24 * 60 * 60 * 1000),
+              );
+
+              if (daysSinceFirstFailure >= DUNNING_GRACE_PERIOD_DAYS) {
+                debugLog(
+                  "Webhook",
+                  `Grace period expired for store ${dbSubscription.store_id} (${daysSinceFirstFailure} days). Canceling subscription.`,
+                );
+
+                await stripe.subscriptions.cancel(subscriptionId);
+
+                await logBillingEvent(
+                  "subscription.grace_period_expired",
+                  dbSubscription.store_id,
+                  dbSubscription.billing_user_id,
+                  {
+                    stripeEventId: event.id,
+                    status: "canceled",
+                    metadata: {
+                      days_past_due: daysSinceFirstFailure,
+                      grace_period_days: DUNNING_GRACE_PERIOD_DAYS,
+                    },
+                  },
+                );
+              }
             }
           }
         }
-        break
+        break;
       }
 
-      case 'customer.subscription.trial_will_end': {
+      case "customer.subscription.trial_will_end": {
         // Sent 3 days before trial ends
-        const subscription = event.data.object as Stripe.Subscription
-        const storeId = subscription.metadata?.store_id
+        const subscription = event.data.object as Stripe.Subscription;
+        const storeId = subscription.metadata?.store_id;
 
         if (storeId) {
-          await logBillingEvent('trial.ending_soon', storeId, subscription.metadata?.user_id || null, {
-            stripeEventId: event.id,
-            status: subscription.status,
-            metadata: {
-              trial_end: subscription.trial_end
-                ? new Date(subscription.trial_end * 1000).toISOString()
-                : null,
+          await logBillingEvent(
+            "trial.ending_soon",
+            storeId,
+            subscription.metadata?.user_id || null,
+            {
+              stripeEventId: event.id,
+              status: subscription.status,
+              metadata: {
+                trial_end: subscription.trial_end
+                  ? new Date(subscription.trial_end * 1000).toISOString()
+                  : null,
+              },
             },
-          })
+          );
 
           // Send email notification to billing owner
           if (subscription.trial_end) {
-            const trialEndsAt = new Date(subscription.trial_end * 1000)
+            const trialEndsAt = new Date(subscription.trial_end * 1000);
 
             const emailResult = await sendTrialEndingEmail({
               storeId,
               trialEndsAt,
-            })
+            });
 
             if (!emailResult.success) {
-              debugError('Webhook', 'Failed to send trial ending email:', emailResult.error)
+              debugError(
+                "Webhook",
+                "Failed to send trial ending email:",
+                emailResult.error,
+              );
               // Don't fail the webhook if email fails - log and continue
             } else {
-              debugLog('Webhook', `Trial ending email sent for store ${storeId}`)
+              debugLog(
+                "Webhook",
+                `Trial ending email sent for store ${storeId}`,
+              );
             }
           }
         }
-        break
+        break;
       }
 
-      case 'charge.dispute.created': {
-        const dispute = event.data.object as Stripe.Dispute
-        await handleDisputeEvent(supabaseAdmin, dispute, 'dispute.created', event.id)
-        break
+      case "charge.dispute.created": {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleDisputeEvent(
+          supabaseAdmin,
+          dispute,
+          "dispute.created",
+          event.id,
+        );
+        break;
       }
 
-      case 'charge.dispute.updated': {
-        const dispute = event.data.object as Stripe.Dispute
-        await handleDisputeEvent(supabaseAdmin, dispute, 'dispute.updated', event.id)
-        break
+      case "charge.dispute.updated": {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleDisputeEvent(
+          supabaseAdmin,
+          dispute,
+          "dispute.updated",
+          event.id,
+        );
+        break;
       }
 
-      case 'charge.dispute.closed': {
-        const dispute = event.data.object as Stripe.Dispute
-        await handleDisputeEvent(supabaseAdmin, dispute, 'dispute.closed', event.id)
-        break
+      case "charge.dispute.closed": {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleDisputeEvent(
+          supabaseAdmin,
+          dispute,
+          "dispute.closed",
+          event.id,
+        );
+        break;
       }
 
       default:
         // Unhandled event type
-        debugLog('Webhook', `Unhandled webhook event type: ${event.type}`)
+        debugLog("Webhook", `Unhandled webhook event type: ${event.type}`);
     }
 
-    return NextResponse.json({ received: true })
+    return NextResponse.json({ received: true });
   } catch (error) {
-    debugError('Webhook', 'Error processing webhook:', error)
+    debugError("Webhook", "Error processing webhook:", error);
     return NextResponse.json(
-      { error: 'Webhook handler failed' },
-      { status: 500 }
-    )
+      { error: "Webhook handler failed" },
+      { status: 500 },
+    );
   }
 }

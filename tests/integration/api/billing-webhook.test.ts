@@ -352,13 +352,15 @@ describe("Billing Webhook API Tests", () => {
           },
         } as unknown as Stripe.Event);
 
-        // Mock needs to handle deduplication check, subscription query, AND update calls
+        // Mock needs to handle deduplication check, subscription query, grace period check, AND update calls
         mockAdminClient.from.mockImplementation((table: string) => ({
           select: vi.fn().mockReturnThis(),
           update: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
           single: vi.fn().mockImplementation(() => {
-            // Deduplication check - no duplicate found
+            // Deduplication check and grace period check
             if (table === "billing_events") {
               return Promise.resolve({
                 data: null,

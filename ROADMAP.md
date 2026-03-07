@@ -21,7 +21,7 @@
 
 | ID     | Status  |
 | ------ | ------- |
-| QOS-37 | Backlog |
+| QOS-37 | Done    |
 | QOS-48 | Backlog |
 | QOS-49 | Backlog |
 
