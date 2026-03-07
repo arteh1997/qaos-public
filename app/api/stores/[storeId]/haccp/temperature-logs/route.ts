@@ -1,19 +1,19 @@
-import { NextRequest } from 'next/server'
-import { withApiAuth, canAccessStore } from '@/lib/api/middleware'
+import { NextRequest } from "next/server";
+import { withApiAuth, canAccessStore } from "@/lib/api/middleware";
 import {
   apiSuccess,
   apiError,
   apiBadRequest,
   apiForbidden,
-} from '@/lib/api/response'
-import { RATE_LIMITS } from '@/lib/rate-limit'
-import { haccpTemperatureLogSchema } from '@/lib/validations/haccp'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { auditLog } from '@/lib/audit'
-import { logger } from '@/lib/logger'
+} from "@/lib/api/response";
+import { RATE_LIMITS } from "@/lib/rate-limit";
+import { haccpTemperatureLogSchema } from "@/lib/validations/haccp";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { auditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 
 interface RouteParams {
-  params: Promise<{ storeId: string }>
+  params: Promise<{ storeId: string }>;
 }
 
 /**
@@ -27,61 +27,67 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { storeId } = await params
+    const { storeId } = await params;
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Owner', 'Manager', 'Staff'],
-      rateLimit: { key: 'api', config: RATE_LIMITS.api },
-    })
+      allowedRoles: ["Owner", "Manager", "Staff"],
+      rateLimit: { key: "api", config: RATE_LIMITS.api },
+    });
 
-    if (!auth.success) return auth.response
-    const { context } = auth
+    if (!auth.success) return auth.response;
+    const { context } = auth;
 
     if (!canAccessStore(context, storeId)) {
-      return apiForbidden('You do not have access to this store', context.requestId)
+      return apiForbidden(
+        "You do not have access to this store",
+        context.requestId,
+      );
     }
 
-    const searchParams = request.nextUrl.searchParams
-    const fromDate = searchParams.get('from')
-    const toDate = searchParams.get('to')
-    const location = searchParams.get('location')
-    const outOfRangeOnly = searchParams.get('out_of_range_only') === 'true'
+    const searchParams = request.nextUrl.searchParams;
+    const fromDate = searchParams.get("from");
+    const toDate = searchParams.get("to");
+    const location = searchParams.get("location");
+    const outOfRangeOnly = searchParams.get("out_of_range_only") === "true";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query = (context.supabase as any)
-      .from('haccp_temperature_logs')
-      .select('*')
-      .eq('store_id', storeId)
-      .order('recorded_at', { ascending: false })
+    let query = context.supabase
+      .from("haccp_temperature_logs")
+      .select("*")
+      .eq("store_id", storeId)
+      .order("recorded_at", { ascending: false });
 
     if (fromDate) {
-      query = query.gte('recorded_at', fromDate)
+      query = query.gte("recorded_at", fromDate);
     }
 
     if (toDate) {
-      query = query.lte('recorded_at', toDate)
+      query = query.lte("recorded_at", toDate);
     }
 
     if (location) {
-      query = query.eq('location_name', location)
+      query = query.eq("location_name", location);
     }
 
     if (outOfRangeOnly) {
-      query = query.eq('is_in_range', false)
+      query = query.eq("is_in_range", false);
     }
 
-    query = query.limit(100)
+    query = query.limit(100);
 
-    const { data, error } = await query
+    const { data, error } = await query;
 
     if (error) {
-      return apiError('Failed to fetch temperature logs')
+      return apiError("Failed to fetch temperature logs");
     }
 
-    return apiSuccess(data, { requestId: context.requestId })
+    return apiSuccess(data, { requestId: context.requestId });
   } catch (error) {
-    logger.error('Error fetching temperature logs:', { error: error })
-    return apiError(error instanceof Error ? error.message : 'Failed to fetch temperature logs')
+    logger.error("Error fetching temperature logs:", { error: error });
+    return apiError(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch temperature logs",
+    );
   }
 }
 
@@ -90,42 +96,51 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { storeId } = await params
+    const { storeId } = await params;
 
     const auth = await withApiAuth(request, {
-      allowedRoles: ['Owner', 'Manager', 'Staff'],
-      rateLimit: { key: 'api', config: RATE_LIMITS.api },
+      allowedRoles: ["Owner", "Manager", "Staff"],
+      rateLimit: { key: "api", config: RATE_LIMITS.api },
       requireCSRF: true,
-    })
+    });
 
-    if (!auth.success) return auth.response
-    const { context } = auth
+    if (!auth.success) return auth.response;
+    const { context } = auth;
 
     if (!canAccessStore(context, storeId)) {
-      return apiForbidden('You do not have access to this store', context.requestId)
+      return apiForbidden(
+        "You do not have access to this store",
+        context.requestId,
+      );
     }
 
-    const body = await request.json()
-    const validation = haccpTemperatureLogSchema.safeParse(body)
+    const body = await request.json();
+    const validation = haccpTemperatureLogSchema.safeParse(body);
 
     if (!validation.success) {
       return apiBadRequest(
-        validation.error.issues.map(e => e.message).join(', '),
-        context.requestId
-      )
+        validation.error.issues.map((e) => e.message).join(", "),
+        context.requestId,
+      );
     }
 
-    const { location_name, temperature_celsius, min_temp, max_temp, corrective_action } = validation.data
+    const {
+      location_name,
+      temperature_celsius,
+      min_temp,
+      max_temp,
+      corrective_action,
+    } = validation.data;
 
     // Compute whether temperature is within range
-    let is_in_range = true
+    let is_in_range = true;
     if (min_temp != null && max_temp != null) {
-      is_in_range = temperature_celsius >= min_temp && temperature_celsius <= max_temp
+      is_in_range =
+        temperature_celsius >= min_temp && temperature_celsius <= max_temp;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (context.supabase as any)
-      .from('haccp_temperature_logs')
+    const { data, error } = await context.supabase
+      .from("haccp_temperature_logs")
       .insert({
         store_id: storeId,
         location_name,
@@ -138,19 +153,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         recorded_at: new Date().toISOString(),
       })
       .select()
-      .single()
+      .single();
 
     if (error) {
-      return apiError('Failed to log temperature')
+      return apiError("Failed to log temperature");
     }
 
-    const admin = createAdminClient()
+    const admin = createAdminClient();
     await auditLog(admin, {
       userId: context.user.id,
       userEmail: context.user.email,
-      action: 'haccp.temperature_log',
+      action: "haccp.temperature_log",
       storeId,
-      resourceType: 'haccp_temperature_log',
+      resourceType: "haccp_temperature_log",
       resourceId: data.id,
       details: {
         locationName: location_name,
@@ -160,11 +175,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         maxTemp: max_temp ?? null,
       },
       request,
-    })
+    });
 
-    return apiSuccess(data, { requestId: context.requestId, status: 201 })
+    return apiSuccess(data, { requestId: context.requestId, status: 201 });
   } catch (error) {
-    logger.error('Error logging temperature:', { error: error })
-    return apiError(error instanceof Error ? error.message : 'Failed to log temperature')
+    logger.error("Error logging temperature:", { error: error });
+    return apiError(
+      error instanceof Error ? error.message : "Failed to log temperature",
+    );
   }
 }
