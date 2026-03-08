@@ -133,10 +133,10 @@ export async function createSubscription(
   const priceId = await getOrCreatePrice(billingCurrency);
 
   // Check for volume discount based on user's active store count
-  const couponId = await getVolumeDiscountCoupon(userId);
+  const couponId = await getVolumeDiscountCoupon(userId, storeId);
 
   // Create subscription with trial (idempotency key prevents duplicate subscriptions)
-  const idempotencyKey = `create-sub-${storeId}-${userId}`;
+  const idempotencyKey = `create-sub-${storeId}-${Date.now()}`;
   const subscription = await stripe.subscriptions.create(
     {
       customer: customerId,
@@ -167,10 +167,13 @@ export async function createSubscription(
  * Get or create a Stripe coupon for volume discount based on user's active store count.
  * Returns the coupon ID if the user qualifies, or null if no discount applies.
  */
-async function getVolumeDiscountCoupon(userId: string): Promise<string | null> {
+async function getVolumeDiscountCoupon(
+  userId: string,
+  newStoreId: string,
+): Promise<string | null> {
   const supabaseAdmin = createAdminClient();
 
-  // Count user's active subscriptions (including the one being created)
+  // Count user's existing active subscriptions (excluding the store being created)
   const { data: activeStores, error } = await supabaseAdmin
     .from("store_users")
     .select("store_id, store:stores!inner(subscription_status)")
@@ -183,9 +186,11 @@ async function getVolumeDiscountCoupon(userId: string): Promise<string | null> {
     );
   }
 
-  // Count stores with active/trialing subscriptions + 1 for the new store
+  // Count stores with active/trialing subscriptions, excluding the new store
+  // to avoid double-counting on retry, then + 1 for the new store
   const activeCount =
     (activeStores || []).filter((s) => {
+      if (s.store_id === newStoreId) return false;
       const store = s.store as unknown as {
         subscription_status: string | null;
       };

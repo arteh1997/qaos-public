@@ -331,4 +331,32 @@ describe("Volume Discount in createSubscription", () => {
       createSubscription("cus_123", "pm_123", "store_new", "user_1", "GBP"),
     ).rejects.toThrow("Failed to query active stores for volume discount");
   });
+
+  it("should exclude the current store from count to avoid double-counting on retry", async () => {
+    // 5 stores returned, but one is "store_new" (the store being created).
+    // After excluding it: 4 active + 1 new = 5 → 10% discount
+    // Without exclusion: 5 active + 1 = 6 → still 10%, so use a case at the boundary.
+    // 4 stores returned including "store_new" → excluding: 3 + 1 = 4 (no discount)
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "store_users") {
+        return buildStoreUsersChain([
+          { store_id: "s1", store: { subscription_status: "active" } },
+          { store_id: "s2", store: { subscription_status: "active" } },
+          { store_id: "s3", store: { subscription_status: "active" } },
+          { store_id: "store_new", store: { subscription_status: "trialing" } },
+        ]);
+      }
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() };
+    });
+
+    const { createSubscription } = await import("@/lib/stripe/server");
+    await createSubscription("cus_123", "pm_123", "store_new", "user_1", "GBP");
+
+    // 3 (excluding store_new) + 1 = 4, below 5-store threshold → no coupon
+    expect(mockStripe.coupons.retrieve).not.toHaveBeenCalled();
+    expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
+      expect.not.objectContaining({ coupon: expect.any(String) }),
+      expect.any(Object),
+    );
+  });
 });
