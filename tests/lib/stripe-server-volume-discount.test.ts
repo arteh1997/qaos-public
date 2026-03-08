@@ -48,22 +48,33 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 /**
- * Build a chainable Supabase mock that resolves to `data` after
- * the expected number of `.eq()` calls.
+ * Build a chainable Supabase mock that resolves to `{ data, error }` after
+ * the expected number of `.eq()` calls. Also records the arguments passed
+ * to each `.eq()` call for assertion.
  */
-function buildStoreUsersChain(data: unknown[]) {
-  const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-  let eqCallCount = 0;
+function buildStoreUsersChain(
+  data: unknown[],
+  error: { message: string } | null = null,
+) {
+  const eqCalls: Array<[string, unknown]> = [];
+  const chain: Record<string, ReturnType<typeof vi.fn>> & {
+    _eqCalls: Array<[string, unknown]>;
+  } = { _eqCalls: eqCalls } as never;
   chain.select = vi.fn().mockReturnValue(chain);
-  chain.eq = vi.fn().mockImplementation(() => {
-    eqCallCount++;
-    // After both .eq("user_id", …) and .eq("is_billing_owner", …)
-    if (eqCallCount >= 2) {
-      return Promise.resolve({ data });
+  chain.eq = vi.fn().mockImplementation((field: string, value: unknown) => {
+    eqCalls.push([field, value]);
+    if (eqCalls.length >= 2) {
+      return Promise.resolve({ data: error ? null : data, error });
     }
     return chain;
   });
   return chain;
+}
+
+function stripeError(code: string, message: string) {
+  const err = new Error(message) as Error & { code: string };
+  err.code = code;
+  return err;
 }
 
 describe("Volume Discount in createSubscription", () => {
@@ -121,6 +132,7 @@ describe("Volume Discount in createSubscription", () => {
     expect(mockStripe.coupons.retrieve).not.toHaveBeenCalled();
     expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
       expect.not.objectContaining({ coupon: expect.any(String) }),
+      expect.any(Object),
     );
   });
 
@@ -146,6 +158,7 @@ describe("Volume Discount in createSubscription", () => {
     expect(mockStripe.coupons.retrieve).toHaveBeenCalledWith("volume-10pct");
     expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
       expect.objectContaining({ coupon: "volume-10pct" }),
+      expect.any(Object),
     );
   });
 
@@ -163,7 +176,9 @@ describe("Volume Discount in createSubscription", () => {
       return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() };
     });
 
-    mockStripe.coupons.retrieve.mockRejectedValue(new Error("No such coupon"));
+    mockStripe.coupons.retrieve.mockRejectedValue(
+      stripeError("resource_missing", "No such coupon"),
+    );
     mockStripe.coupons.create.mockResolvedValue({ id: "volume-20pct" });
 
     const { createSubscription } = await import("@/lib/stripe/server");
@@ -178,6 +193,7 @@ describe("Volume Discount in createSubscription", () => {
     });
     expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
       expect.objectContaining({ coupon: "volume-20pct" }),
+      expect.any(Object),
     );
   });
 
@@ -195,7 +211,9 @@ describe("Volume Discount in createSubscription", () => {
       return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() };
     });
 
-    mockStripe.coupons.retrieve.mockRejectedValue(new Error("Not found"));
+    mockStripe.coupons.retrieve.mockRejectedValue(
+      stripeError("resource_missing", "Not found"),
+    );
     mockStripe.coupons.create.mockResolvedValue({ id: "volume-10pct" });
 
     const { createSubscription } = await import("@/lib/stripe/server");
@@ -209,13 +227,76 @@ describe("Volume Discount in createSubscription", () => {
     });
   });
 
-  it("should only count stores where user is billing owner", async () => {
-    // Only 1 billing-owner store + 1 new = 2, below threshold
+  it("should propagate non-resource_missing errors from coupon retrieve", async () => {
+    // 4 active + 1 new = 5 → qualifies for discount, but retrieve fails with auth error
     mockFrom.mockImplementation((table: string) => {
       if (table === "store_users") {
-        return buildStoreUsersChain([
+        return buildStoreUsersChain(
+          Array.from({ length: 4 }, (_, i) => ({
+            store_id: `s${i}`,
+            store: { subscription_status: "active" },
+          })),
+        );
+      }
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() };
+    });
+
+    mockStripe.coupons.retrieve.mockRejectedValue(
+      stripeError("api_key_expired", "Your API key has expired"),
+    );
+
+    const { createSubscription } = await import("@/lib/stripe/server");
+    await expect(
+      createSubscription("cus_123", "pm_123", "store_new", "user_1", "GBP"),
+    ).rejects.toThrow("Your API key has expired");
+
+    expect(mockStripe.coupons.create).not.toHaveBeenCalled();
+  });
+
+  it("should handle race condition where coupon is created concurrently", async () => {
+    // 4 active + 1 new = 5 → qualifies for discount
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "store_users") {
+        return buildStoreUsersChain(
+          Array.from({ length: 4 }, (_, i) => ({
+            store_id: `s${i}`,
+            store: { subscription_status: "active" },
+          })),
+        );
+      }
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() };
+    });
+
+    // Retrieve says missing, but create fails because another request created it first
+    mockStripe.coupons.retrieve.mockRejectedValue(
+      stripeError("resource_missing", "Not found"),
+    );
+    mockStripe.coupons.create.mockRejectedValue(
+      stripeError("resource_already_exists", "Coupon already exists"),
+    );
+
+    const { createSubscription } = await import("@/lib/stripe/server");
+    // Should succeed — the coupon exists now, so we use it
+    await createSubscription("cus_123", "pm_123", "store_new", "user_1", "GBP");
+
+    expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
+      expect.objectContaining({ coupon: "volume-10pct" }),
+      expect.any(Object),
+    );
+  });
+
+  it("should filter by is_billing_owner and only count those stores", async () => {
+    // Mock returns 6 stores total, but we verify the query filters correctly.
+    // The key assertion is that .eq() is called with "is_billing_owner" and true.
+    let capturedChain: ReturnType<typeof buildStoreUsersChain> | null = null;
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "store_users") {
+        // Return only 1 store (simulating that the billing-owner filter excluded the rest)
+        capturedChain = buildStoreUsersChain([
           { store_id: "s1", store: { subscription_status: "active" } },
         ]);
+        return capturedChain;
       }
       return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() };
     });
@@ -223,10 +304,31 @@ describe("Volume Discount in createSubscription", () => {
     const { createSubscription } = await import("@/lib/stripe/server");
     await createSubscription("cus_123", "pm_123", "store_new", "user_1", "GBP");
 
+    // Verify the query explicitly filters by is_billing_owner = true
+    expect(capturedChain!._eqCalls).toEqual([
+      ["user_id", "user_1"],
+      ["is_billing_owner", true],
+    ]);
+
     // 1 active + 1 new = 2, below threshold → no coupon
     expect(mockStripe.coupons.retrieve).not.toHaveBeenCalled();
     expect(mockStripe.subscriptions.create).toHaveBeenCalledWith(
       expect.not.objectContaining({ coupon: expect.any(String) }),
+      expect.any(Object),
     );
+  });
+
+  it("should throw when Supabase query fails", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "store_users") {
+        return buildStoreUsersChain([], { message: "connection refused" });
+      }
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis() };
+    });
+
+    const { createSubscription } = await import("@/lib/stripe/server");
+    await expect(
+      createSubscription("cus_123", "pm_123", "store_new", "user_1", "GBP"),
+    ).rejects.toThrow("Failed to query active stores for volume discount");
   });
 });

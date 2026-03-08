@@ -135,26 +135,30 @@ export async function createSubscription(
   // Check for volume discount based on user's active store count
   const couponId = await getVolumeDiscountCoupon(userId);
 
-  // Create subscription with trial
-  const subscription = await stripe.subscriptions.create({
-    customer: customerId,
-    items: [{ price: priceId }],
-    default_payment_method: resolvedPaymentMethodId,
-    trial_period_days: BILLING_CONFIG.TRIAL_DAYS,
-    payment_behavior: "default_incomplete",
-    payment_settings: {
-      save_default_payment_method: "on_subscription",
+  // Create subscription with trial (idempotency key prevents duplicate subscriptions)
+  const idempotencyKey = `create-sub-${storeId}-${userId}`;
+  const subscription = await stripe.subscriptions.create(
+    {
+      customer: customerId,
+      items: [{ price: priceId }],
+      default_payment_method: resolvedPaymentMethodId,
+      trial_period_days: BILLING_CONFIG.TRIAL_DAYS,
+      payment_behavior: "default_incomplete",
+      payment_settings: {
+        save_default_payment_method: "on_subscription",
+      },
+      ...(couponId ? { coupon: couponId } : {}),
+      metadata: {
+        store_id: storeId,
+        user_id: userId,
+        currency: billingCurrency.toUpperCase(),
+        card_country: cardCountry || "unknown",
+        store_currency: (currency || "GBP").toUpperCase(),
+      },
+      expand: ["latest_invoice.payment_intent"],
     },
-    ...(couponId ? { coupon: couponId } : {}),
-    metadata: {
-      store_id: storeId,
-      user_id: userId,
-      currency: billingCurrency.toUpperCase(),
-      card_country: cardCountry || "unknown",
-      store_currency: (currency || "GBP").toUpperCase(),
-    },
-    expand: ["latest_invoice.payment_intent"],
-  });
+    { idempotencyKey },
+  );
 
   return subscription;
 }
@@ -167,11 +171,17 @@ async function getVolumeDiscountCoupon(userId: string): Promise<string | null> {
   const supabaseAdmin = createAdminClient();
 
   // Count user's active subscriptions (including the one being created)
-  const { data: activeStores } = await supabaseAdmin
+  const { data: activeStores, error } = await supabaseAdmin
     .from("store_users")
     .select("store_id, store:stores!inner(subscription_status)")
     .eq("user_id", userId)
     .eq("is_billing_owner", true);
+
+  if (error) {
+    throw new Error(
+      `Failed to query active stores for volume discount: ${error.message}`,
+    );
+  }
 
   // Count stores with active/trialing subscriptions + 1 for the new store
   const activeCount =
@@ -194,14 +204,27 @@ async function getVolumeDiscountCoupon(userId: string): Promise<string | null> {
   try {
     await stripe.coupons.retrieve(couponId);
     return couponId;
-  } catch {
-    // Coupon doesn't exist — create it
-    await stripe.coupons.create({
-      id: couponId,
-      percent_off: discount.discountPercent,
-      duration: "forever",
-      name: `Volume Discount: ${discount.label}`,
-    });
+  } catch (err) {
+    // Only create if coupon is genuinely missing; re-throw auth/network/rate-limit errors
+    const stripeErr = err as Stripe.errors.StripeError;
+    if (stripeErr.code !== "resource_missing") {
+      throw err;
+    }
+
+    try {
+      await stripe.coupons.create({
+        id: couponId,
+        percent_off: discount.discountPercent,
+        duration: "forever",
+        name: `Volume Discount: ${discount.label}`,
+      });
+    } catch (createErr) {
+      // Handle race condition: another request created the coupon between retrieve and create
+      const createStripeErr = createErr as Stripe.errors.StripeError;
+      if (createStripeErr.code !== "resource_already_exists") {
+        throw createErr;
+      }
+    }
     return couponId;
   }
 }
@@ -435,9 +458,9 @@ export async function logBillingEvent(
     event_type: eventType,
     store_id: storeId,
     user_id: userId,
-    subscription_id: data.subscriptionId || null,
-    stripe_event_id: data.stripeEventId || null,
-    amount_cents: data.amountCents || null,
+    subscription_id: data.subscriptionId ?? null,
+    stripe_event_id: data.stripeEventId ?? null,
+    amount_cents: data.amountCents ?? null,
     currency: data.currency || "gbp",
     status: data.status || null,
     metadata: data.metadata ?? {},
