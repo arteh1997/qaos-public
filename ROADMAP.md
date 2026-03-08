@@ -19,11 +19,11 @@
 
 ### Lane 3: Billing & Payments
 
-| ID     | Status  |
-| ------ | ------- |
-| QOS-37 | Done    |
-| QOS-48 | Done    |
-| QOS-49 | Backlog |
+| ID     | Status |
+| ------ | ------ |
+| QOS-37 | Done   |
+| QOS-48 | Done   |
+| QOS-49 | Done   |
 
 ### Lane 7: Notifications & PWA
 
